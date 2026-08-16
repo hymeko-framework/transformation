@@ -1,0 +1,20 @@
+[package]
+name = "hymeko_emitter"
+version = "0.1.0"
+edition = "2024"
+description = "Editor-facing IR (slotmap, IRDelta) and M2T emitters (.hymeko, SysML v2, Rust stubs, Lean 4)"
+license = "MIT OR Apache-2.0"
+
+[lib]
+name = "hymeko_emitter"
+crate-type = ["rlib"]
+
+[dependencies]
+hymeko_core = { path = "../hymeko_core" }
+slotmap = { version = "1", features = ["serde"] }
+serde = { workspace = true, features = ["derive"] }
+thiserror = "1"
+
+[dev-dependencies]
+parser = { workspace = true }
+log = { workspace = true }
