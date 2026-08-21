@@ -1,0 +1,16 @@
+# Galambos collaborative grasp — temporal-geometric task spec (Hypergraph Temporal Logic).
+#
+# Per-step reward = the INSTANTANEOUS robustness rho of this formula; every leaf is a signed geometric
+# margin in metres, and AND = min, so rho auto-focuses on the currently-worst subgoal (approach first,
+# then deliver — a natural curriculum). The dense disk_to_zone margin proxies "in zone" so rho gives a
+# gradient (a binary in_zone leaf would be a constant -0.5 that masks the dense terms under the min).
+# The episode-level "was the coin ever delivered" verdict is the separate temporal formula
+# F[0,T](in_zone > 0.5), evaluated by the monitor (HtlRewardSpec.episode_monitor), NOT fed as the reward.
+#
+# Signals (from PlanarGraspMetrics via signals_from_planar): disk_to_zone, approach_l, approach_r,
+# disk_speed (m, m/s); disk_oob (0/1). Thresholds: zone_half=0.055, fingertip touch ~0.06, settle v=0.3.
+disk_to_zone < 0.055
+AND G(disk_oob < 0.5)
+AND approach_l < 0.06
+AND approach_r < 0.06
+AND (disk_to_zone > 0.055 OR disk_speed < 0.3)

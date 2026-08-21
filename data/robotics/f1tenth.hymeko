@@ -1,0 +1,55 @@
+// f1tenth.hymeko — a 1/10-scale autonomous race car (Tamiya F1/10 / F1TENTH platform), in HyMeKo.
+//
+// Unlike the skid-steer robot_4wh and the diff-drive race_car, this is a proper ACKERMANN car — the
+// defining feature of the F1TENTH platform: the two FRONT wheels steer (a vertical steer hinge per side),
+// the two REAR wheels drive. Control interface is the F1TENTH [speed, steering_angle], realised by the env
+// as a 2-D [throttle, steer] action fanned out to the rear-drive + front-steer actuators.
+//
+// Kinematic tree (nested steer→roll on the front):
+//   base_link --@rl / @rr (roll, rear-drive)--> wheel_rl / wheel_rr
+//             --@steer_fl (vertical hinge)--> knuckle_fl --@roll_fl (free roll)--> wheel_fl
+//             --@steer_fr (vertical hinge)--> knuckle_fr --@roll_fr (free roll)--> wheel_fr
+//
+// 1/10 scale: wheelbase 0.32 m (front x=+0.16, rear x=−0.16), track 0.24 m (y=±0.12), wheel radius 0.05 m,
+// mass ~3.4 kg — realistic F1TENTH (no 200 km/h; ~5–10 m/s). The env injects a freejoint on base_link + a
+// floor, converts rear motors→velocity servos + steer motors→position servos, and strips the free-roll
+// front-wheel motors. Validate via `hymeko validate`; compile via hymeko_rl.env.arm_world.emit_arm_mjcf.
+
+f1tenth_description {
+    @"meta_kinematics.hymeko";
+}
+
+f1tenth: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes
+{
+    body_color  [0.10, 0.35, 0.85, 1.0];
+    wheel_color [0.05, 0.05, 0.05, 1.0];
+    knuckle_color [0.6, 0.6, 0.6, 1.0];
+
+    // Low chassis (1/10 scale). CG low; wheels radius 0.05 mounted at chassis-centre height.
+    base_link: meta_kinematics.kinematics.elements.link {
+        mass 3.0;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.40, 0.18, 0.07]; }
+        visual -> link_geometry; collision -> link_geometry; color -> f1tenth.body_color; origin [0.0, 0.0, 0.0];
+    }
+
+    // Four wheels (radius 0.05 m, half-width 0.025 m).
+    wheel_rl: meta_kinematics.kinematics.elements.link { mass 0.2; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.05, 0.025]; } visual -> link_geometry; collision -> link_geometry; color -> f1tenth.wheel_color; origin [0.0, 0.0, 0.0]; }
+    wheel_rr: meta_kinematics.kinematics.elements.link { mass 0.2; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.05, 0.025]; } visual -> link_geometry; collision -> link_geometry; color -> f1tenth.wheel_color; origin [0.0, 0.0, 0.0]; }
+    wheel_fl: meta_kinematics.kinematics.elements.link { mass 0.2; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.05, 0.025]; } visual -> link_geometry; collision -> link_geometry; color -> f1tenth.wheel_color; origin [0.0, 0.0, 0.0]; }
+    wheel_fr: meta_kinematics.kinematics.elements.link { mass 0.2; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.05, 0.025]; } visual -> link_geometry; collision -> link_geometry; color -> f1tenth.wheel_color; origin [0.0, 0.0, 0.0]; }
+
+    // Steering knuckles (small links between chassis and the front wheels; the steer hinge acts on these).
+    knuckle_fl: meta_kinematics.kinematics.elements.link { mass 0.05; link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.03, 0.03, 0.04]; } visual -> link_geometry; collision -> link_geometry; color -> f1tenth.knuckle_color; origin [0.0, 0.0, 0.0]; }
+    knuckle_fr: meta_kinematics.kinematics.elements.link { mass 0.05; link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.03, 0.03, 0.04]; } visual -> link_geometry; collision -> link_geometry; color -> f1tenth.knuckle_color; origin [0.0, 0.0, 0.0]; }
+
+    // Rear wheels: roll about the lateral axis (drive). AXIS_Z + ±90° euler orients the cylinder to roll forward.
+    @rl: meta_kinematics.kinematics.conti_joint { (+ base_link [[-0.16, -0.12, 0.0], [90.0, 0.0, 0.0]], - wheel_rl, - meta_kinematics.kinematics.axes.AXIS_M_Z); }
+    @rr: meta_kinematics.kinematics.conti_joint { (+ base_link [[-0.16,  0.12, 0.0], [-90.0, 0.0, 0.0]], - wheel_rr, - meta_kinematics.kinematics.axes.AXIS_Z); }
+
+    // Front steering: a vertical (AXIS_Z) hinge from chassis to knuckle (the steer angle) ...
+    @steer_fl: meta_kinematics.kinematics.rev_joint { (+ base_link [[0.16, -0.12, 0.0], [0.0, 0.0, 0.0]], - knuckle_fl, - meta_kinematics.kinematics.axes.AXIS_Z); }
+    @steer_fr: meta_kinematics.kinematics.rev_joint { (+ base_link [[0.16,  0.12, 0.0], [0.0, 0.0, 0.0]], - knuckle_fr, - meta_kinematics.kinematics.axes.AXIS_Z); }
+    // ... then a free roll from knuckle to wheel (rolls about the lateral axis).
+    @roll_fl: meta_kinematics.kinematics.conti_joint { (+ knuckle_fl [[0.0, 0.0, 0.0], [90.0, 0.0, 0.0]], - wheel_fl, - meta_kinematics.kinematics.axes.AXIS_M_Z); }
+    @roll_fr: meta_kinematics.kinematics.conti_joint { (+ knuckle_fr [[0.0, 0.0, 0.0], [-90.0, 0.0, 0.0]], - wheel_fr, - meta_kinematics.kinematics.axes.AXIS_Z); }
+}

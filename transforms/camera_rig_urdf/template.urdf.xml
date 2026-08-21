@@ -1,0 +1,21 @@
+<?xml version="1.0" ?>
+<robot name="{{config:robot_name}}">
+  <link name="world"/>
+{{#each cameras}}
+  <link name="{{name}}_link"/>
+  <joint name="{{name}}_joint" type="fixed">
+    <parent link="world"/>
+    <child link="{{name}}_link"/>
+    <origin xyz="{{field:position}}" rpy="0 0 0"/>
+  </joint>
+  <gazebo reference="{{name}}_link">
+    <sensor name="{{name}}_sensor" type="camera">
+      <always_on>1</always_on>
+      <update_rate>30</update_rate>
+      <camera>
+        <horizontal_fov>{{field:fov}}</horizontal_fov>
+      </camera>
+    </sensor>
+  </gazebo>
+{{/each}}
+</robot>

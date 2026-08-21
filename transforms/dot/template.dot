@@ -1,0 +1,25 @@
+digraph {{config:robot_name}} {
+  rankdir=TB;
+  node [shape=box, style=filled, fillcolor=lightblue, fontname="sans-serif", fontsize=10];
+  edge [fontname="sans-serif", fontsize=9];
+{{#each links}}
+{{#if field:mass}}
+  "{{name}}" [label="{{name}}\n{{field:mass}} kg"];
+{{/if}}
+{{/each}}
+  edge [color=gray, style=dashed];
+{{#each fixed_joints}}
+  "{{bind:+:0}}" -> "{{bind:-:0}}" [label="{{name}} (fixed)", style=dashed];
+{{/each}}
+  edge [color=red, fontcolor=red, style=bold];
+{{#each revolute_joints}}
+  "{{bind:+:0}}" -> "{{bind:-:0}}" [label="{{name}} (revolute)", style=bold];
+{{/each}}
+{{#each continuous_joints}}
+  "{{bind:+:0}}" -> "{{bind:-:0}}" [label="{{name}} (continuous)", style=bold];
+{{/each}}
+  edge [color=blue, fontcolor=blue, style=dotted];
+{{#each prismatic_joints}}
+  "{{bind:+:0}}" -> "{{bind:-:0}}" [label="{{name}} (prismatic)", style=dotted];
+{{/each}}
+}

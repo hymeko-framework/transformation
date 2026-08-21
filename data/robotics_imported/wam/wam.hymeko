@@ -1,0 +1,116 @@
+wam_description {
+    @"meta_kinematics.hymeko";
+    using kinematics.elements as el;
+    using kinematics.geometry as geo;
+    using kinematics.axes as ax;
+    using kinematics.rev_joint as rj;
+    using kinematics.conti_joint as cj;
+    using kinematics.prismatic_joint as pj;
+    using kinematics.fixed_joint as fj;
+}
+
+wam: el, geo, ax
+{
+    world: el.link {
+        mass 1.000000;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000000, 0.000000, 0.000000];
+    }
+    _wam_base: el.link {
+        mass 9.970596;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.215566, 0.261890, 0.345335];
+    }
+    _wam1: el.link {
+        mass 10.767688;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [-0.004434, -0.000665, -0.121890];
+    }
+    _wam2: el.link {
+        mass 3.874938;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [-0.002370, -0.015421, 0.031056];
+    }
+    _wam3: el.link {
+        mass 1.802281;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.006741, 0.000033, 0.342492];
+    }
+    _wam4: el.link {
+        mass 2.400168;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [-0.040015, -0.132717, -0.000229];
+    }
+    _wam5: el.link {
+        mass 0.123760;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000089, 0.004358, 0.294888];
+    }
+    _wam6: el.link {
+        mass 0.417974;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [-0.000123, -0.024683, -0.017032];
+    }
+    _wam7: el.link {
+        mass 0.068648;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [-0.000080, 0.000163, 0.056764];
+    }
+    @_j0: fj {
+        (+ world [[0.000000, 0.000000, 0.000000], [0.000000, 0.000000, 0.000000]],
+         - _wam_base);
+    }
+    @_j1: rj {
+        (+ _wam_base [[0.220000, 0.140000, 0.346000], [-0.000000, 0.000000, 0.000000]],
+         - _wam1,
+         - ax.AXIS_Z);
+    }
+    @_j2: rj {
+        (+ _wam1 [[0.000000, 0.000000, 0.000000], [-1.570800, -0.000000, -0.000000]],
+         - _wam2,
+         - ax.AXIS_Z);
+    }
+    @_j3: rj {
+        (+ _wam2 [[0.000000, 0.000000, 0.000000], [1.570800, -0.000000, 0.000000]],
+         - _wam3,
+         - ax.AXIS_Z);
+    }
+    @_j4: rj {
+        (+ _wam3 [[0.045000, 0.000000, 0.550000], [-1.570800, 0.000000, 0.000000]],
+         - _wam4,
+         - ax.AXIS_Z);
+    }
+    @_j5: rj {
+        (+ _wam4 [[-0.045000, 0.000000, 0.000000], [1.570800, 0.000000, 0.000000]],
+         - _wam5,
+         - ax.AXIS_Z);
+    }
+    @_j6: rj {
+        (+ _wam5 [[0.000000, 0.000000, 0.300000], [-1.570800, 0.000000, 0.000000]],
+         - _wam6,
+         - ax.AXIS_Z);
+    }
+    @_j7: rj {
+        (+ _wam6 [[0.000000, 0.000000, 0.000000], [1.570800, 0.000000, 0.000000]],
+         - _wam7,
+         - ax.AXIS_Z);
+    }
+}

@@ -1,0 +1,32 @@
+// arm_gripper_fanuc_import.hymeko — the FANUC LR Mate-config arm + parallel-jaw gripper, NO duplication.
+// Imports fanuc_lrmate.hymeko and attaches the gripper fingers to its `tool` link via cross-model kinematic
+// composition (`arm.tool`), exactly as arm_gripper_import.hymeko does for the anthropomorphic arm.
+
+arm_gripper_fanuc_description {
+    @"meta_kinematics.hymeko";
+    @"fanuc_lrmate.hymeko";
+    using robot as arm;
+}
+
+arm_gripper: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes, arm
+{
+    finger_color [0.85, 0.45, 0.20, 1.0];
+
+    finger_l: meta_kinematics.kinematics.elements.link {
+        mass 0.1;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.012, 0.036, 0.06]; }
+        visual -> link_geometry; collision -> link_geometry; color -> arm_gripper.finger_color; origin [0.0, 0.0, 0.03];
+    }
+    finger_r: meta_kinematics.kinematics.elements.link {
+        mass 0.1;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.012, 0.036, 0.06]; }
+        visual -> link_geometry; collision -> link_geometry; color -> arm_gripper.finger_color; origin [0.0, 0.0, 0.03];
+    }
+
+    @grip_l: meta_kinematics.kinematics.prismatic_joint {
+        (+ arm.tool [[-0.035, 0.0, 0.06], [0.0, 0.0, 0.0]], - finger_l, - meta_kinematics.kinematics.axes.AXIS_X);
+    }
+    @grip_r: meta_kinematics.kinematics.prismatic_joint {
+        (+ arm.tool [[0.035, 0.0, 0.06], [0.0, 0.0, 0.0]], - finger_r, - meta_kinematics.kinematics.axes.AXIS_X);
+    }
+}

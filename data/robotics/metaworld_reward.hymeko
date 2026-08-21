@@ -1,0 +1,39 @@
+// metaworld_reward.hymeko — HyMeKo declaration of the MetaWorld dense reward as Σ weight·term.
+//
+// Makes HyMeKo the source of truth for the MetaWorld reward (not only physics): the dense reward MetaWorld
+// computes internally is declared here as a weighted bundle of named terms over its exposed reward components
+// (info: in_place_reward, grasp_reward, near_object, obj_to_target). A HyMeKo consumer reconstructs the reward as
+// Σ weight·term and can ABLATE a term (drop / downweight) exactly like the coin Stage-A reward ablation.
+//
+// Self-contained vocabulary (does not import meta_reward.hymeko): each MetaWorld reward component is a typed
+// reward_term; the reward_spec bundle carries the weight on each arc (weights are SEEDS — the fit reports the
+// least-squares values per task; measured fidelity R² ≈ 0.79 coffee-push / 0.85 pick-place / 0.95 push).
+
+metaworld_reward_description {}
+
+reward {
+    @reward_term {}   // a single reward signal (its weight lives on the reward_spec arc)
+    @reward_spec {}   // a bundle of weighted arcs = the scalar reward Σ weight·term
+
+    terms {
+        // +weight·in_place_reward — MetaWorld's dense "object toward target" progress (the dominant term).
+        @mw_in_place: + <isa> reward.reward_term {}
+        // +weight·grasp_reward — MetaWorld's grasp/hold shaping.
+        @mw_grasp:    + <isa> reward.reward_term {}
+        // +weight·near_object — proximity indicator (hand near the object).
+        @mw_near:     + <isa> reward.reward_term {}
+        // -weight·obj_to_target — dense negative distance object→target.
+        @mw_dist:     + <isa> reward.reward_term {}
+    }
+}
+
+metaworld_reward: reward
+{
+    @inplace: reward.terms.mw_in_place {}
+    @grasp:   reward.terms.mw_grasp {}
+    @near:    reward.terms.mw_near {}
+    @dist:    reward.terms.mw_dist {}
+
+    // The reward bundle: Σ weight·term. Weights are SEEDS (deterministic lstsq refits them per task).
+    @mw_reward: reward.reward_spec { (+ inplace 8.0, + grasp 1.2, + near 1.0, + dist 10.0); }
+}

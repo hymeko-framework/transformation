@@ -1,0 +1,13 @@
+sysml_transform {}
+context
+{
+    // Vertices: links — emitted as `part def`-typed instances
+    links: link {}
+
+    // Hyperedges: joints — emitted as `connection`-typed instances.
+    // Per kind so the template can map joint type → SysML connector def.
+    @fixed_joints:      fixed_joint {}
+    @revolute_joints:   rev_joint {}
+    @continuous_joints: conti_joint {}
+    @prismatic_joints:  prismatic_joint {}
+}

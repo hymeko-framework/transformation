@@ -1,0 +1,89 @@
+// HyMeKo description of the Walk-HSiKAN extension — the open-walk
+// sibling of HSiKAN.  Contains both HSiKAN (closed cycles) and
+// SGCN (length-L walks) as special cases.
+//
+//   x (n_nodes × hidden) ─┬→ walk_layer{walk_len=2}  → walk2_emb
+//                         ├→ walk_layer{walk_len=3}  → walk3_emb
+//                         ├→ walk_layer{walk_len=4}  → walk4_emb
+//                         └→ walk_layer{walk_len=5}  → walk5_emb
+//                                                          ↓
+//                                          arity_mixer (learned αₖ)
+//                                                          ↓
+//                                                      edge_emb
+//                                                          ↓
+//                                              signed_classifier
+//                                                          ↓
+//                                                       y (logits)
+//
+// Same factor view as `hsikan_mixed.hymeko` modulo the cycle/walk
+// distinction; the canonical-IR projection keeps them
+// hash-distinct via the layer kind (`walk_layer` vs
+// `signedkan_layer`).
+//
+// Walk enumeration ships at hymeko_py::enumerate_k_walks_rs (the
+// Rust open-walk DFS landed 2026-05-04 alongside this source).
+//
+// Compile (round-trip uses the same torch_dataflow emitter pipeline
+// as hsikan_mixed):
+//   hymeko validate data/nn/walk_hsikan.hymeko
+//   hymeko emit     data/nn/walk_hsikan.hymeko --format torch_dataflow \
+//                   --name WalkHSiKANEmitted -o /tmp/walk_emitted.py
+//
+// Round-trip status: stub-runnable (the same ehk_torch_stub
+// helpers cover walk_layer via the SignedKANLayer fallback once a
+// per-kind template section is added).  Real architectural fidelity
+// (open-walk-aware σ-mask aggregation) is week-long Item #4-final
+// material on `HSIKAN_ROADMAP_2026_05_04.md`.
+
+walk_hsikan_description {
+    @"meta_nn.hymeko";
+    using nn.layers as lyr;
+    using nn.tensors as ten;
+}
+
+walk_hsikan: lyr, ten {
+
+    // ── Tensors ─────────────────────────────────────────────────────
+    x: ten.t_input { shape [16]; }
+
+    walk2_emb: ten.t_activation { shape [16]; }
+    walk3_emb: ten.t_activation { shape [16]; }
+    walk4_emb: ten.t_activation { shape [16]; }
+    walk5_emb: ten.t_activation { shape [16]; }
+
+    edge_emb:  ten.t_activation { shape [16]; }
+    y:         ten.t_output     { shape [1]; }
+
+    // ── Per-walk-length factors ─────────────────────────────────────
+    wk2: lyr.walk_layer {
+        hidden 16; walk_len 2; spline_kind "catmull_rom"; grid 5;
+    }
+    wk3: lyr.walk_layer {
+        hidden 16; walk_len 3; spline_kind "catmull_rom"; grid 5;
+    }
+    wk4: lyr.walk_layer {
+        hidden 16; walk_len 4; spline_kind "catmull_rom"; grid 5;
+    }
+    wk5: lyr.walk_layer {
+        hidden 16; walk_len 5; spline_kind "catmull_rom"; grid 5;
+    }
+
+    // ── Arity mixer (shared with HSiKAN) ───────────────────────────
+    mixer: lyr.arity_mixer { hidden 16; mix_K 4; }
+
+    // ── Classifier ──────────────────────────────────────────────────
+    head: lyr.signed_classifier { d_in 16; d_out 1; }
+
+    // ── Dataflow ────────────────────────────────────────────────────
+    @flow_wk2: lyr.dataflow { (+ x, ~ wk2, - walk2_emb); }
+    @flow_wk3: lyr.dataflow { (+ x, ~ wk3, - walk3_emb); }
+    @flow_wk4: lyr.dataflow { (+ x, ~ wk4, - walk4_emb); }
+    @flow_wk5: lyr.dataflow { (+ x, ~ wk5, - walk5_emb); }
+
+    @flow_mix: lyr.dataflow {
+        (+ walk2_emb, + walk3_emb, + walk4_emb, + walk5_emb,
+         ~ mixer, - edge_emb);
+    }
+
+    @flow_head: lyr.dataflow { (+ edge_emb, ~ head, - y); }
+}

@@ -1,0 +1,52 @@
+// galambos_task_coord.hymeko — the COORDINATION A/B variant of galambos_task.hymeko (2026-07-04).
+//
+// Identical to galambos_task.hymeko except it ADDS one term to the reward bundle:
+//   + both_approach 4.0  — coordination shaping: -max(left,right) fingertip→coin distance.
+//
+// Rationale (measured): the collab off-policy baseline peaks at delivery 0.40 with both_contact ≈ 0.019 —
+// the two arms almost never grip the coin SIMULTANEOUSLY, and the two-arm `coin_frictionloss` mechanism
+// needs simultaneous force. The baseline `grasp_approach` is the MEAN of the two arms' distances, so a
+// close arm compensates for a far one — there is no pressure for simultaneity. `both_approach` penalises
+// the FARTHER arm, giving the coordination gradient the mean lacks. A/B: this file vs galambos_task.hymeko,
+// same collab off-policy setup, does both_contact (→ delivery) rise?
+
+galambos_task_description {
+    @"meta_kinematics.hymeko";
+    @"meta_reward.hymeko";
+    using kinematics.elements as el;
+    using reward.terms        as rew;
+    using reward              as r;
+}
+
+galambos_task_coord: el, rew, r
+{
+    disk:        el.frame {}
+    target_zone: el.frame {}
+
+    // Term nodes — typed reward signals (no weights here; the bundle's arcs carry them).
+    @approach:     rew.grasp_approach {}
+    @bothapproach: rew.both_approach  {}   // the coordination term (the only addition vs baseline)
+    @pull:         rew.reach_distance { (+ disk, - target_zone); }
+    @both:         rew.both_contact   {}
+    @zone:         rew.in_zone        {}
+    @graspzone:    rew.grasp_deliver  {}
+    @center:       rew.center_bonus   {}
+    @explore:      rew.arm_motion     {}
+    @noclash:      rew.arm_collision  {}
+    @nofinger:     rew.fingers_collision {}
+    @oob:          rew.out_of_bounds  {}
+    @armcol:       rew.arm_body_collision {}
+    @fingertouch:  rew.finger_contact {}
+    @settle:       rew.settle              {}
+    @stillcoin:    rew.coin_pregrasp_still {}
+    @timecost:     rew.time_penalty       {}
+    @smoothv:      rew.joint_velocity     {}
+    @smootha:      rew.joint_acceleration {}
+
+    // The reward bundle: the validated 4-core + collab terms (approach·both·fingertouch·zone·oob·armcol),
+    // PLUS the coordination term `bothapproach 4.0` — same magnitude as the mean `approach`, so the
+    // simultaneity signal is as strong as the compensable one it complements.
+    @grasp_reward: r.reward_spec {
+        (+ approach 4.0, + bothapproach 4.0, + both 5.0, + fingertouch 1.5, + zone 10.0, + oob 2.0, + armcol 0.5);
+    }
+}

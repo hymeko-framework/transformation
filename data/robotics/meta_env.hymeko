@@ -1,0 +1,55 @@
+// meta_env.hymeko — declarative environment (scene/task geometry) vocabulary.
+//
+// Companion to meta_reward / meta_observation / meta_task. Where those declare the reward,
+// observation, and behaviour halves of an agent description, this declares the ENVIRONMENT:
+// the target zone, the object spawn region, the workspace bounds, and the success criterion.
+// A concrete scene (e.g. galambos_env.hymeko) instantiates these as field-carrying config
+// terms bundled in an `env_spec`; the env reads them via PlanarGraspEnv.from_hymeko so the
+// whole MDP (robot + environment + reward) comes from .hymeko.
+//
+// Each config term carries scalar fields only (no arcs) — the same shape as a reward term's
+// `weight`, so the existing narrow reader (env/_profile.read_bundle) parses it.
+
+meta_env {}
+
+env {
+    // A single environment-config term (carries scalar fields).
+    @param {}
+    // A bundle of config terms = the environment.
+    @env_spec {}
+
+    params {
+        // Target zone: `half` (radius), `rx_lo/rx_hi/ry_lo/ry_hi` (randomization box, in both-arm
+        // reach), `randomize` (>0.5 = re-placed each episode).
+        @target_zone: + <isa> env.param {}
+
+        // Object spawn: `rx_lo/rx_hi/ry_lo/ry_hi` (reachable table box) + `clearance` (min gap from
+        // the zone). The object may spawn outside the between-arms band.
+        @coin_spawn:  + <isa> env.param {}
+
+        // Workspace / out-of-bounds: `x_bound`, `y_min`, `y_max` (object knocked past = death).
+        @workspace:   + <isa> env.param {}
+
+        // Success: `steps` consecutive in-zone steps to terminate as a goal.
+        @success:     + <isa> env.param {}
+
+        // The manipulated object: `radius` of the disk (a small disk, not a coin).
+        @disk:        + <isa> env.param {}
+
+        // Contact-quality contract (v2 physics, optional): `legality` (>0.5 = arm bodies physically collide
+        // with the coin, a non-fingertip arm↔coin contact is tracked+penalised+graded) and `strict` (>0.5 =
+        // STRICT mode: an arm-body contact voids/terminates the delivery, for clean-paper validation; default
+        // 0 = GRADED, for training and normal evaluation).
+        @contact:     + <isa> env.param {}
+
+        // H1-safe HANDOFF admissibility (optional, compositional capture→H1 contract): `require_bilateral`
+        // (>0.5 = both primary fingertip contacts required at the handoff handed to H1), `require_min_force`
+        // (>0.5 = both fingertip normal forces must be >= the H1 fn_min_safe, so the frozen H1 APPROACH does not
+        // take an immediate contact-risk SAFETY exit), and `require_robust` (>0.5 = the grip must ALSO survive the
+        // initial H1 APPROACH excitation for a window N=HELD_DWELL — no SAFETY within N or KINETIC reached — a
+        // marginal grip that dips below fn_min_safe during the momentum-build is rejected). Selection-only: the local
+        // capture certificate is unchanged; this only rejects a locally-certified handoff that H1 cannot enter.
+        // Default 0 = off (prior selection).
+        @handoff:     + <isa> env.param {}
+    }
+}

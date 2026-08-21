@@ -1,0 +1,35 @@
+// galambos_env_o5_rect.hymeko — OBJ_O5-R: the ELONGATED-SHAPE / full-orientation ablation (R12.2-A2).
+//
+// Identical Galambos scene/task to galambos_env.hymeko; ONLY the manipulated object differs. O5-R is a 1.2:1
+// rectangular flat prism with the SAME projected area as the reference disk (4*rx*ry = pi*0.02^2 ⇒
+// rx=0.0194163, ry=0.0161802) and the SAME thickness ⇒ same volume ⇒ same mass at the default density, friction
+// unchanged. Unlike the SQUARE O4-S (90° rotational symmetry ⇒ distinct orientations only span [0,45°]), a
+// rectangle has 180° (C2) symmetry ⇒ distinct orientations span a full [0,180°), so object yaw is a genuinely
+// richer geometric state — the setting R12.2 (orientation-aware model) needs. Isolates ELONGATION / orientation-
+// dependent contact from size, mass, and friction.
+//
+// Aspect 1.2 (not 1.5): the reference-cradle straddle is sized to footprint_radius = MAX half-extent (rx), but the
+// co-rotating straddle grips the SHORT face (ry); at ≥1.3:1 the rx-ry gap exceeds the fingertip+margin and the rig
+// cradle fails to form (measured). 1.2:1 builds with the existing machinery; more elongation needs a grasp-extent
+// (min-half-extent) straddle-sizing change — a separate lever.
+
+galambos_env_description {
+    @"meta_env.hymeko";
+    using env.params as p;
+    using env        as e;
+}
+
+galambos_env: p, e
+{
+    @zone:   p.target_zone { half 0.04; rx_lo -0.05; rx_hi 0.05; ry_lo 0.10; ry_hi 0.18; randomize 1.0; }
+    @spawn:  p.coin_spawn  { rx_lo -0.20; rx_hi 0.20; ry_lo 0.05; ry_hi 0.23; clearance 0.03; }
+    @bounds: p.workspace   { x_bound 0.40; y_min -0.08; y_max 0.45; }
+    @succ:   p.success     { steps 5.0; }
+
+    // O5-R: 1.2:1 rectangular prism, equal projected area to the disk (rx 0.0194163, ry 0.0161802), density default ⇒ mass = O0.
+    @dsk:    p.disk        { shape "box"; family "prism_rect"; radius 0.0194163; radius_y 0.0161802; half 0.02; damping 2.5; spin_damping 0.8; frictionloss 0.0; }
+
+    @env_spec: e.env_spec {
+        (+ zone, + spawn, + bounds, + succ, + dsk);
+    }
+}

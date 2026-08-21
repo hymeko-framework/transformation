@@ -1,0 +1,87 @@
+simple_net_description {
+    @"meta_nn.hymeko";
+    using nn.layers as lyr;
+    using nn.tensors as ten;
+    using nn.ports as port;
+    using nn.neurons as neu;
+    using nn.factors as fac;
+    using nn.ggk as ggk;
+}
+
+simple_net: lyr, ten, port, neu, fac, ggk {
+
+    // Top-level tensor vertices.
+    x: ten.t_input      { shape [3]; }
+    h: ten.t_activation { shape [5]; }
+    y: ten.t_output     { shape [2]; }
+
+    // ── Layer 0 hypervertex ─────────────────────────────────────────
+    // GGK spec is inlined as `kernel: + <isa> ggk.bspline { ... }`
+    // (named `kernel`, not `ggk`, so it doesn't collide with the
+    // `using nn.ggk as ggk` namespace alias when the field resolver
+    // walks `field:kernel.degree`). Module-scope GGK sharing via
+    // `ggk -> top_level_ref` is a v0.2 capability pending field-
+    // resolver enhancement to follow ref arrows.
+    layer_0: lyr.hypergraph_conv {
+        d_in 3;
+        d_out 5;
+        kernel: + <isa> ggk.bspline {
+            degree 3;
+            n_knots 8;
+        }
+
+        in0: port.input {}
+        in1: port.input {}
+        in2: port.input {}
+
+        h0: neu.hidden {}
+        h1: neu.hidden {}
+        h2: neu.hidden {}
+        h3: neu.hidden {}
+        h4: neu.hidden {}
+
+        out0: port.output {}
+        out1: port.output {}
+        out2: port.output {}
+        out3: port.output {}
+        out4: port.output {}
+
+        @factor_h0: fac.hypergraph_conv { (+ in0, + in1, + in2, - h0, ~ out0); }
+        @factor_h1: fac.hypergraph_conv { (+ in0, + in1, + in2, - h1, ~ out1); }
+        @factor_h2: fac.hypergraph_conv { (+ in0, + in1, + in2, - h2, ~ out2); }
+        @factor_h3: fac.hypergraph_conv { (+ in0, + in1, + in2, - h3, ~ out3); }
+        @factor_h4: fac.hypergraph_conv { (+ in0, + in1, + in2, - h4, ~ out4); }
+    }
+
+    // ── Layer 1 hypervertex ─────────────────────────────────────────
+    layer_1: lyr.hypergraph_conv {
+        d_in 5;
+        d_out 2;
+        kernel: + <isa> ggk.rbf {
+            n_centres 16;
+        }
+
+        in0: port.input {}
+        in1: port.input {}
+        in2: port.input {}
+        in3: port.input {}
+        in4: port.input {}
+
+        n0: neu.output {}
+        n1: neu.output {}
+
+        out0: port.output {}
+        out1: port.output {}
+
+        @factor_y0: fac.hypergraph_conv { (+ in0, + in1, + in2, + in3, + in4, - n0, ~ out0); }
+        @factor_y1: fac.hypergraph_conv { (+ in0, + in1, + in2, + in3, + in4, - n1, ~ out1); }
+    }
+
+    // ── Outer dataflow hyperedges ───────────────────────────────────
+    @flow_0: lyr.dataflow {
+        (+ x, ~ layer_0, - h);
+    }
+    @flow_1: lyr.dataflow {
+        (+ h, ~ layer_1, - y);
+    }
+}

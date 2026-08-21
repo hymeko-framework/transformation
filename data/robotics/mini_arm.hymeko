@@ -1,0 +1,34 @@
+mini_arm_description {
+    @"meta_kinematics.hymeko";
+}
+
+mini_arm: meta_kinematics.kinematics.elements,
+          meta_kinematics.kinematics.geometry,
+          meta_kinematics.kinematics.axes
+{
+    base_link: meta_kinematics.kinematics.elements.link {
+        mass 5.0;
+        link_geometry: meta_kinematics.kinematics.geometry.box {
+            dimension [0.3, 0.3, 0.1];
+        }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.0, 0.0, 0.05];
+    }
+
+    spinner: meta_kinematics.kinematics.elements.link {
+        mass 1.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.1, 0.2];
+        }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.0, 0.0, 0.1];
+    }
+
+    @spin_joint: meta_kinematics.kinematics.conti_joint {
+        (+ base_link [[0.0, 0.0, 0.1], [0.0, 0.0, 0.0]],
+         - spinner,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+}

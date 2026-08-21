@@ -1,0 +1,28 @@
+// meta_strategy_graph.hymeko -- the training STRATEGY as a signed dataflow HYPERGRAPH.
+//
+// Complements meta_strategy (flat explore/exploit knobs) with the STRUCTURAL view of an algorithm:
+// training stages are NODES, data dependencies are signed HYPEREDGES (+ producer, - consumer) -- the
+// same native incidence a kinematic joint uses (+ parent, - child). The algorithm's identity is the
+// graph TOPOLOGY: a relabel CYCLE (rollout -> label -> aggregate -> retrain -> rollout) == DAgger;
+// an acyclic source -> bc -> eval == plain behaviour cloning. Read by StrategyGraph.from_hymeko, which
+// classifies the algorithm from the topology (a graph missing the loop edge is rejected -- load-bearing,
+// not decorative) and dispatches to the matching executor. Validates via `hymeko validate`.
+
+meta_strategy_graph {}
+
+strategy {
+    // === Type roots ===
+    // A training-stage node. Its `role` field selects the primitive it runs
+    //   (source | bc | rollout | label | aggregate | eval); the remaining scalar fields are that
+    //   stage's knobs (e.g. n_demos on a source, bc_epochs on a bc, rollouts/beta on a rollout).
+    @stage {}
+
+    // A signed dataflow hyperedge between stages: `(+ producer_stage, - consumer_stage [, - consumer2 ...])`.
+    //   The datum flowing (demos / policy / states / labels / dataset) is implied by the endpoints' roles.
+    //   A `+ retrain, - rollout` flow is the DAgger relabel LOOP (the cycle that defines the algorithm).
+    @flow {}
+
+    // The bundle: the set of stages + flows that make up the strategy, plus an `iterate` field = how many
+    //   times the cycle repeats (DAgger rounds). Referenced with + arcs, like any HyMeKo bundle.
+    @strategy_graph {}
+}

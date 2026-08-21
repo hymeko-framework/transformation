@@ -1,0 +1,170 @@
+// meta_task.hymeko — HymeKo task / behavior-tree / coordination
+// vocabulary. Companion to meta_kinematics.hymeko (links, joints,
+// controllers, sensors) and meta_topic.hymeko (pub-sub, nodes).
+//
+// A task `.hymeko` references kinematic vertices (joints, end
+// effectors, grippers, frames) from the same compiled IR that
+// describes the robot, so one IR carries BOTH the structure AND
+// the behavior. See docs/notes/2026-05-16-hymeko-tasks-design.md
+// for the full design rationale.
+//
+// Status as of 2026-05-16: vocabulary parses + an example
+// (data/robotics/sim/dual_fanuc/handover_task.hymeko) validates.
+// BehaviorTree.CPP / PDDL / ROS 2 emitters are open follow-ups —
+// each a single template directory under transforms/, sized like
+// transforms/sdf/.
+
+meta_task {}
+
+task {
+    // === Type hierarchy roots ===
+    meta_node {}
+    @action: + <isa> meta_node {}
+    @composite: + <isa> meta_node {}
+    @condition: + <isa> meta_node {}
+    @coordination_primitive: + <isa> meta_node {}
+    @scene_element {}
+
+    // === Actions ===
+    // Atomic primitives. The hyperedge connects an "actor"
+    // vertex (an end effector, a joint set, a gripper) to a
+    // "target" (a pose, a configuration, an object).
+    actions {
+        // Cartesian-space goal. Hyperedge: (+ effector, - target_pose).
+        @move_to: + <isa> task.action {}
+
+        // Joint-space goal. Hyperedge: (+ joint_set, - target_config).
+        @joint_move: + <isa> task.action {}
+
+        // Gripper actions. close optionally takes the object being grasped.
+        @grip_open:  + <isa> task.action {}
+        @grip_close: + <isa> task.action {}
+
+        // Temporal padding. Hyperedge: (+ duration).
+        @wait: + <isa> task.action {
+            duration_s 0.0;
+        }
+
+        // Force-control primitive.
+        // Hyperedge: (+ effector, - force_vector).
+        @apply_force: + <isa> task.action {}
+
+        // "Do nothing, succeed" — useful as a fallback default.
+        @noop: + <isa> task.action {}
+    }
+
+    // === Control-flow composites ===
+    // Behavior-tree backbone. Each composite holds an ordered
+    // list of children via a hyperedge with the children as +/-
+    // vertices in declaration order.
+    composites {
+        // Run children in order; abort on first failure.
+        @sequence: + <isa> task.composite {}
+
+        // Run children concurrently; success policy via field.
+        // policy ∈ {"all", "any", "any_else_abort"}.
+        @parallel: + <isa> task.composite {
+            policy "all";
+        }
+
+        // Try children in order until one succeeds.
+        @fallback: + <isa> task.composite {}
+
+        // While the condition-child holds, run the body-child.
+        @loop: + <isa> task.composite {
+            max_iterations 100;
+        }
+
+        // Decorator: invert child's success/failure.
+        @invert: + <isa> task.composite {}
+
+        // Conventional top-level task handle. The first
+        // @entry-typed instance in a task description is the
+        // emitter's entry point; its hyperedge typically binds
+        // (+ body_composite, - agent_1, - agent_2, ...) so the
+        // emitter can scope BT.CPP / ROS 2 action plumbing
+        // per-agent.
+        @entry: + <isa> task.composite {}
+    }
+
+    // === Conditions ===
+    // Predicates over world state. Pinning an action to a
+    // precondition creates a guarded edge.
+    conditions {
+        // pre/post: hyperedge (+ action, - predicate).
+        @precondition:  + <isa> task.condition {}
+        @postcondition: + <isa> task.condition {}
+
+        // Spatial: an effector is at a pose within tolerance.
+        // Hyperedge: (+ effector, - pose).
+        @at_pose: + <isa> task.condition {
+            tolerance_m   0.005;
+            tolerance_rad 0.01;
+        }
+
+        // Possession: a gripper currently holds an object.
+        // Hyperedge: (+ gripper, - object).
+        @holding: + <isa> task.condition {}
+
+        // Joint at a target configuration (within tolerance).
+        @at_config: + <isa> task.condition {
+            tolerance_rad 0.01;
+        }
+
+        // Negation decorator on a child condition.
+        @not_condition: + <isa> task.condition {}
+    }
+
+    // === Coordination primitives ===
+    // The reason this design exists — multi-agent tasks.
+    coordination {
+        // Barrier: BOTH points must be reached before either
+        // proceeds. Hyperedge: (+ point_a, + point_b).
+        @synchronize: + <isa> task.coordination_primitive {}
+
+        // Sequential object transfer between two grippers.
+        // Hyperedge: (+ from_gripper, - to_gripper, + object).
+        // Expands at compile time to a 3-step subtree:
+        //   1. to_gripper.grip_close on object
+        //   2. synchronize (both gripping)
+        //   3. from_gripper.grip_open
+        @handover: + <isa> task.coordination_primitive {}
+
+        // Mutex on a shared resource (a workspace cell, a tool
+        // changer, a shared end-of-arm tool). One agent holds
+        // the lock at a time.
+        @lock:    + <isa> task.coordination_primitive {}
+        @release: + <isa> task.coordination_primitive {}
+    }
+
+    // === Scene elements ===
+    // Lightweight world objects that aren't part of the robot's
+    // kinematic description but the task needs to reference.
+    scene {
+        // A named pose (re-uses frame from meta_kinematics).
+        // Hyperedge: (+ frame).
+        @scene_object: + <isa> task.scene_element {
+            mass_kg 0.1;
+        }
+
+        // "Where to grip this object" — a pose attached to a
+        // scene object. Hyperedge: (+ scene_object, + frame).
+        @pickup_pose: + <isa> task.scene_element {}
+
+        // "Where to release this object onto" — same idea.
+        @place_pose: + <isa> task.scene_element {}
+    }
+
+    // === Termination conditions (episode-ending predicates over the safety state) ===
+    // A termination_spec bundles conditions; the episode ends ("death") if ANY holds. This lets
+    // the .hymeko model — beside the reward — declare what counts as failure, instead of the env
+    // hard-coding it. The env binds each kind to a predicate over its live SafetyState.
+    @termination_spec {}    // a bundle of conditions = the death predicate
+    termination {
+        // A robot link / effector contacts the ground plane.
+        @ground_contact: + <isa> task.condition {}
+        // Two non-adjacent robot links collide.
+        @self_collision: + <isa> task.condition {}
+    }
+
+}

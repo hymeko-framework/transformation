@@ -1,0 +1,36 @@
+// galambos_task_conj.hymeko — NONLINEAR CONJUNCTIVE PBRS variant (2026-07-04).
+//
+// Fixes the "problematic term" (Hajdu): with the LINEAR pbrs reward (zone_progress + grasp_progress as separate
+// additive terms), the policy earns zone-progress by pushing the coin toward the zone with ONE finger, never
+// closing both — measured both_contact ≈ 0 at delivery ~0.12. The two objectives were decoupled.
+//
+// The fix is a NONLINEAR CONJUNCTION expressed as a single potential:
+//     Φ(s) = − max( disk_to_zone, left_tip_dist, right_tip_dist )
+// dominated by the WORST of {coin far from zone, either fingertip far from the coin}. Raising Φ forces reducing
+// the worst one, so the policy must improve the grasp AND the carry TOGETHER — no credit for advancing one while
+// neglecting another. `max` is nonlinear ⇒ a genuine conjunction; yet Φ is a function of STATE only, so the PBRS
+// shaping γΦ(s')−Φ(s) still telescopes ⇒ farm-proof (Ng-Harada-Russell 1999). The two-finger coordination — the
+// whole point of the Galambos task — is now REQUIRED to earn progress, not optional. A/B vs the linear pbrs.
+
+galambos_task_description {
+    @"meta_kinematics.hymeko";
+    @"meta_reward.hymeko";
+    using kinematics.elements as el;
+    using reward.terms        as rew;
+    using reward              as r;
+}
+
+galambos_task_conj: el, rew, r
+{
+    disk:        el.frame {}
+    target_zone: el.frame {}
+
+    @terminaldeliver: rew.terminal_deliver     {}   // +1 one-shot on the completing step (aligned task reward)
+    @oob:             rew.out_of_bounds         {}   // keep the coin on the table
+    @conjprogress:    rew.conjunctive_progress  {}   // PBRS γΦ(s')−Φ(s), Φ = −max(zone, l_tip, r_tip) — CONJUNCTION
+
+    // Sparse aligned task + a single nonlinear conjunctive PBRS potential (weight scales it; still farm-proof).
+    @grasp_reward: r.reward_spec {
+        (+ terminaldeliver 30.0, + oob 2.0, + conjprogress 40.0);
+    }
+}

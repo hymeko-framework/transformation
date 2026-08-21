@@ -1,0 +1,40 @@
+// Minimal reuse demo (seminar slide 11). Grounded in the LALRPOP grammar
+// (parser/src/hymeko.lalrpop) and the working profile data/profiles/robot_arm.hymeko.
+// Each link defines its geometry ONCE and references it for both visual and
+// collision; the kinematics vocabulary is imported once and aliased.
+arm_reuse_description {
+    @"meta_kinematics.hymeko";
+    using kinematics.elements as el;
+    using kinematics.geometry as geo;
+    using kinematics.axes as ax;
+}
+
+robot: el, geo, ax {
+    base: el.link {
+        mass 2.0;
+        link_geometry: geo.cylinder { dimension [0.075, 0.2]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.0, 0.0, 0.1];
+    }
+    forearm: el.link {
+        mass 0.6;
+        link_geometry: geo.cylinder { dimension [0.05, 0.3]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.0, 0.0, 0.15];
+    }
+    wheel: el.link {
+        mass 0.3;
+        link_geometry: geo.cylinder { dimension [0.1, 0.05]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.0, 0.0, 0.025];
+    }
+    @shoulder: meta_kinematics.kinematics.rev_joint {
+        (+ base [[0.0, 0.0, 0.2], [0.0, 0.0, 0.0]], - forearm, - ax.AXIS_Z);
+    }
+    @hub: meta_kinematics.kinematics.conti_joint {
+        (+ base [[0.1, 0.0, 0.0], [0.0, 0.0, 0.0]], - wheel, - ax.AXIS_Y);
+    }
+}

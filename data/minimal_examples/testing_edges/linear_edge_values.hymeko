@@ -1,0 +1,15 @@
+Minimal_Example
+{}
+context
+{
+    node0{}
+    node1{}
+    node2{}
+    node3{}
+    node4{}
+    @e1 {(- node0[1.5], +node1[2.5], +node4[8.8]);}
+    @e2 {(- node2[0.75], -node3[7.5]);}
+    @e3 {(- node0[0.75], -node2[1.95], -node4[7.5]);}
+    @e4 {(- node0[0.75], -node1[1.95], +node4[7.5]);}
+
+}

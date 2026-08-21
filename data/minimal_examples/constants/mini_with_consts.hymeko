@@ -1,0 +1,33 @@
+mini_with_consts_description {
+    @"meta_kinematics.hymeko";
+    using kinematics.elements as el;
+    using kinematics.geometry as geo;
+    using kinematics.axes as ax;
+
+    const RADIUS    = 0.05;
+    const LENGTH    = LINK_HEIGHT * 2.0;
+    const LINK_HEIGHT = 0.1;
+    const ORIGIN_Z  = LINK_HEIGHT / 2.0;
+}
+
+mini_with_consts: el, geo, ax {
+    base: el.link {
+        mass 5.0;
+        link_geometry: geo.cylinder { dimension [RADIUS, LENGTH]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.0, 0.0, ORIGIN_Z];
+    }
+    spinner: el.link {
+        mass 1.0;
+        link_geometry: geo.cylinder { dimension [(RADIUS * 0.5), (LENGTH / 2.0)]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.0, 0.0, ORIGIN_Z];
+    }
+    @j: meta_kinematics.kinematics.conti_joint {
+        (+ base [[0.0, 0.0, LENGTH], [0.0, 0.0, 0.0]],
+         - spinner,
+         - ax.AXIS_Z);
+    }
+}

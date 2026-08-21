@@ -1,0 +1,60 @@
+// inverted_pendulum.hymeko — the canonical cart-pole, described in HyMeKo.
+//
+// A classic inverted pendulum: a cart slides on a horizontal rail (prismatic, AXIS_X) and a
+// pole hinges on the cart (continuous, AXIS_Y) so it swings in the X-Z plane under gravity.
+// The same source yields the MJCF scene, the 2-vertex kinematic hypergraph (cart, pole) the
+// HSiKAN actor/critic message-passes over, and the observation layout. The agent forces the
+// cart left/right to keep the pole upright — the minimal control benchmark that isolates the
+// HSiKAN actor-critic from the hard Galambos task.
+//
+// Emitter notes (handled in InvertedPendulumEnv, not here, to keep this file canonical):
+//   * the cart slide joint inherits `joint_prismatic_limit`; the emitter applies a deg->rad
+//     factor to slide ranges, so the env STRIPS the emitted slide range (unlimited rail) and
+//     enforces the cart bound as a termination instead;
+//   * the emitter actuates every non-fixed joint; the env STRIPS the pole motor so the pole is
+//     passive (the canonical under-actuated inverted pendulum).
+// Validates via `hymeko validate`.
+
+inverted_pendulum_description {
+    @"meta_kinematics.hymeko";
+}
+
+inverted_pendulum: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes
+{
+    world: meta_kinematics.kinematics.elements.frame {}
+
+    cart_color [0.25, 0.45, 0.85, 1.0];
+    pole_color [0.85, 0.35, 0.25, 1.0];
+
+    // === Cart: a small box that slides on the rail. ===
+    cart: meta_kinematics.kinematics.elements.link {
+        mass 1.0;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.10, 0.10, 0.10]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        color     -> inverted_pendulum.cart_color;
+        origin [0.0, 0.0, 0.0];
+    }
+
+    // === Pole: a thin rod that pivots on the cart and spans upward (origin = half length). ===
+    pole: meta_kinematics.kinematics.elements.link {
+        mass 0.1;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.02, 0.6]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        color     -> inverted_pendulum.pole_color;
+        origin [0.0, 0.0, 0.3];
+    }
+
+    // === Rail: world -> cart, prismatic along X (the actuated DOF). ===
+    @rail: meta_kinematics.kinematics.prismatic_joint {
+        (+ world [[0.0, 0.0, 0.10], [0.0, 0.0, 0.0]], - cart,
+         - meta_kinematics.kinematics.axes.AXIS_X);
+    }
+
+    // === Hinge: cart -> pole, continuous about Y (passive; the env strips its motor). ===
+    @hinge: meta_kinematics.kinematics.conti_joint {
+        (+ cart [[0.0, 0.0, 0.05], [0.0, 0.0, 0.0]], - pole,
+         - meta_kinematics.kinematics.axes.AXIS_Y);
+    }
+}

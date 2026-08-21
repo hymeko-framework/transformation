@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdf version="1.7">
+  <model name="fanuc_lrmate200id">
+    <static>false</static>
+
+    <link name="base_link">
+      <inertial>
+        <mass>6</mass>
+        <inertia>
+          <ixx>0.06</ixx><iyy>0.06</iyy><izz>0.06</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="base_link_visual">
+        <geometry>
+          <cylinder>
+            <radius>0.1</radius>
+            <length>0.33</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision name="base_link_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.1</radius>
+            <length>0.33</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="link_j1">
+      <inertial>
+        <mass>4.5</mass>
+        <inertia>
+          <ixx>0.045</ixx><iyy>0.045</iyy><izz>0.045</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="link_j1_visual">
+        <geometry>
+          <cylinder>
+            <radius>0.085</radius>
+            <length>0.15</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision name="link_j1_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.085</radius>
+            <length>0.15</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="link_upper_arm">
+      <inertial>
+        <mass>3.5</mass>
+        <inertia>
+          <ixx>0.035</ixx><iyy>0.035</iyy><izz>0.035</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="link_upper_arm_visual">
+        <geometry>
+          <cylinder>
+            <radius>0.05</radius>
+            <length>0.33</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision name="link_upper_arm_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.05</radius>
+            <length>0.33</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="link_elbow">
+      <inertial>
+        <mass>2</mass>
+        <inertia>
+          <ixx>0.02</ixx><iyy>0.02</iyy><izz>0.02</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="link_elbow_visual">
+        <geometry>
+          <cylinder>
+            <radius>0.05</radius>
+            <length>0.075</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision name="link_elbow_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.05</radius>
+            <length>0.075</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="link_forearm">
+      <inertial>
+        <mass>2.5</mass>
+        <inertia>
+          <ixx>0.025</ixx><iyy>0.025</iyy><izz>0.025</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="link_forearm_visual">
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.29</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision name="link_forearm_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.29</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="link_wrist">
+      <inertial>
+        <mass>0.8</mass>
+        <inertia>
+          <ixx>0.008</ixx><iyy>0.008</iyy><izz>0.008</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="link_wrist_visual">
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.05</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision name="link_wrist_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.05</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="tool_flange">
+      <inertial>
+        <mass>0.3</mass>
+        <inertia>
+          <ixx>0.003</ixx><iyy>0.003</iyy><izz>0.003</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="tool_flange_visual">
+        <geometry>
+          <cylinder>
+            <radius>0.025</radius>
+            <length>0.02</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision name="tool_flange_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.025</radius>
+            <length>0.02</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="j_fix" type="fixed">
+      <parent>world</parent>
+      <child>base_link</child>
+    </joint>
+
+    <joint name="j1" type="revolute">
+      <parent>base_link</parent>
+      <child>link_j1</child>
+      <pose relative_to="base_link">0 0 0.33 0.0000 0.0000 0.0000</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>-170</lower>
+          <upper>170</upper>
+          <effort>60</effort>
+          <velocity>6.28</velocity>
+        </limit>
+      </axis>
+    </joint>
+
+    <joint name="j2" type="revolute">
+      <parent>link_j1</parent>
+      <child>link_upper_arm</child>
+      <pose relative_to="link_j1">0 0 0.075 0.0000 0.0000 0.0000</pose>
+      <axis>
+        <xyz>0 1 0</xyz>
+        <limit>
+          <lower>-100</lower>
+          <upper>145</upper>
+          <effort>60</effort>
+          <velocity>5.06</velocity>
+        </limit>
+      </axis>
+    </joint>
+
+    <joint name="j3" type="revolute">
+      <parent>link_upper_arm</parent>
+      <child>link_elbow</child>
+      <pose relative_to="link_upper_arm">0 0 0.33 0.0000 0.0000 0.0000</pose>
+      <axis>
+        <xyz>0 1 0</xyz>
+        <limit>
+          <lower>-180</lower>
+          <upper>213</upper>
+          <effort>50</effort>
+          <velocity>6.28</velocity>
+        </limit>
+      </axis>
+    </joint>
+
+    <joint name="j4" type="revolute">
+      <parent>link_elbow</parent>
+      <child>link_forearm</child>
+      <pose relative_to="link_elbow">0 0 0.075 0.0000 0.0000 0.0000</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>-190</lower>
+          <upper>190</upper>
+          <effort>30</effort>
+          <velocity>7.85</velocity>
+        </limit>
+      </axis>
+    </joint>
+
+    <joint name="j5" type="revolute">
+      <parent>link_forearm</parent>
+      <child>link_wrist</child>
+      <pose relative_to="link_forearm">0 0 0.29 0.0000 0.0000 0.0000</pose>
+      <axis>
+        <xyz>0 1 0</xyz>
+        <limit>
+          <lower>-125</lower>
+          <upper>125</upper>
+          <effort>30</effort>
+          <velocity>7.85</velocity>
+        </limit>
+      </axis>
+    </joint>
+
+    <joint name="j6" type="revolute">
+      <parent>link_wrist</parent>
+      <child>tool_flange</child>
+      <pose relative_to="link_wrist">0 0 0.05 0.0000 0.0000 0.0000</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>-360</lower>
+          <upper>360</upper>
+          <effort>20</effort>
+          <velocity>12.56</velocity>
+        </limit>
+      </axis>
+    </joint>
+
+  </model>
+</sdf>

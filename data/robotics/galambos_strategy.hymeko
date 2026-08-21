@@ -1,0 +1,38 @@
+// galambos_strategy.hymeko — the PPO explore/exploit strategy for the Galambos task, declaratively.
+//
+// Read by hymeko_rl/train_planar_grasp.py via StrategySpec.from_hymeko. Tuning the exploration tactic
+// (entropy bonus, action-noise scale, curriculum) is now an edit to THIS file, not the Python.
+// Validates via `hymeko inspect`.
+
+galambos_strategy_description {
+    @"meta_strategy.hymeko";
+    using strategy.params as p;
+    using strategy        as s;
+}
+
+galambos_strategy: p, s
+{
+    // Exploration: a wider action-noise scale + entropy bonus + a reach-out curriculum, so the
+    // policy explores far disks instead of freezing on the ones it cannot immediately reach.
+    @explore: p.exploration {
+        ent_coef 0.01;
+        log_std_init -0.5;
+        curriculum_iters 200.0;
+    }
+
+    // Exploitation: standard PPO/GAE.
+    @exploit: p.exploitation {
+        gamma 0.99;
+        lam 0.95;
+        clip 0.2;
+        lr 0.0003;
+        update_epochs 8.0;
+        value_warmup 0.0;
+        n_steps 512.0;
+        n_iters 300.0;
+    }
+
+    @strategy_spec: s.strategy_spec {
+        (+ explore, + exploit);
+    }
+}

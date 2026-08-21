@@ -1,0 +1,148 @@
+// HyMeKo description of the mixed-arity HSiKAN architecture used in
+// the SMC 2026 WIP paper:
+//
+//   x (n_nodes × hidden) ─┐
+//                                  ├→ signedkan_layer{k=2}  → cyc2_emb
+//                                  ├→ signedkan_layer{k=3}  → cyc3_emb
+//                                  ├→ signedkan_layer{k=4}  → cyc4_emb
+//                                  └→ signedkan_layer{k=5}  → cyc5_emb
+//                                                          ↓
+//                                          arity_mixer (learned αₖ)
+//                                                          ↓
+//                                                      edge_emb
+//                                                          ↓
+//                                              signed_classifier
+//                                                          ↓
+//                                                       logits
+//
+// This is a Tier-3 description: the per-arity `signedkan_layer`
+// blocks each realise the Option-C signed-incidence factor (inner
+// φ_v^σ, outer φ_e^σ, σ-mask aggregation, three branch sum) for one
+// fixed arity k.  The arity_mixer combines the per-arity outputs
+// with softmax-normalised learned weights αₖ and the sparse
+// signed-incidence mm M_e^{(k)} (constructed from the dataset, not
+// learnable, lives outside the dataflow).
+//
+// IR-only at this commit: the round-trip emitter (multi-input
+// dataflow + sparse-CSR Tier-2 emit pass + spline-activation
+// helpers in ehk_torch_stub) is the next deliverable for Item #4 of
+// HSIKAN_ROADMAP_2026_05_04.md.  The factor view is already
+// extractable via the standard π_factor projection.
+//
+// Compile (round-trip not yet implemented):
+//   hymeko parse data/nn/hsikan_mixed.hymeko    # IR validation
+//   hymeko query data/nn/hsikan_mixed.hymeko --view factor
+//   hymeko query data/nn/hsikan_mixed.hymeko --view dataflow
+
+hsikan_mixed_description {
+    @"meta_nn.hymeko";
+    using nn.layers as lyr;
+    using nn.tensors as ten;
+}
+
+hsikan_mixed: lyr, ten {
+
+    // ── Tensors ─────────────────────────────────────────────────────
+    // Input: per-vertex embeddings (n_nodes × hidden).  Width is the
+    // model "hidden_dim" hyperparameter; n_nodes is dataset-specific.
+    x: ten.t_input { shape [16]; }
+
+    // Per-arity cycle structure tensors.  triad_v_kK has shape
+    // (n_cycles_kK × kK) holding vertex IDs of each signed kK-cycle;
+    // triad_sigma_kK has the same shape and holds {+1, -1} signs.
+    // Precomputed by hymeko_py::enumerate_k_cycles_rs and flow into
+    // the per-arity signedkan_layer alongside x.
+    triad_v_k2:     ten.t_input { shape [2]; }
+    triad_sigma_k2: ten.t_input { shape [2]; }
+    triad_v_k3:     ten.t_input { shape [3]; }
+    triad_sigma_k3: ten.t_input { shape [3]; }
+    triad_v_k4:     ten.t_input { shape [4]; }
+    triad_sigma_k4: ten.t_input { shape [4]; }
+    triad_v_k5:     ten.t_input { shape [5]; }
+    triad_sigma_k5: ten.t_input { shape [5]; }
+
+    // Per-arity sparse signed-incidence M_e^{(k)} of conceptual shape
+    // (n_test_edges × n_cycles_kK).  Each row picks the cycles a
+    // candidate edge participates in; the arity_mixer applies
+    // M_e^{(k)} cyc_k_emb on the way to edge_emb.  Sparse-CSR at
+    // runtime; the shape declaration is symbolic only.
+    M_e_k2: ten.t_input { shape [1]; }
+    M_e_k3: ten.t_input { shape [1]; }
+    M_e_k4: ten.t_input { shape [1]; }
+    M_e_k5: ten.t_input { shape [1]; }
+
+    // Per-arity cycle embeddings (n_cycles_k × hidden).  One tensor
+    // per arity in the mixed-arity sweep.  k=2 admits raw signed
+    // edges as a degenerate direct-edge channel; k=3,4,5 are signed
+    // closed cycles enumerated by hymeko_py::enumerate_k_cycles_rs.
+    cyc2_emb: ten.t_activation { shape [16]; }
+    cyc3_emb: ten.t_activation { shape [16]; }
+    cyc4_emb: ten.t_activation { shape [16]; }
+    cyc5_emb: ten.t_activation { shape [16]; }
+
+    // Mixed edge embedding (n_test_edges × hidden), the αₖ-weighted
+    // sum of M_e^{(k)} cyc_k_emb after the per-arity sparse multiply.
+    edge_emb: ten.t_activation { shape [16]; }
+
+    // Output logits — single scalar per candidate edge (sign prob).
+    y: ten.t_output { shape [1]; }
+
+    // ── Per-arity signed-cycle factors ──────────────────────────────
+    // One signedkan_layer per arity.  All four share `hidden` and
+    // `spline_kind`; arity differs and selects which input cycle
+    // tensor is consumed.
+    sk2: lyr.signedkan_layer {
+        hidden 16; arity 2; spline_kind "catmull_rom"; grid 5;
+    }
+    sk3: lyr.signedkan_layer {
+        hidden 16; arity 3; spline_kind "catmull_rom"; grid 5;
+    }
+    sk4: lyr.signedkan_layer {
+        hidden 16; arity 4; spline_kind "catmull_rom"; grid 5;
+    }
+    sk5: lyr.signedkan_layer {
+        hidden 16; arity 5; spline_kind "catmull_rom"; grid 5;
+    }
+
+    // ── Arity mixer (learned αₖ + sparse-incidence apply) ──────────
+    // mix_K is the number of arities present.  The mixer holds a
+    // (K,) parameter that softmaxes to αₖ and applies M_e^{(k)} per
+    // channel.  Conceptually multi-input; the current single-input
+    // dataflow encodes the per-arity inputs as a sequence of edges
+    // into the same `edge_emb` sink (the IR captures all four; the
+    // dataflow walker treats them as a fan-in to mix).
+    mixer: lyr.arity_mixer { hidden 16; mix_K 4; }
+
+    // ── Classifier ──────────────────────────────────────────────────
+    head: lyr.signed_classifier { d_in 16; d_out 1; }
+
+    // ── Dataflow ────────────────────────────────────────────────────
+    // Per-arity signed-cycle branches.  Each per-arity layer consumes
+    // (x, triad_v_kK, triad_sigma_kK) — the propagation terms — and
+    // emits cycle embeddings.
+    @flow_sk2: lyr.dataflow {
+        (+ x, + triad_v_k2, + triad_sigma_k2, ~ sk2, - cyc2_emb);
+    }
+    @flow_sk3: lyr.dataflow {
+        (+ x, + triad_v_k3, + triad_sigma_k3, ~ sk3, - cyc3_emb);
+    }
+    @flow_sk4: lyr.dataflow {
+        (+ x, + triad_v_k4, + triad_sigma_k4, ~ sk4, - cyc4_emb);
+    }
+    @flow_sk5: lyr.dataflow {
+        (+ x, + triad_v_k5, + triad_sigma_k5, ~ sk5, - cyc5_emb);
+    }
+
+    // Mixer fan-in: cycle embeddings paired with per-arity signed
+    // incidence M_e^{(k)}.  bind:+:all_csv emits as one Python call:
+    //   self.mixer(cyc2_emb, cyc3_emb, cyc4_emb, cyc5_emb,
+    //              M_e_k2, M_e_k3, M_e_k4, M_e_k5)
+    @flow_mix: lyr.dataflow {
+        (+ cyc2_emb, + cyc3_emb, + cyc4_emb, + cyc5_emb,
+         + M_e_k2,   + M_e_k3,   + M_e_k4,   + M_e_k5,
+         ~ mixer, - edge_emb);
+    }
+
+    // Classifier head.
+    @flow_head: lyr.dataflow { (+ edge_emb, ~ head, - y); }
+}

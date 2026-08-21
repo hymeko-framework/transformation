@@ -1,0 +1,9 @@
+basic_library {
+}
+elements {
+    operand {}
+    operand2 {}
+
+    @operator { (+ operand [1.0], - operand [1.0]);}
+
+}

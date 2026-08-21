@@ -1,0 +1,34 @@
+// pick_place_task.hymeko — the FANUC pick-and-place reward, declaratively (Phase 2).
+//
+// The whole manipulation reward as a weighted bundle of terms (Σ weight·term), read by
+// PickPlaceEnv via RewardSpec.from_hymeko — the same machinery that makes the reach MDP declarative.
+// Weights reproduce the env's former procedural reward exactly (a parity test guards this):
+//   approach (-‖tool-object‖) ·1  + contact (left+right) ·0.5  + lift (min(lifted,thresh)) ·5
+//   + place (-‖object-target‖ when lifted) ·1  + place_bonus (reached) ·20  - approach_penalty ·2
+//   - disturbance ·3
+//
+// WEIGHTS ARE ON THE HYPEREDGE ARCS: the term nodes are typed signals, and the reward bundle
+// `@pick_reward` carries each weight as an arc weight `(+ term <weight>)` — the hyperedge defines the
+// relationship's weight, not the term node. Validates via `hymeko inspect`.
+
+pick_place_task_description {
+    @"meta_reward.hymeko";
+    using reward.terms as rew;
+    using reward       as r;
+}
+
+pick_place_task: rew, r
+{
+    @approach:  rew.pick_approach {}          // descend toward the object
+    @contact:   rew.pick_contact {}           // close both fingers on it
+    @lift:      rew.pick_lift {}              // raise it clear of the surface
+    @place:     rew.pick_place_distance {}    // carry it to the target
+    @placed:    rew.pick_place_bonus {}       // sparse success
+    @noground:  rew.pick_approach_penalty {}  // don't crash a surface on approach
+    @nonudge:   rew.pick_disturbance {}       // don't disturb the object before grasping it
+
+    @pick_reward: r.reward_spec {
+        (+ approach 1.0, + contact 0.5, + lift 5.0, + place 1.0, + placed 20.0,
+         + noground 2.0, + nonudge 3.0);
+    }
+}

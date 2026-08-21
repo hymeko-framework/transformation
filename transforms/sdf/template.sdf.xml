@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<sdf version="1.7">
+  <model name="{{config:robot_name}}">
+    <static>false</static>
+{{#each links}}
+    <link name="{{name}}">
+{{#if field:mass}}
+      <inertial>
+        <mass>{{field:mass}}</mass>
+        <inertia>
+          <ixx>0.01</ixx><iyy>0.01</iyy><izz>0.01</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+{{/if}}
+{{#if field:link_geometry}}
+      <visual name="{{name}}_visual">
+{{#if field:origin}}
+        <pose relative_to="{{name}}">{{field:origin}} 0 0 0</pose>
+{{/if}}
+        <geometry>
+{{#inherits link_geometry "box"}}
+          <box><size>{{field:link_geometry.dimension}}</size></box>
+{{/inherits}}
+{{#inherits link_geometry "cylinder"}}
+          <cylinder><radius>{{nth:link_geometry.dimension:0}}</radius><length>{{nth:link_geometry.dimension:1}}</length></cylinder>
+{{/inherits}}
+{{#inherits link_geometry "sphere"}}
+          <sphere><radius>{{nth:link_geometry.dimension:0}}</radius></sphere>
+{{/inherits}}
+        </geometry>
+      </visual>
+      <collision name="{{name}}_collision">
+        <geometry>
+{{#inherits link_geometry "box"}}
+          <box><size>{{field:link_geometry.dimension}}</size></box>
+{{/inherits}}
+{{#inherits link_geometry "cylinder"}}
+          <cylinder><radius>{{nth:link_geometry.dimension:0}}</radius><length>{{nth:link_geometry.dimension:1}}</length></cylinder>
+{{/inherits}}
+{{#inherits link_geometry "sphere"}}
+          <sphere><radius>{{nth:link_geometry.dimension:0}}</radius></sphere>
+{{/inherits}}
+        </geometry>
+      </collision>
+{{/if}}
+    </link>
+{{/each}}
+{{#each fixed_joints}}
+    <joint name="{{name}}" type="fixed">
+      <parent>{{bind:+:0}}</parent>
+      <child>{{bind:-:0}}</child>
+    </joint>
+{{/each}}
+{{#each revolute_joints}}
+    <joint name="{{name}}" type="revolute">
+      <parent>{{bind:+:0}}</parent>
+      <child>{{bind:-:0}}</child>
+      <axis><xyz>0 0 1</xyz></axis>
+    </joint>
+{{/each}}
+{{#each continuous_joints}}
+    <joint name="{{name}}" type="revolute">
+      <parent>{{bind:+:0}}</parent>
+      <child>{{bind:-:0}}</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit><lower>-1e16</lower><upper>1e16</upper></limit>
+      </axis>
+    </joint>
+{{/each}}
+{{#each prismatic_joints}}
+    <joint name="{{name}}" type="prismatic">
+      <parent>{{bind:+:0}}</parent>
+      <child>{{bind:-:0}}</child>
+      <axis><xyz>0 0 1</xyz></axis>
+    </joint>
+{{/each}}
+  </model>
+</sdf>

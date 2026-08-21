@@ -1,0 +1,14 @@
+meta_topic {}
+communication {
+    @topic {}
+    topic_definition {
+        topic_name;
+        message_type;
+    }
+    node {
+        node_name;
+        node_namespace;
+        node_type;
+        node_parameters;
+    }
+}

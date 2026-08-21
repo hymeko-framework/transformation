@@ -1,0 +1,12 @@
+Minimal_Example{}
+context
+{
+    node{
+        node0{}
+    }
+    val0 <int> 56;
+    val1 <string> "vakond";
+    val2 <real> 56.891;
+    val_undef <real>;
+    val_node -> node.node0;
+}

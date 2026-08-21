@@ -1,0 +1,12 @@
+minimal_multi_tag_annotation
+{}
+context
+{
+    node0 {}
+    node10: + <isa> node0 {}
+    node11: + <isa> node0, + <impl> node2, ~ <isa> node10 {}
+    node2 {}
+    @e0 { ( - node0[0.85],
+             + node10[0.9]);
+    }
+}

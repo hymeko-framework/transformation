@@ -1,0 +1,10 @@
+// A shared *profile* (has a _description wrapper with an import + a `using` alias, unlike a bare
+// vocab file). Its instance decl uses the alias, so importing it exercises dep-using resolution
+// (APPROVED-CORE-EDIT: xprofile-instance-refs).
+xprofile_shared_description {
+    @"minimal_example_library.hymeko";
+    using basic_library.elements as el;
+}
+xprofile_shared: el {
+    shared_thing: el.operand {}
+}

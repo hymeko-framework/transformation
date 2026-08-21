@@ -1,0 +1,27 @@
+// quadruped_stand_bc_graph.hymeko -- plain behaviour cloning declared as an ACYCLIC dataflow hypergraph.
+//
+// The topology counterpart to quadruped_stand_dagger.hymeko: the SAME vocabulary, but with NO relabel loop
+// (source -> bc -> eval, acyclic). StrategyGraph.classify reads this as "bc", not "dagger" -- proving the
+// algorithm's identity is the graph TOPOLOGY, not a string. A DAgger runner rejects it (the loop edge is absent).
+// Validates via `hymeko validate`.
+
+quadruped_stand_bc_graph_description {
+    @"meta_strategy_graph.hymeko";
+    using strategy as sg;
+}
+
+quadruped_stand_bc_graph: sg
+{
+    @expert_demos: sg.stage { role "source"; n_demos 200; }
+    @bc_clone:     sg.stage { role "bc"; bc_epochs 200; }
+    @evaluate:     sg.stage { role "eval"; n_eval 24; }
+
+    @f_demos: sg.flow { (+ expert_demos, - bc_clone); }
+    @f_eval:  sg.flow { (+ bc_clone, - evaluate); }
+
+    @strategy_graph: sg.strategy_graph {
+        (+ expert_demos, + bc_clone, + evaluate, + f_demos, + f_eval);
+        iterate 0;
+        seeds [0, 1, 2];
+    }
+}

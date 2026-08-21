@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<robot name="four_bar">
+  <link name="ground"/>
+  <link name="crank"/>
+  <link name="coupler"/>
+  <link name="rocker"/>
+
+  <joint name="j_ground_crank" type="revolute">
+    <parent link="ground"/><child link="crank"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14" upper="3.14" effort="100" velocity="2"/>
+  </joint>
+  <joint name="j_crank_coupler" type="revolute">
+    <parent link="crank"/><child link="coupler"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14" upper="3.14" effort="100" velocity="2"/>
+  </joint>
+  <joint name="j_coupler_rocker" type="revolute">
+    <parent link="coupler"/><child link="rocker"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14" upper="3.14" effort="100" velocity="2"/>
+  </joint>
+  <joint name="j_rocker_ground" type="revolute">
+    <parent link="rocker"/><child link="ground"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14" upper="3.14" effort="100" velocity="2"/>
+  </joint>
+</robot>

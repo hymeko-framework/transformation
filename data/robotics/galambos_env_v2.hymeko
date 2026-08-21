@@ -1,0 +1,40 @@
+// galambos_env_v2.hymeko — the Galambos planar-grasp ENVIRONMENT, v2 (physically-real contact).
+//
+// Identical scene/task geometry to galambos_env.hymeko, plus the declarative contact-quality contract:
+// the arm bodies physically collide with the coin (v1 lets the coin pass through them, an abstract
+// fingertip-only prototype), and a non-fingertip arm↔coin contact is a NON-PREFERRED contact — tracked
+// (count / duration / impulse), reward-penalised, and used to grade a delivery clean / assisted / exploit.
+// Mode is GRADED by default (never voids the episode; for training and normal evaluation); set `strict 1.0`
+// only for clean-paper validation. Read by PlanarGraspEnv.from_hymeko(env=this). Kept separate from v1 so
+// existing v1 results stay bit-reproducible (§6.5 #19: no metric-changing default flip without the A/B).
+
+galambos_env_v2_description {
+    @"meta_env.hymeko";
+    using env.params as p;
+    using env        as e;
+}
+
+galambos_env_v2: p, e
+{
+    // Small zone (half 0.04), randomized each episode in a box inside both-arm reach.
+    @zone:   p.target_zone { half 0.04; rx_lo -0.05; rx_hi 0.05; ry_lo 0.10; ry_hi 0.18; randomize 1.0; }
+
+    // Coin spawn: the full reachable table (can be outside the |x|<=0.11 arm band), >= clearance from the zone.
+    @spawn:  p.coin_spawn  { rx_lo -0.20; rx_hi 0.20; ry_lo 0.05; ry_hi 0.23; clearance 0.03; }
+
+    // Workspace: coin knocked past these = death.
+    @bounds: p.workspace   { x_bound 0.40; y_min -0.08; y_max 0.45; }
+
+    // Success: 5 consecutive in-zone steps.
+    @succ:   p.success     { steps 5.0; }
+
+    // The disk (small — it is a disk, not a coin): radius 0.02 m.
+    @dsk:    p.disk        { radius 0.02; }
+
+    // v2 contact-quality contract: physical arm↔coin collision ON, GRADED mode (strict 0 = never voids).
+    @contact: p.contact    { legality 1.0; strict 0.0; }
+
+    @env_spec: e.env_spec {
+        (+ zone, + spawn, + bounds, + succ, + dsk, + contact);
+    }
+}

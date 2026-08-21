@@ -1,0 +1,46 @@
+// HyMeKo description of a thesis-scale MNIST plain MLP:
+//   784 → 16 → 8 → 10
+// equivalent to the `MNISTNetSmall` PyTorch class in
+// `python/benches/thesis_iv_hard/run_benchmark.py`.
+//
+// Demonstrates Tier-1 emission (linear_layer + relu_layer): the
+// torch_dataflow backend turns this into an `nn.Module` whose
+// __init__ creates one `nn.Linear` per `linear_layer` decl plus one
+// `nn.ReLU` per `relu_layer`, and whose forward chains them per the
+// dataflow hyperedge order.
+//
+// Compile via:
+//   hymeko compile examples/nn/mnist_small.hymeko \
+//       --format torch_dataflow --name MnistSmallFromHymeko \
+//       -o /tmp/mnist_small_emitted.py
+
+mnist_small_description {
+    @"meta_nn.hymeko";
+    using nn.layers as lyr;
+    using nn.tensors as ten;
+}
+
+mnist_small: lyr, ten {
+
+    // Tensors carried between layers.
+    x:  ten.t_input      { shape [784]; }
+    h0: ten.t_activation { shape [16]; }
+    a0: ten.t_activation { shape [16]; }   // post-relu
+    h1: ten.t_activation { shape [8]; }
+    a1: ten.t_activation { shape [8]; }    // post-relu
+    y:  ten.t_output     { shape [10]; }
+
+    // Layers — bodies stripped for the dataflow view.
+    l0:  lyr.linear_layer { d_in 784; d_out 16; }
+    r0:  lyr.relu_layer {}
+    l1:  lyr.linear_layer { d_in  16; d_out  8; }
+    r1:  lyr.relu_layer {}
+    l2:  lyr.linear_layer { d_in   8; d_out 10; }
+
+    // Dataflow chain.
+    @flow_0: lyr.dataflow { (+ x,  ~ l0, - h0); }
+    @flow_1: lyr.dataflow { (+ h0, ~ r0, - a0); }
+    @flow_2: lyr.dataflow { (+ a0, ~ l1, - h1); }
+    @flow_3: lyr.dataflow { (+ h1, ~ r1, - a1); }
+    @flow_4: lyr.dataflow { (+ a1, ~ l2, - y);  }
+}

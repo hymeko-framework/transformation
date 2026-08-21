@@ -1,0 +1,24 @@
+// test_geom_unknown.hymeko — CORE-extension test fixture (2026-07-23): a link whose link_geometry inherits a
+// locally-declared geometry type that is NOT box/cylinder/sphere/capsule. Extracting this model MUST hard-fail
+// (panic with the shape string), not silently drop the geometry.
+
+test_geom_unknown_description {
+    @"meta_kinematics.hymeko";
+}
+
+test_geom_unknown: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes
+{
+    world: meta_kinematics.kinematics.elements.frame {}
+
+    wedge {}   // an unrecognised geometry type declared locally
+
+    bad_link: meta_kinematics.kinematics.elements.link {
+        mass 0.1;
+        link_geometry: wedge { dimension [0.1, 0.1]; }
+        origin [0.0, 0.0, 0.0];
+    }
+
+    @fix_world: meta_kinematics.kinematics.fixed_joint {
+        (+ world [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - bad_link);
+    }
+}

@@ -1,0 +1,52 @@
+// HyMeKo description of a 3-block ResMLP for MNIST:
+//   784 → 16 [Linear projection] → ResBlock × 3 → 10 [readout linear]
+// equivalent to the `ResMLP(hidden=16, n_blocks=3)` PyTorch class.
+//
+// Demonstrates Tier-2 emission (residual_block): the torch_dataflow
+// backend instantiates an `ehk_torch_stub.ResidualBlock(hidden=16)`
+// per `residual_block` decl. The block's internal structure
+// (Linear-ReLU-Linear + skip add) is realised by the helper class,
+// not by HyMeKo hypergraph topology — multi-input dataflow
+// (needed to express the additive skip in pure HyMeKo) is not yet
+// supported and is deferred to a later tier.
+//
+// Compile via:
+//   hymeko compile examples/nn/mnist_resmlp_3.hymeko \
+//       --format torch_dataflow --name ResMLP3FromHymeko \
+//       -o /tmp/mnist_resmlp_emitted.py
+
+mnist_resmlp_3_description {
+    @"meta_nn.hymeko";
+    using nn.layers as lyr;
+    using nn.tensors as ten;
+}
+
+mnist_resmlp_3: lyr, ten {
+
+    // Tensors.
+    x:  ten.t_input      { shape [784]; }
+    z0: ten.t_activation { shape [16]; }   // post initial projection
+    z1: ten.t_activation { shape [16]; }   // post block 1
+    z2: ten.t_activation { shape [16]; }   // post block 2
+    z3: ten.t_activation { shape [16]; }   // post block 3
+    y:  ten.t_output     { shape [10]; }
+
+    // Initial 784→16 projection (skipped from the spectral regulariser
+    // in the PyTorch counterpart; dataflow emits it normally).
+    proj: lyr.linear_layer { d_in 784; d_out 16; }
+
+    // Three residual blocks at hidden 16.
+    block_1: lyr.residual_block { hidden 16; }
+    block_2: lyr.residual_block { hidden 16; }
+    block_3: lyr.residual_block { hidden 16; }
+
+    // Final readout 16 → 10.
+    head: lyr.linear_layer { d_in 16; d_out 10; }
+
+    // Dataflow chain.
+    @flow_proj:    lyr.dataflow { (+ x,  ~ proj,    - z0); }
+    @flow_block_1: lyr.dataflow { (+ z0, ~ block_1, - z1); }
+    @flow_block_2: lyr.dataflow { (+ z1, ~ block_2, - z2); }
+    @flow_block_3: lyr.dataflow { (+ z2, ~ block_3, - z3); }
+    @flow_head:    lyr.dataflow { (+ z3, ~ head,    - y);  }
+}

@@ -1,0 +1,25 @@
+// galambos_scenario.hymeko — the Galambos two-arm planar coin-grasp as ONE declarative scenario (a test).
+//
+// Composes the four Galambos pieces into a single scenario, mirroring pick_place_scenario for the FANUC arm:
+//   - galambos_planar    : the robot (two 2-link planar arms)
+//   - galambos_env       : the scene (target zone, coin spawn region, workspace bounds, success)
+//   - galambos_task      : the reward (approach, two-finger contact, in-zone, ...)
+//   - galambos_strategy  : the RL strategy (exploration / exploitation)
+// One model thus names the whole MDP for the task. Validates via `hymeko inspect` once the engine resolves
+// transitive imports (see memory project-engine-transitive-imports); the Python bridge reads it today.
+
+galambos_scenario_description {
+    @"meta_scenario.hymeko";
+    @"galambos_planar.hymeko";      // robot
+    @"galambos_env.hymeko";         // scene
+    @"galambos_task.hymeko";        // reward
+    @"galambos_strategy.hymeko";    // RL strategy
+    using scenario as scn;
+}
+
+galambos_scenario: scn
+{
+    @scene: scn.scene {
+        max_steps 160;              // episode horizon; the rest of the scene lives in galambos_env
+    }
+}

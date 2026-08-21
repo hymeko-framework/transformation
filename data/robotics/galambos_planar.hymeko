@@ -1,0 +1,102 @@
+// galambos_planar.hymeko — Galambos planar two-finger grasper, TOP-DOWN table, described in HyMeKo.
+//
+// Two connected 2-link planar arms (thumb + index) lie flat on a table and sweep in the XY plane
+// (every revolute axis is Z). Each link is a BOX rod whose geometry `origin` offsets it to span from
+// its joint to the next joint — a *connected* arm (this needs the emitter to honor the geometry
+// origin as the geom pos; fixed in hymeko_formats 2026-06-20). Bases at x = ±0.14, each yawed +90°
+// so the arm reaches forward (+Y) into a workspace whose centre is well inside reach. The disk +
+// zone are scene objects the env injects ON the table (the coin is PLACED in reach, not dropped).
+
+galambos_planar_description {
+  @"meta_kinematics.hymeko";
+}
+
+galambos_planar: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes
+{
+    world: meta_kinematics.kinematics.elements.frame {}
+
+    link_color [0.2, 0.5, 0.9, 1.0];
+
+    // === Bases (small mounts on the table) ===
+    base_left: meta_kinematics.kinematics.elements.link {
+        mass 0.4;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.044, 0.044, 0.024]; }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> galambos_planar.link_color;
+        origin [0.0, 0.0, 0.0];
+    }
+    base_right: meta_kinematics.kinematics.elements.link {
+        mass 0.4;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.044, 0.044, 0.024]; }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> galambos_planar.link_color;
+        origin [0.0, 0.0, 0.0];
+    }
+
+    // === Left finger: proximal (L1=0.16) + distal (L2=0.14) rods. Box `origin` = link mid-point,
+    //     so each rod spans [0, L] from its joint to the next (connected). ===
+    upper_left: meta_kinematics.kinematics.elements.link {
+        mass 0.25;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.16, 0.024, 0.024]; }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> galambos_planar.link_color;
+        origin [0.08, 0.0, 0.0];
+    }
+    lower_left: meta_kinematics.kinematics.elements.link {
+        mass 0.2;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.14, 0.02, 0.02]; }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> galambos_planar.link_color;
+        origin [0.07, 0.0, 0.0];
+    }
+
+    // === Right finger (same shape) ===
+    upper_right: meta_kinematics.kinematics.elements.link {
+        mass 0.25;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.16, 0.024, 0.024]; }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> galambos_planar.link_color;
+        origin [0.08, 0.0, 0.0];
+    }
+    lower_right: meta_kinematics.kinematics.elements.link {
+        mass 0.2;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.14, 0.02, 0.02]; }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> galambos_planar.link_color;
+        origin [0.07, 0.0, 0.0];
+    }
+
+    // === Fixed joints: world -> bases. Yaw +90° (arm reaches +Y); z lifts it onto the table. ===
+    // Bases at x = ±0.18 (a wider stance than the original ±0.14 — an added reach difficulty;
+    // still inside both-arm reach for a central zone: (0,0.19) is 0.26 m < 0.30 m reach from each).
+    @fix_left: meta_kinematics.kinematics.fixed_joint {
+        (+ world [[-0.18, -0.02, 0.04], [0.0, 0.0, 90.0]], - base_left);
+    }
+    @fix_right: meta_kinematics.kinematics.fixed_joint {
+        (+ world [[0.18, -0.02, 0.04], [0.0, 0.0, 90.0]], - base_right);
+    }
+
+    // === Revolute joints (all AXIS_Z → planar XY sweep). jl2/jr2 sit at the end of the upper rod. ===
+    @jl1: meta_kinematics.kinematics.rev_joint {
+        (+ base_left [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - upper_left,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+    @jl2: meta_kinematics.kinematics.rev_joint {
+        (+ upper_left [[0.16, 0.0, 0.0], [0.0, 0.0, 0.0]], - lower_left,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+    @jr1: meta_kinematics.kinematics.rev_joint {
+        (+ base_right [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - upper_right,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+    @jr2: meta_kinematics.kinematics.rev_joint {
+        (+ upper_right [[0.16, 0.0, 0.0], [0.0, 0.0, 0.0]], - lower_right,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+}

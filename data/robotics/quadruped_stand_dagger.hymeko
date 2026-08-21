@@ -1,0 +1,46 @@
+// quadruped_stand_dagger.hymeko -- DAgger for Aibo standing, declared as a signed dataflow HYPERGRAPH.
+//
+// The training STRATEGY as data, structurally: 7 stage nodes + 6 signed flow hyperedges. The MDP itself
+// (plant + reward + scene) is the sibling quadruped_stand.hymeko, read by QuadrupedGoalEnv.from_hymeko; this
+// file declares only HOW to train. Its identity is the TOPOLOGY: the f_loop flow (+ retrain, - rollout) closes
+// the relabel CYCLE that makes this DAgger (delete it and StrategyGraph.classify would read plain BC).
+// Read by hymeko_rl/train/strategy_graph.py::StrategyGraph.from_hymeko. Validates via `hymeko validate`.
+
+quadruped_stand_dagger_description {
+    @"meta_strategy_graph.hymeko";
+    using strategy as sg;
+}
+
+quadruped_stand_dagger: sg
+{
+    // === Stages (role selects the primitive; the other fields are that stage's knobs) ===
+    @expert_demos: sg.stage { role "source"; n_demos 40; }           // D0 = DART PD-hold demos (SMALL, so the
+                                                                     // per-round relabels are not drowned; 200 -> 40
+                                                                     // after the first 3-seed run showed a 49k-sample
+                                                                     // D0 swamps the ~3k/round relabels)
+    @bc_clone:     sg.stage { role "bc"; bc_epochs 200; }           // initial clone -> policy pi0
+    @rollout:      sg.stage { role "rollout"; rollouts 12; beta 0.5; beta_decay 0.5; }  // roll learner, beta-mix expert
+    @expert_label: sg.stage { role "label"; }                       // lock-step expert query at each visited state
+    @aggregate:    sg.stage { role "aggregate"; expert_replay 1.0; aggregate_cap 2; } // D = D0 + last 2 rounds'
+                                                                     // relabels (recency cap: stop a stale/bad
+                                                                     // round poisoning later re-BCs)
+    @retrain:      sg.stage { role "bc"; bc_epochs 200; warm_start 0; }  // re-clone on the aggregated set -> pi_r
+                                                                     // (fresh; warm_start was measured no-help)
+    @evaluate:     sg.stage { role "eval"; n_eval 24; }             // standing dwell + best-checkpoint
+
+    // === Signed dataflow hyperedges (+ producer, - consumer) ===
+    @f_demos:   sg.flow { (+ expert_demos, - bc_clone, - aggregate); }  // demos -> initial BC + the replay pool
+    @f_init:    sg.flow { (+ bc_clone, - rollout); }                    // pi0 -> first rollout
+    @f_states:  sg.flow { (+ rollout, - expert_label); }               // learner-visited states -> expert query
+    @f_labels:  sg.flow { (+ expert_label, - aggregate); }             // expert labels -> aggregate
+    @f_dataset: sg.flow { (+ aggregate, - retrain); }                  // aggregated dataset -> retrain
+    @f_loop:    sg.flow { (+ retrain, - rollout, - evaluate); }        // pi_r -> next rollout (THE CYCLE) + eval
+
+    // === The graph: stages + flows + the loop repeat count + run seeds ===
+    @strategy_graph: sg.strategy_graph {
+        (+ expert_demos, + bc_clone, + rollout, + expert_label, + aggregate, + retrain, + evaluate,
+         + f_demos, + f_init, + f_states, + f_labels, + f_dataset, + f_loop);
+        iterate 4;              // DAgger rounds (cycle repetitions)
+        seeds [0, 1, 2];
+    }
+}

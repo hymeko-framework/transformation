@@ -1,0 +1,27 @@
+// galambos_env_o1_large.hymeko — OBJ_O1-L: the SIZE ablation (R11.7A U6).
+//
+// Identical Galambos scene/task to galambos_env.hymeko; ONLY the manipulated object differs. O1-L is a
+// larger round disk (radius 1.20 x the reference coin's 0.02 = 0.024) held at the SAME MASS and friction as
+// O0 by lowering its density (694.4444 = 1000 x (0.02/0.024)^2), so mass = O0 while the inertia is recomputed
+// from the larger geometry. This isolates GEOMETRY/SIZE (the reach/straddle footprint) from mass and friction.
+
+galambos_env_description {
+    @"meta_env.hymeko";
+    using env.params as p;
+    using env        as e;
+}
+
+galambos_env: p, e
+{
+    @zone:   p.target_zone { half 0.04; rx_lo -0.05; rx_hi 0.05; ry_lo 0.10; ry_hi 0.18; randomize 1.0; }
+    @spawn:  p.coin_spawn  { rx_lo -0.20; rx_hi 0.20; ry_lo 0.05; ry_hi 0.23; clearance 0.03; }
+    @bounds: p.workspace   { x_bound 0.40; y_min -0.08; y_max 0.45; }
+    @succ:   p.success     { steps 5.0; }
+
+    // O1-L: larger disk (radius 0.024), density lowered to hold mass = O0; inertia follows the geometry.
+    @dsk:    p.disk        { shape "cylinder"; family "disk_large"; radius 0.024; half 0.02; density 694.4444; damping 2.5; spin_damping 0.8; frictionloss 0.0; }
+
+    @env_spec: e.env_spec {
+        (+ zone, + spawn, + bounds, + succ, + dsk);
+    }
+}

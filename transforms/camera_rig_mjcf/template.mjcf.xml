@@ -1,0 +1,8 @@
+<mujoco model="{{config:robot_name}}">
+  <worldbody>
+{{#each cameras}}
+    <!-- look_at: {{field:target}} -->
+    <camera name="{{name}}" pos="{{field:position}}" fovy="{{field:fov}}"/>
+{{/each}}
+  </worldbody>
+</mujoco>

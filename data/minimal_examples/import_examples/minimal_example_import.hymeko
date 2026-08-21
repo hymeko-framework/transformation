@@ -1,0 +1,8 @@
+basic_import_example {
+  @"minimal_example_library.hymeko";
+}
+context {
+  A1{}
+  A2{}
+  @E1 { (+ basic_library.elements.operand, -A1); }
+}

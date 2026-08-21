@@ -1,0 +1,34 @@
+// galambos_env_o6_triangle.hymeko — OBJ_O6-T: the CORNER / sharp-vertex SHAPE ablation (Track A2, 2026-08-12).
+//
+// Identical Galambos scene/task to galambos_env.hymeko; ONLY the manipulated object differs. O6-T is an
+// equilateral triangular PRISM with the SAME projected area as the reference disk (radius 0.02) and the SAME
+// thickness ⇒ same volume ⇒ same mass at the default density, friction unchanged. `compose_planar_scene`'s
+// "triangle" branch derives the equal-area circumradius R_c = sqrt(pi * radius^2 / (3*sqrt(3)/4)) ≈ 0.03110 m
+// and builds a convex mesh centred at the centroid (MuJoCo density-derives mass/COM/inertia).
+//
+// This is the first NON-circular, NON-box manipuland: three flat faces meeting at three SHARP corners, a
+// footprint (circumradius ≈ 31.1 mm) larger than the coin's (20 mm) or the square's diagonal (≈ 25 mm), and
+// orientation-dependent contact that is neither the disk's antipodal roll nor the box's flat clamp. It isolates
+// SHAPE (corner geometry) from size, mass, and friction — the same single-axis discipline as O4-S.
+
+galambos_env_description {
+    @"meta_env.hymeko";
+    using env.params as p;
+    using env        as e;
+}
+
+galambos_env: p, e
+{
+    @zone:   p.target_zone { half 0.04; rx_lo -0.05; rx_hi 0.05; ry_lo 0.10; ry_hi 0.18; randomize 1.0; }
+    @spawn:  p.coin_spawn  { rx_lo -0.20; rx_hi 0.20; ry_lo 0.05; ry_hi 0.23; clearance 0.03; }
+    @bounds: p.workspace   { x_bound 0.40; y_min -0.08; y_max 0.45; }
+    @succ:   p.success     { steps 5.0; }
+
+    // O6-T: equilateral triangular prism, equal projected area to the disk (radius = equal-area disk radius 0.02),
+    // density default ⇒ mass = O0. `radius_y` is unused for a triangle (the branch ignores it).
+    @dsk:    p.disk        { shape "triangle"; family "prism_triangle"; radius 0.02; half 0.02; damping 2.5; spin_damping 0.8; frictionloss 0.0; }
+
+    @env_spec: e.env_spec {
+        (+ zone, + spawn, + bounds, + succ, + dsk);
+    }
+}

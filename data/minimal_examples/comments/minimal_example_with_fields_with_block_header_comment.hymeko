@@ -1,0 +1,18 @@
+/*
+A very simple HyMeKo file with header comment
+*/
+Minimal_Example
+{
+    author "Csaba";
+}
+context
+{
+    val0 <int> 56;
+    val1 <string> "vakond";
+    val2 <real> 56.891;
+    val_undef <real>;
+    val3 3444.4623;
+    pi 3.14156;
+    val_float;
+    vector [15.6, 17.8, 16.3, 12.3, 67.8, 45, 2];
+}

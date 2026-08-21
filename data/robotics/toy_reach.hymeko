@@ -1,0 +1,48 @@
+// toy_reach.hymeko — a point-mass "reach the target" MDP declared END-TO-END in HyMeKo.
+//
+// One source declares the whole control problem, exactly as galambos_scenario names the robot MDP:
+//   - STATE          : a 2-D point mass, state = [px, py, vx, vy]          (state_dim / action_dim)
+//   - OBSERVATION    : which state channels the policy sees                 (observed)
+//   - DYNAMICS       : point-mass integrator parameters                     (dt, damping, force_gain, action_scale)
+//   - OBJECTIVE      : reward = Σ weight·term  +  success radius            (@reward_spec, reach_radius)
+//   - EPISODE        : horizon                                              (max_steps)
+//
+// Loaded by hymeko_rl/env/hymeko_mdp.py::HymekoReachEnv.from_hymeko and solved by the SAME off-policy TD3
+// used for the robots — a minimal witness of "HyMeKo as a declarative control substrate"
+// (project-hymeko-as-control-substrate). Runtime-tunable: edit this file, git tracks it, the env re-reads it —
+// no code change (feedback-reward-definition-in-hymeko). Reuses the reach_distance / action_cost reward terms
+// from meta_reward, evaluated by the shared RewardSpec — nothing bespoke.
+
+toy_reach_description {
+    @"meta_scenario.hymeko";
+    @"meta_reward.hymeko";
+    using scenario     as scn;
+    using reward.terms as rew;
+    using reward       as r;
+}
+
+toy_reach: scn, rew, r
+{
+    // --- the plant + task as tunable scene fields (all runtime-editable) ---
+    @plant: scn.scene {
+        state_dim    4;             // [px, py, vx, vy]
+        action_dim   2;             // [fx, fy]
+        dt           0.1;
+        damping      0.2;           // velocity drag per step
+        force_gain   1.0;           // action -> acceleration gain
+        action_scale 1.0;           // |f| bound (the Box action limit)
+        target       [0.8, -0.6];   // goal position (px, py)
+        reach_radius 0.1;           // success: ‖p - target‖ < this
+        max_steps    60;            // episode horizon
+        observed     [0, 1, 2, 3];  // which state indices the policy observes (OBSERVATION from HyMeKo)
+    }
+
+    // --- reward terms (typed signals from meta_reward; weights live on the bundle arc) ---
+    @reach:  rew.reach_distance {}   // -‖p - target‖   (the env passes dist = ‖p - target‖)
+    @effort: rew.action_cost   {}    // -‖f‖²           (control effort)
+
+    // --- OBJECTIVE: the scalar reward Σ weight·term ---
+    @reward_spec: r.reward_spec {
+        (+ reach 1.0, + effort 0.02);
+    }
+}

@@ -1,0 +1,40 @@
+torch_dataflow_transform {}
+context
+{
+    // All layer hypervertices (any decl inheriting from meta_layer).
+    // Kept for backward compatibility / inspection; per-kind queries
+    // below drive the per-class emission in template.py.
+    layers:  meta_layer {}
+
+    // ── Per-kind layer collections (Tier 1 + Tier 2) ───────────────
+    // The template iterates each collection separately so each
+    // layer class emits the right PyTorch primitive. A given layer
+    // appears in `layers` AND its specific collection.
+    hg_conv_layers:    hypergraph_conv {}
+    linear_layers:     linear_layer {}
+    relu_layers:       relu_layer {}
+    sigmoid_layers:    sigmoid_layer {}
+    tanh_layers:       tanh_layer {}
+    residual_blocks:   residual_block {}
+    highway_blocks:    highway_block {}
+
+    // ── Tier-3: signed-cycle KAN primitives ────────────────────────
+    signedkan_layers:    signedkan_layer {}
+    walk_layers:         walk_layer {}
+    arity_mixers:        arity_mixer {}
+    signed_classifiers:  signed_classifier {}
+
+    // Tensors of any role (input / activation / output).
+    tensors: meta_tensor {}
+
+    // Outer dataflow hyperedges: (+ in_tensor, ~ layer, - out_tensor).
+    @flows:  dataflow {}
+
+    // Input tensors only — used to emit the forward signature.
+    // Multi-input: e.g. (x, cycle_v_k3, cycle_sigma_k3, M_e_k3, ...) for
+    // signed-cycle KAN where structure tensors flow alongside features.
+    inputs:  t_input {}
+
+    // Output tensors only — used to emit the return statement.
+    outputs: t_output {}
+}

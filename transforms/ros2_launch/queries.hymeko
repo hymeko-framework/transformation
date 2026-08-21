@@ -1,0 +1,8 @@
+ros2_launch_transform {}
+context
+{
+    links: link {}
+    @revolute_joints: rev_joint {}
+    @continuous_joints: conti_joint {}
+    controllers: control {}
+}

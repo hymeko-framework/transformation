@@ -1,0 +1,167 @@
+diff_drive_robot_4wh_camera {
+  @"meta_kinematics.hymeko";
+  @"meta_topic.hymeko";
+}
+
+diff_robot: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes
+{
+    body_color [0.0, 0.0, 1.0, 1.0];
+    wheel_color [0.0, 0.0, 0.0, 1.0];
+    camera_color [0.86, 0.86, 0.86, 1.0];
+
+    diffdrive_control: meta_kinematics.kinematics.elements.control {
+        update_rate 100;
+    }
+
+    @wheel_joint_control {
+        (+ meta_kinematics.kinematics.control_attributes.velocity,
+         - meta_kinematics.kinematics.control_attributes.position,
+         - meta_kinematics.kinematics.control_attributes.velocity);
+    }
+    base_link: meta_kinematics.kinematics.elements.link {
+        mass 25.0;
+        link_geometry: meta_kinematics.kinematics.geometry.box {
+            dimension [0.7, 0.5, 0.2];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> diff_robot.body_color;
+        origin [0.0, 0.0, 0.05];
+    }
+    wheel_fr: meta_kinematics.kinematics.elements.link {
+        mass 2.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.2, 0.1];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> diff_robot.wheel_color;
+        origin [0.0, 0.0, 0.05];
+    }
+    wheel_fl: meta_kinematics.kinematics.elements.link {
+        mass 2.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.2, 0.1];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> diff_robot.wheel_color;
+        origin [0.0, 0.0, 0.05];
+    }
+    wheel_rr: meta_kinematics.kinematics.elements.link {
+        mass 2.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.2, 0.1];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> diff_robot.wheel_color;
+        origin [0.0, 0.0, 0.05];
+    }
+    wheel_rl: meta_kinematics.kinematics.elements.link {
+        mass 2.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.2, 0.1];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> diff_robot.wheel_color;
+        origin [0.0, 0.0, 0.05];
+    }
+    camera_link: meta_kinematics.kinematics.elements.link {
+        mass 0.5;
+        link_geometry: meta_kinematics.kinematics.geometry.box {
+            dimension [0.05, 0.2, 0.1];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> diff_robot.camera_color;
+        origin [0.0, 0.0, 0.05];
+    }
+
+    @camera_joint: meta_kinematics.kinematics.fixed_joint {
+        (+ base_link [[0.35, 0.0, 0.15], [0.0, 0.0, 0.0]], - camera_link,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+
+    @joint_fr: meta_kinematics.kinematics.conti_joint {
+        (+ base_link [[0.25, 0.25, 0.05], [-90.0, 0.0, 0.0]], - wheel_fr,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+        @control: wheel_joint_control {}
+    }
+    @joint_fl: meta_kinematics.kinematics.conti_joint {
+        (+ base_link [[0.25, -0.25, 0.05], [90.0, 0.0, 0.0]], - wheel_fl,
+         - meta_kinematics.kinematics.axes.AXIS_M_Z);
+        @control: wheel_joint_control {}
+    }
+    @joint_rr: meta_kinematics.kinematics.conti_joint {
+        (+ base_link [[-0.25, 0.25, 0.05], [-90.0, 0.0, 0.0]], - wheel_rr,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+        @control: wheel_joint_control {}
+    }
+    @joint_rl: meta_kinematics.kinematics.conti_joint {
+        (+ base_link [[-0.25, -0.25, 0.05], [90.0, 0.0, 0.0]], - wheel_rl,
+         - meta_kinematics.kinematics.axes.AXIS_M_Z);
+        @control: wheel_joint_control {}
+    }
+
+    @joint_state_broadcaster: meta_kinematics.kinematics.elements.control_definition {
+        (+ diff_robot.diffdrive_control,
+         - meta_kinematics.kinematics.sensors.joint_state_broadcaster);
+    }
+    @sim_control_plugin: meta_kinematics.kinematics.sim_plugin {
+        plugin "gz_ros2_control::GazeboSimROS2ControlPlugin";
+        filename "gz_ros2_control-system";
+        parameters "diff_control.yaml";
+    }
+    @gazebo_sim_system: meta_kinematics.kinematics.control_plugin {
+        plugin "gz_ros2_control/GazeboSimSystem";
+        filename "gz_ros2_control-system";
+        (- joint_fr, - joint_fl, - joint_rr, - joint_rl);
+    }
+    diff_drive_base_controller: meta_kinematics.kinematics.controllers.diff_drive_controller {
+       publish_rate 50.0;
+       wheel_separation 0.5;
+       wheel_radius 0.2;
+       base_frame_id "base_link";
+       odom_frame_id "odom";
+       pose_covariance  [0.001, 0.001, 0.0, 0.0, 0.0, 0.01];
+       twist_covariance [0.001, 0.0,   0.0, 0.0, 0.0, 0.01];
+
+       @interfaces {
+           (+ meta_kinematics.kinematics.control_attributes.velocity,
+            - meta_kinematics.kinematics.control_attributes.position,
+            - meta_kinematics.kinematics.control_attributes.velocity);
+       }
+       @joints {
+            (- joint_fr ["right"], - joint_rr ["right"],
+             - joint_fl ["left"], - joint_rl ["left"]);
+       }
+    }
+    camera: meta_kinematics.kinematics.sensors.rgb_camera {
+        image_size [640, 480];
+        focal_length [0.05, 0.05];
+        distortion [0.0, 0.0, 0.0, 0.0, 0.0];
+        update_rate 30.0;
+        fov [60];
+        always_on 1;
+        clip [0.1, 100.0];
+    }
+    camera_image_topic_definition: meta_topic.communication.topic_definition {
+        topic_name "camera";
+        message_type "sensor_msgs/Image";
+    }
+    camera_info_topic_definition: meta_topic.communication.topic_definition {
+        topic_name "camera_info";
+        message_type "sensor_msgs/CameraInfo";
+    }
+    @camera_topic: meta_topic.communication.topic {
+        (+ camera_image_topic_definition,
+         + camera_info_topic_definition,
+         - camera);
+    }
+    @camera_connection: meta_kinematics.kinematics.sensors.sensor_connection {
+        (+ camera,
+         - camera_link);
+    }
+}

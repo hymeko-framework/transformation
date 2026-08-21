@@ -1,0 +1,30 @@
+// meta_sysml_trace.hymeko — SysML v2 requirements-traceability vocabulary.
+//
+// Companion witness for the SMC paper (reviewer item 5 of smc_02/review_1): a
+// minimal NON-robotics instance of the same canonical signed-hypergraph IR, to
+// back the conclusion's claim that SysML v2 / systems-engineering traceability
+// is a further instance of the same machinery (not an unmeasured aspiration).
+//
+// Node types are requirements and blocks (components); the trace relations are
+// signed n-ary hyperedges over them:
+//
+//   satisfies(+ block,        - requirement)   a component satisfies a requirement
+//   derives  (+ derived_req,  - source_req)     a requirement is derived from another
+//   allocated_to(+ requirement, - block)        a requirement is allocated to a block
+//
+// Modeled on data/robotics/meta_kinematics.hymeko: plain names are node-type
+// decls, `@name` decls are hyperedge types.
+
+meta_sysml_trace {}
+
+sysml_trace {
+    elements {
+        meta_element {}
+        requirement: + <isa> meta_element {}
+        block:       + <isa> meta_element {}
+    }
+
+    @satisfies {}
+    @derives {}
+    @allocated_to {}
+}

@@ -1,0 +1,259 @@
+// FANUC LR Mate 200iD-style 6-DOF industrial arm — HymeKo cognitive
+// description.
+//
+// This is a *kinematically faithful but geometrically simplified*
+// model of the FANUC LR Mate 200iD/7L 6-axis manipulator, modeled
+// from the publicly-published spec sheet (max reach 717 mm, 7 kg
+// payload, joint-limit envelope listed below). Visuals use cylinder
+// + box primitives in the style of `anthropomorphic_arm.hymeko`;
+// for a CAD-accurate model use ROS-industrial's
+// `fanuc_lrmate200id_support` STL meshes instead.
+//
+// FANUC is a registered trademark of FANUC Corporation; this file
+// is an independent simulation model, not a FANUC product.
+//
+// The two-arm scenario this file feeds into instantiates ONE
+// compiled HymeKo IR twice via Gazebo `<include>` directives —
+// demonstrating the single-source-of-truth property of HymeKo.
+// See data/robotics/sim/dual_fanuc/world.sdf.
+//
+// Build:
+//   target/release/hymeko emit -f sdf -n fanuc_lrmate200id \
+//     -o data/robotics/sim/dual_fanuc/model.sdf \
+//     data/robotics/sim/dual_fanuc/fanuc_lrmate200id.hymeko
+
+fanuc_lrmate200id_description {
+  @"../../meta_kinematics.hymeko";
+}
+
+robot: meta_kinematics.kinematics.elements,
+        meta_kinematics.kinematics.geometry,
+        meta_kinematics.kinematics.axes
+{
+    world: meta_kinematics.kinematics.elements.frame {}
+
+    // FANUC light-yellow body colour (datasheet/photographs).
+    fanuc_yellow [0.96, 0.86, 0.13, 1.0];
+    // FANUC dark cast-iron / black for wrist cluster + base.
+    fanuc_black  [0.18, 0.18, 0.18, 1.0];
+
+    fanuc_control: meta_kinematics.kinematics.elements.control {
+        update_rate 500;
+    }
+
+    // === Links ============================================================
+    // Dimensions in metres, derived from FANUC LR Mate 200iD/7L public spec:
+    //   max reach   717 mm
+    //   payload     7 kg
+    //   wrist load  ~ 0.295 kgm² at full extension
+    // Cylinder radii are visual approximations sized to the photograph
+    // proportions, not the actual swept volume.
+
+    // J1 column / pedestal (fixed to world).
+    base_link: meta_kinematics.kinematics.elements.link {
+        mass 6.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            // radius 0.1 m, height 0.33 m → top face at J1 axis.
+            dimension [0.10, 0.33];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> robot.fanuc_black;
+        origin [0.0, 0.0, 0.165];
+    }
+
+    // J2 shoulder housing (rotates about J1; carries J2 pitch axis).
+    link_j1: meta_kinematics.kinematics.elements.link {
+        mass 4.5;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            // 0.085 radius, 0.150 height — the squat shoulder cylinder.
+            dimension [0.085, 0.15];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> robot.fanuc_yellow;
+        origin [0.0, 0.0, 0.075];
+    }
+
+    // Upper arm (J2 → J3) — the long vertical-then-pitched limb.
+    link_upper_arm: meta_kinematics.kinematics.elements.link {
+        mass 3.5;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            // radius 0.05, length 0.330 (J2-to-J3 horizontal projection
+            // at zero pose).
+            dimension [0.05, 0.330];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> robot.fanuc_yellow;
+        origin [0.0, 0.0, 0.165];
+    }
+
+    // Forearm housing (J3 elbow plate + J4 housing entry).
+    link_elbow: meta_kinematics.kinematics.elements.link {
+        mass 2.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.05, 0.075];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> robot.fanuc_yellow;
+        origin [0.0, 0.0, 0.0375];
+    }
+
+    // Forearm (J4 roll → J5 pitch axis).
+    link_forearm: meta_kinematics.kinematics.elements.link {
+        mass 2.5;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.04, 0.290];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> robot.fanuc_yellow;
+        origin [0.0, 0.0, 0.145];
+    }
+
+    // Wrist cluster (J5 pitch carrier).
+    link_wrist: meta_kinematics.kinematics.elements.link {
+        mass 0.8;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.04, 0.05];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> robot.fanuc_black;
+        origin [0.0, 0.0, 0.025];
+    }
+
+    // Tool flange (J6 face plate, ISO 9409-1-A50 pattern).
+    tool_flange: meta_kinematics.kinematics.elements.link {
+        mass 0.3;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            // 50 mm flange diameter → 0.025 m radius, 0.020 m thickness.
+            dimension [0.025, 0.020];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> robot.fanuc_black;
+        origin [0.0, 0.0, 0.010];
+    }
+
+    // === Joint control interface =========================================
+    @arm_joint_control {
+        (+ meta_kinematics.kinematics.control_attributes.position,
+         + meta_kinematics.kinematics.control_attributes.velocity,
+         - meta_kinematics.kinematics.control_attributes.position,
+         - meta_kinematics.kinematics.control_attributes.velocity,
+         - meta_kinematics.kinematics.control_attributes.effort);
+    }
+
+    // === Joint limits (degrees + N·m + rad/s) ============================
+    // Values from the FANUC LR Mate 200iD/7L public spec sheet.
+    //
+    // NOTE: the `hymeko_query` kinematic extractor reads limit values
+    // from inline `limit_{lower,upper,effort,velocity}` fields on each
+    // joint declaration, NOT from a `limit -> j_limit` reference. The
+    // anthropomorphic_arm.hymeko uses the reference style and so its
+    // emitted URDF/SDF falls back to the -3.14/+3.14 default
+    // (open follow-up: extend `extract_joint_limits` to follow the
+    // `limit -> ` reference; that's a CORE.YAML hymeko_query edit and
+    // is gated on approval). For the FANUC arm we use the inline
+    // convention so the rich emit actually carries the FANUC spec
+    // values into the SDF.
+
+    // === Fixed joint: world → base ======================================
+    @j_fix: meta_kinematics.kinematics.fixed_joint {
+        (+ world [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - base_link);
+    }
+
+    // === Revolute joints =================================================
+    // J1: Z-axis rotation atop the pedestal.
+    @j1: meta_kinematics.kinematics.rev_joint {
+        (+ base_link [[0.0, 0.0, 0.33], [0.0, 0.0, 0.0]], - link_j1,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+        @control: arm_joint_control {}
+        limit_lower    -170.0;
+        limit_upper     170.0;
+        limit_effort     60.0;
+        limit_velocity    6.28;
+    }
+    // J2: shoulder pitch — Y-axis (orthogonal to upper-arm axis).
+    @j2: meta_kinematics.kinematics.rev_joint {
+        (+ link_j1 [[0.0, 0.0, 0.075], [0.0, 0.0, 0.0]], - link_upper_arm,
+         - meta_kinematics.kinematics.axes.AXIS_Y);
+        @control: arm_joint_control {}
+        limit_lower    -100.0;
+        limit_upper     145.0;
+        limit_effort     60.0;
+        limit_velocity    5.06;
+    }
+    // J3: elbow pitch — Y-axis.
+    @j3: meta_kinematics.kinematics.rev_joint {
+        (+ link_upper_arm [[0.0, 0.0, 0.330], [0.0, 0.0, 0.0]], - link_elbow,
+         - meta_kinematics.kinematics.axes.AXIS_Y);
+        @control: arm_joint_control {}
+        limit_lower    -180.0;
+        limit_upper     213.0;
+        limit_effort     50.0;
+        limit_velocity    6.28;
+    }
+    // J4: forearm roll — about the forearm's own X-axis (after J3 elbow
+    // plate). Offset puts the roll axis along the forearm centreline.
+    @j4: meta_kinematics.kinematics.rev_joint {
+        (+ link_elbow [[0.0, 0.0, 0.075], [0.0, 0.0, 0.0]], - link_forearm,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+        @control: arm_joint_control {}
+        limit_lower    -190.0;
+        limit_upper     190.0;
+        limit_effort     30.0;
+        limit_velocity    7.85;
+    }
+    // J5: wrist pitch — Y-axis at the end of the forearm.
+    @j5: meta_kinematics.kinematics.rev_joint {
+        (+ link_forearm [[0.0, 0.0, 0.290], [0.0, 0.0, 0.0]], - link_wrist,
+         - meta_kinematics.kinematics.axes.AXIS_Y);
+        @control: arm_joint_control {}
+        limit_lower    -125.0;
+        limit_upper     125.0;
+        limit_effort     30.0;
+        limit_velocity    7.85;
+    }
+    // J6: tool twist — about the flange Z-axis.
+    @j6: meta_kinematics.kinematics.rev_joint {
+        (+ link_wrist [[0.0, 0.0, 0.050], [0.0, 0.0, 0.0]], - tool_flange,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+        @control: arm_joint_control {}
+        limit_lower    -360.0;
+        limit_upper     360.0;
+        limit_effort     20.0;
+        limit_velocity   12.56;
+    }
+
+    // === Simulation control plugins ======================================
+    @gazebo_sim_system: meta_kinematics.kinematics.control_plugin {
+        plugin "gz_ros2_control/GazeboSimSystem";
+        filename "gz_ros2_control-system";
+        (- j1, - j2, - j3, - j4, - j5, - j6);
+    }
+    @sim_control_plugin: meta_kinematics.kinematics.sim_plugin {
+        plugin "gz_ros2_control::GazeboSimROS2ControlPlugin";
+        filename "gz_ros2_control-system";
+        parameters "fanuc_control.yaml";
+    }
+    @joint_state_broadcaster: meta_kinematics.kinematics.elements.control_definition {
+        (- robot.fanuc_control,
+         + meta_kinematics.kinematics.sensors.joint_state_broadcaster);
+    }
+    joint_trajectory_controller: meta_kinematics.kinematics.controllers.joint_trajectory_controller {
+       state_publish_rate 100.0;
+       action_monitor_rate 20.0;
+       @interfaces {
+           (+ meta_kinematics.kinematics.control_attributes.position,
+            - meta_kinematics.kinematics.control_attributes.position,
+            - meta_kinematics.kinematics.control_attributes.velocity);
+       }
+       @joints {
+            (- j1, - j2, - j3, - j4, - j5, - j6);
+       }
+    }
+}

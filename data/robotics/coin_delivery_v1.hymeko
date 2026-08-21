@@ -1,0 +1,184 @@
+// coin_delivery_v1.hymeko — the CANONICAL coin-delivery task description (2026-07-20).
+//
+// Purpose (COIN-DELIVERY-OVERNIGHT-2 PART VII-C): one HyMeKo description in which the task GOAL, the PHASE events, the
+// MONITOR truth, the TERMINATION reasons, the ACTION capabilities, and the evaluation cannot be confused — the
+// architecture question the coin arc kept re-discovering in Python (F-COIN-DELIVERY-METRIC / F-COIN-DELIVERY-SEMANTICS).
+//
+// BINDING INVARIANT (encoded STRUCTURALLY): the transition `tr_handoff_transport` carries HANDOFF as its SOURCE (-)
+// and TRANSPORT as its TARGET (+) — the handoff is a PHASE EVENT that CONTINUES to transport; it does NOT terminate
+// the task. Task success is the DELIVERED terminal (from SETTLE on `center_reached`); FAILED is the safety/horizon
+// terminal. The distance endpoints are the COIN CENTRE and the ZONE CENTRE (planar Euclidean); center-reach is
+// disk_to_zone <= center_tol (0.02).
+//
+// The phase automaton is DATA: `fsm_phase` nodes (each binds a target `law` by name) + directed transition nodes
+// (a signed hyperedge `(- source, + target)` + an `event` label). Validates via `hymeko validate` (parse + resolve +
+// topology). NOTE: the compact `on <event> to <phase>` sugar used by the Python bridge does NOT parse in the CLI
+// (see the language-gap audit); this file uses the CLI-native signed-hyperedge form instead.
+
+coin_delivery_v1_description {
+    @"meta_controller.hymeko";
+    @"meta_kinematics.hymeko";
+    @"meta_task.hymeko";
+    @"meta_evaluation.hymeko";
+    using controller.phases   as ph;
+    using controller.params   as cp;
+    using controller          as c;
+    using kinematics.elements as el;
+    using task.actions        as act;
+    using task.coordination   as coord;
+    using evaluation.cohorts  as coh;
+    using evaluation.metrics  as met;
+    using evaluation          as ev;
+}
+
+coin_delivery_v1: ph, cp, c, el, act, coord, coh, met, ev
+{
+    // === Entities & frames — the coin CENTRE and the zone CENTRE are the distance endpoints ===
+    @coin:            el.frame {}
+    @target_zone:     el.frame {}
+    @left_fingertip:  el.frame {}
+    @right_fingertip: el.frame {}
+
+    // === Geometry / tolerances / dwell (task constants) ===
+    @geometry: cp.geometry {
+        zone_half    0.04;     // delivery_success: disk_to_zone <= zone_half
+        center_tol   0.02;     // center_reached:   disk_to_zone <= center_tol
+        stable_dwell 6;        // stable acquisition: both fingertips in contact for this many steps
+        horizon      120;      // horizon termination
+    }
+
+    // === Phase nodes (each binds a target law by name). FIRST in the fsm bundle (ACQUIRE) = initial state. ===
+    @ACQUIRE:   ph.fsm_phase { law "fingertip_approach"; kind "acquisition"; }   // fingertips -> coin (NOT midpoint -> zone)
+    @STABILIZE: ph.fsm_phase { law "hold_grip"; kind "acquisition"; }
+    // COIN-GRASP-CERT-1 contact-mode chain: CONTACT_ACQUIRED does NOT imply HANDOFF — a certified bilateral clamp does.
+    @CONTACT_ACQUIRED:  ph.fsm_phase { law "hold_grip"; kind "contact"; mode "L_or_R_or_B_t"; }   // marginal/one-sided
+    @CONTACT_BALANCE:   ph.fsm_phase { law "seek_missing_contact"; kind "contact"; }
+    @BILATERAL_CONTACT: ph.fsm_phase { law "hold_grip"; kind "contact"; mode "B_t"; }              // both, transient
+    @PRELOAD:           ph.fsm_phase { law "symmetric_preload"; kind "contact"; mode "B_p"; }       // both, preloaded
+    @GRASP_CERTIFY:     ph.fsm_phase { law "active_certify"; kind "contact"; }                       // survives probes
+    @HANDOFF:   ph.fsm_phase { law "hold_grip"; kind "phase_event"; }
+    @CLAMP_VERIFY: ph.fsm_phase { law "verify_clamp"; kind "transport"; }   // COIN-TRANSPORT-1: firm the clamp before transport
+    @TRANSPORT: ph.fsm_phase { law "object_centric_translate"; kind "transport"; }
+    @SETTLE:    ph.fsm_phase { law "centering_settle"; kind "settle"; }
+    @DELIVERED: ph.fsm_phase { law "freeze"; kind "terminal_success"; }          // typed termination: task success
+    @FAILED:    ph.fsm_phase { law "freeze"; kind "terminal_failure"; }          // typed termination: safety / horizon
+
+    // === Transitions — directed signed hyperedges (- source, + target) + an event label ===
+    @tr_acquire_stabilize:    c.controller_spec { (- ACQUIRE, + STABILIZE);  event "both_contact"; }
+    // COIN-GRASP-CERT-1: the contact-mode chain to a CERTIFIED grasp — HANDOFF requires CERTIFIED_GRASP (not mere contact)
+    @tr_stabilize_contact:    c.controller_spec { (- STABILIZE, + CONTACT_ACQUIRED); event "first_contact"; }
+    @tr_contact_balance:      c.controller_spec { (- CONTACT_ACQUIRED, + CONTACT_BALANCE); event "one_sided_contact"; }
+    @tr_balance_bilateral:    c.controller_spec { (- CONTACT_BALANCE, + BILATERAL_CONTACT); event "both_contact"; }
+    @tr_contact_bilateral:    c.controller_spec { (- CONTACT_ACQUIRED, + BILATERAL_CONTACT); event "both_contact"; }
+    @tr_bilateral_preload:    c.controller_spec { (- BILATERAL_CONTACT, + PRELOAD); event "bilateral_dwell"; }
+    @tr_preload_certify:      c.controller_spec { (- PRELOAD, + GRASP_CERTIFY); event "preloaded_B_p"; }
+    @tr_certify_handoff:      c.controller_spec { (- GRASP_CERTIFY, + HANDOFF); event "certified_grasp";
+                                                 requires "grasp_survives_active_probe_and_micro_transport"; }
+    @tr_certify_regrasp:      c.controller_spec { (- GRASP_CERTIFY, + ACQUIRE); event "certification_failed"; }
+    @tr_stabilize_regrasp:    c.controller_spec { (- STABILIZE, + ACQUIRE);  event "contact_lost"; }
+    @tr_handoff_clampverify:  c.controller_spec { (- HANDOFF, + CLAMP_VERIFY); event "handoff_logged"; }   // INVARIANT: NOT terminal
+    // COIN-TRANSPORT-1 contact-retention invariant: HANDOFF→TRANSPORT requires stable_acquisition AND clamp_retained
+    @tr_clampverify_transport: c.controller_spec { (- CLAMP_VERIFY, + TRANSPORT); event "clamp_retained";
+                                                   requires "stable_acquisition_and_clamp_retained"; }
+    @tr_clampverify_regrasp:  c.controller_spec { (- CLAMP_VERIFY, + ACQUIRE);   event "clamp_lost"; }   // clamp failed → re-acquire
+    @tr_transport_settle:     c.controller_spec { (- TRANSPORT, + SETTLE);   event "near_zone"; }
+    @tr_transport_regrasp:    c.controller_spec { (- TRANSPORT, + ACQUIRE);  event "contact_lost"; }
+    @tr_settle_delivered:     c.controller_spec { (- SETTLE, + DELIVERED);   event "center_reached"; }   // success on disk_to_zone<=center_tol
+    @tr_settle_transport:     c.controller_spec { (- SETTLE, + TRANSPORT);   event "zone_left"; }
+    @tr_acquire_failed:       c.controller_spec { (- ACQUIRE, + FAILED);     event "safety"; }
+    @tr_stabilize_failed:     c.controller_spec { (- STABILIZE, + FAILED);   event "safety"; }
+    @tr_handoff_failed:       c.controller_spec { (- HANDOFF, + FAILED);     event "safety"; }
+    @tr_transport_failed:     c.controller_spec { (- TRANSPORT, + FAILED);   event "safety"; }
+    @tr_settle_failed:        c.controller_spec { (- SETTLE, + FAILED);      event "horizon"; }
+
+    // === Capabilities / primitives (the acquisition control family + transport + settle). `phase` = where valid. ===
+    @align:     act.move_to    { phase "ACQUIRE"; }
+    @approach:  act.move_to    { phase "ACQUIRE"; }
+    @close:     act.grip_close { phase "ACQUIRE"; }
+    @stabilize: act.wait       { phase "STABILIZE"; }
+    @regrasp:   act.grip_open  { phase "ACQUIRE"; }              // regrasp is valid only in acquisition/recovery phases
+    @carry:     act.move_to    { phase "TRANSPORT"; }
+    @settle:    act.move_to    { phase "SETTLE"; }
+    @release:   act.grip_open  { phase "ZONE_ENTRY_OR_CENTER"; }  // release valid only AFTER zone-entry / center-reach
+    @handover:  coord.handover { phase "HANDOFF"; }              // handoff = a coordination phase event, never task success
+
+    // === COIN-TRANSPORT-1 object-centric action coordinates (midpoint ⊥ clamp ⊥ differential) + phase validity ===
+    @midpoint_translate:  act.move_to    { coord "midpoint"; phase "TRANSPORT"; }     // valid ONLY during TRANSPORT
+    @aperture_correct:    act.grip_close { coord "aperture"; phase "CLAMP_VERIFY,TRANSPORT"; }  // valid CLAMP_VERIFY + TRANSPORT
+    @differential_correct: act.move_to   { coord "differential"; phase "TRANSPORT"; } // recentre the coin between fingertips
+    // contact-retention invariant: the clamp must be retained across the whole TRANSPORT phase (measured negative here)
+    @contact_retention_invariant: c.controller_spec { requires "clamp_retained_through_transport"; measured "FALSE_2026_07_20"; }
+    // COIN-GRASP-CERT-1: HANDOFF requires CERTIFIED_GRASP; TRANSPORT requires CERTIFIED_GRASP and MICRO_TRANSPORT_CAPABLE
+    @grasp_certification_invariant: c.controller_spec { requires "certified_grasp_before_handoff";
+        canonical_measured "FALSE_2026_07_20_cylinder"; diagnostic "box_coin_restores_B_p_dwell25_micro_transport"; }
+    // COIN-GRIPPER-GEOMETRY-1: the canonical object stays a CYLINDER; fingertip geometry is a robot capability.
+    @cylindrical_coin: el.frame { object "cylinder"; canonical "TRUE"; }
+    @fingertip_geometry: c.controller_spec { pad "sphere_canonical"; candidates "flat_pad,V_groove,concave";
+        contact "sphere_on_cylinder_is_rolling_point_contact"; reachability_defect "FALSE_13of19_R0"; graspability_defect "TRUE"; }
+    // COIN-FINGERTIP-PAD-2: a fixed FLAT pad is geometry-INVALID (no wrist DOF; inward dir varies ±36°); a Z-capsule line
+    // contact makes the grasp PERSISTENT (B_p dwell 16) but NOT micro-transportable (0) → position clamp inadequate.
+    @fingertip_pad_finding: c.controller_spec { flat_pad_geometry_valid "FALSE_no_wrist_DOF_36deg_spread";
+        orientation_robust_capsule "B_p_dwell_16_persistent"; micro_transport "0_not_transportable_under_position_control";
+        next_lever "impedance_or_grip_force_or_compliant_pad_or_wrist_DOF"; }
+    @box_object_control: c.controller_spec { role "diagnostic_positive_control"; canonical "FALSE_noncanonical"; }
+    // COIN-GRIP-CONTROL-1: actuator capability = 4 POSITION servos (no torque/force actuator); contact force OBSERVABLE
+    // (mj_contactForce). Active position-space clamp regulation (aperture-feedback / preload / force→position) does NOT
+    // micro-transport (strict grasp-integrity 0/13). The hypothesis «transport needs active clamp regulation» is FALSIFIED
+    // by the structural control: a SCRAMBLED clamp policy beats the correct one (loose 9 vs 1), i.e. the apparent friction
+    // 'wins' are single-finger BULLDOZE artifacts, not a maintained bilateral clamp. Lever = a true torque/impedance/grip-
+    // force ACTUATOR (gated CORE change) or a mechanical redesign, NOT more position-space tuning. Cylinder kept.
+    @actuator_capability: c.controller_spec { actuators "4_position_servos"; torque_force_actuator "ABSENT_CORE_to_add";
+        contact_force "OBSERVABLE_mj_contactForce"; aperture_midpoint "DECOUPLED_action_dims"; }
+    @grip_control_finding: c.controller_spec {
+        position_clamp_micro_transport "FALSE_strict_0of13"; hypothesis_active_regulation "FALSIFIED_scramble_beats_correct";
+        friction_wins "bulldoze_artifact_metric_inflation"; next_lever "torque_impedance_gripforce_actuator_CORE_or_redesign"; }
+    // COIN-COMPLIANT-PAD-1: simulated compliant contact (fingertip solref/solimp, priority=1) is a non-CORE lever. The
+    // coin's SUPPORT resistance is its slide-joint damping (2.5) + frictionloss, NOT floor contact. Compliance IMPROVES
+    // coin-midpoint coupling as a TREND (median ρ 0.23→0.35) but stays below strict everywhere (0): softer contact at a
+    // fixed position squeeze COLLAPSES the normal load (F_N 3.7→0.2→0) → friction utilization saturates (η→1, slip),
+    // failure shifts M3 patch-instability → M0 insufficient-load; even the box positive control fails the strengthened
+    // strict predicate ⇒ ORACLE HEADROOM UNCONFIRMED. Case E: the missing capability is a MAINTAINED grip load, gated on
+    // first establishing a strict-passing positive control, THEN a true torque/impedance actuator (CORE). Cylinder kept.
+    @contact_model: c.controller_spec { canonical_solref "0.02_1.0_rigid"; compliant_solref "diagnostic_P1_P2_P3";
+        support_resistance "coin_slide_joint_damping_2.5_plus_frictionloss"; wrench "mj_contactForce_FN_FT_eta"; }
+    @compliant_pad_finding: c.controller_spec { compliance_coupling_trend "rho_0.23_to_0.35_below_strict";
+        strict_micro_transport "FALSE_0_all_variants_incl_box_positive_control"; mechanism "FN_collapse_eta_saturation_M3_to_M0";
+        oracle_headroom "UNCONFIRMED"; next_lever "establish_oracle_then_torque_impedance_actuator_CORE"; validated "FALSE"; }
+    // dynamic grasp retention: a TRANSPORTABLE grasp requires a certified grasp AND sufficient tangential-wrench margin
+    // (finger F_T must exceed support resistance THROUGH a maintained clamp) — measured FALSE under position control.
+    @dynamic_grasp_retention: c.controller_spec {
+        requires "certified_grasp_and_sufficient_tangential_wrench_margin";
+        predicates "certified_grasp,finger_FT_exceeds_support,maintained_clamp_through_motion,eta_below_saturation";
+        measured "FALSE_2026_07_20_position_control"; }
+    // HANDOFF requires bilateral_grasp_pose_reachable AND fingertip_geometry_compatible AND certified_grasp
+    @handoff_grasp_invariant: c.controller_spec {
+        requires "bilateral_grasp_pose_reachable_and_fingertip_geometry_compatible_and_certified_grasp";
+        predicates "bilateral_grasp_pose_reachable,fingertip_geometry_compatible,certified_grasp,micro_transport_capable"; }
+    // contact modes + typed contact terminals (slip / ejection / jam)
+    @contact_modes: c.controller_spec { modes "N,L,R,B_t,B_p,S,J"; preloaded "B_p"; }
+    @SLIP_LOST:  ph.fsm_phase { law "freeze"; kind "terminal_failure"; reason "slip"; }
+    @EJECTED:    ph.fsm_phase { law "freeze"; kind "terminal_failure"; reason "ejection"; }
+    @JAMMED:     ph.fsm_phase { law "freeze"; kind "terminal_failure"; reason "jam"; }
+
+    // === Evaluation — disjoint cohorts + metrics + integrity ranking (ceiling-first, multi-seed, dwell) ===
+    @held:           coh.held    {}
+    @deliver_metric: met.delivery{}
+    @center_metric:  met.delivery{ tol 0.02; }                  // center-reach graded metric
+    @safety_metric:  met.safety  {}
+    @ranking: ev.protocol { min_seeds 3; ceiling_first 1; grade_dwell 6; }
+
+    // === Reward-vs-monitor separation: reward SHAPES (potential terms), monitor predicates DEFINE correctness ===
+    @reward_shaping: c.controller_spec { potential "neg_disk_to_zone"; farm_proof 1; }
+    @monitor_truth:  c.controller_spec { center_reached "disk_to_zone<=center_tol"; delivery_success "disk_to_zone<=zone_half"; }
+
+    // === Objective priority (signed hyperedge, high -> low): SETTLE/centre > TRANSPORT/delivery > STABILIZE/acquire ===
+    // A CONVENTION over phase nodes (no native lexicographic-objective operator — see the language-gap audit).
+    @objective_priority: c.controller_spec { (+ SETTLE, + TRANSPORT, + STABILIZE, + ACQUIRE); order "lexicographic"; }
+
+    // === The phase-automaton bundle (FIRST = ACQUIRE = initial state) ===
+    @coin_delivery_fsm: c.controller_spec {
+        (+ ACQUIRE, + STABILIZE, + CONTACT_ACQUIRED, + CONTACT_BALANCE, + BILATERAL_CONTACT, + PRELOAD, + GRASP_CERTIFY,
+         + HANDOFF, + CLAMP_VERIFY, + TRANSPORT, + SETTLE, + DELIVERED, + FAILED, + SLIP_LOST, + EJECTED, + JAMMED,
+         + geometry);
+    }
+}

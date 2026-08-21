@@ -1,0 +1,92 @@
+meta_kinematics
+{
+
+}
+kinematics {
+    units {
+        length "m";
+        angle "degree";
+        mass "kg";
+        time "s";
+    }
+    elements {
+        meta_element {}
+        link: + <isa> meta_element {}
+        frame: + <isa> meta_element {}
+        control: + <isa> meta_element {}
+        sensor: + <isa> meta_element {}
+        @control_definition {}
+        @joint {
+            @control {}
+        }
+    }
+
+    sensors {
+        joint_state_broadcaster {type "joint_state_broadcaster/JointStateBroadcaster";}
+        rgb_camera: elements.sensor {
+            type "camera";
+        }
+        laser_scanner: elements.sensor {
+            type "gpu_lidar";
+        }
+        @sensor_connection {}
+    }
+    controllers {
+        meta_controller {
+            @state_interface {}
+            @command_interface {}
+        }
+        joint_trajectory_controller: + <isa> meta_controller {
+            type "joint_trajectory_controller/JointTrajectoryController";
+        }
+        diff_drive_controller: + <isa> meta_controller {
+            type "diff_drive_controller/DiffDriveController";
+        }
+        force_torque_sensor_controller: + <isa> meta_controller {
+            type "force_torque_sensor_controller/ForceTorqueSensorController";
+        }
+        forward_position_controller: + <isa> meta_controller {
+            type "forward_position_controller/ForwardPositionController";
+        }
+        forward_velocity_controller: + <isa> meta_controller {
+            type "forward_velocity_controller/ForwardVelocityController";
+        }
+    }
+    @control_plugin {}
+    @sim_plugin {}
+
+    control_attributes {
+        position;
+        velocity;
+        effort;
+    }
+    joint_rev_limit {
+        lower -180.0;
+        upper 180.0;
+        effort 50.0;
+        velocity 1.0;
+    }
+    joint_prismatic_limit [0.0, 0.5];
+    @fixed_joint: + <isa> elements.joint {}
+    @rev_joint: + <isa> elements.joint {
+        limit -> joint_rev_limit;
+    }
+    @conti_joint: + <isa> elements.joint {
+    }
+    @prismatic_joint: + <isa> elements.joint {
+        limit -> joint_prismatic_limit;
+    }
+    geometry {
+        box {}
+        cylinder {}
+        sphere {}
+    }
+
+    axes {
+        axis_definition {}
+        AXIS_X: + <isa> axis_definition {ax [1.0, 0.0, 0.0];}
+        AXIS_Y: + <isa> axis_definition {ax [0.0, 1.0, 0.0];}
+        AXIS_Z: + <isa> axis_definition {ax [0.0, 0.0, 1.0];}
+        AXIS_M_Z: + <isa> axis_definition {ax [0.0, 0.0, -1.0];}
+    }
+}

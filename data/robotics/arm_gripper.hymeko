@@ -1,0 +1,118 @@
+// arm_gripper.hymeko — the 6-DOF anthropomorphic arm + a parallel-jaw gripper, as ONE HyMeKo robot.
+//
+//   world --fix--> base_link --j0(Z)--> link_0 --j1(X)--> link_1 --j2(X)--> link_2 --j3(Z)--> link_3
+//        --j4(X)--> link_4 --jtool(Z)--> tool --grip_l/grip_r(X, prismatic)--> finger_l / finger_r
+//
+// One source emits the MJCF scene AND the arm+gripper kinematic hypergraph (9 link-vertices) the HSiKAN
+// actor/critic message-passes over. This is the composite the pick-and-place scenario wants: the *same* arm
+// kinematics as anthropomorphic_arm.hymeko, with the gripper end-effector described in HyMeKo (not spliced).
+// (A no-duplication version — importing anthropomorphic_arm.hymeko + attaching the fingers — awaits HyMeKo
+// cross-model joint attachment; this self-contained file is the reliable composite.) Validates via `hymeko validate`.
+
+arm_gripper_description {
+  @"meta_kinematics.hymeko";
+}
+
+robot: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes
+{
+    world: meta_kinematics.kinematics.elements.frame {}
+
+    link_color   [1.0, 0.776, 0.0, 1.0];
+    f0_color     [0.98, 0.824, 0.6, 1.0];
+    finger_color [0.85, 0.45, 0.20, 1.0];
+
+    // === Arm links (same kinematics as anthropomorphic_arm.hymeko) ===
+    base_link: meta_kinematics.kinematics.elements.link {
+        mass 25.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.13, 0.05]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.link_color; origin [0.0, 0.0, 0.025];
+    }
+    link_0: meta_kinematics.kinematics.elements.link {
+        mass 5.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.075, 0.2]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.link_color; origin [0.0, 0.0, 0.1];
+    }
+    link_1: meta_kinematics.kinematics.elements.link {
+        mass 2.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.075, 0.3]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.f0_color; origin [0.0, 0.0, 0.15];
+    }
+    link_2: meta_kinematics.kinematics.elements.link {
+        mass 2.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.075, 0.25]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.link_color; origin [0.0, 0.0, 0.125];
+    }
+    link_3: meta_kinematics.kinematics.elements.link {
+        mass 2.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.075, 0.32]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.link_color; origin [0.0, 0.0, 0.16];
+    }
+    link_4: meta_kinematics.kinematics.elements.link {
+        mass 2.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.075, 0.15]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.link_color; origin [0.0, 0.0, 0.075];
+    }
+    tool: meta_kinematics.kinematics.elements.link {
+        mass 0.5;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.075, 0.15, 0.1]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.link_color; origin [0.0, 0.0, 0.05];
+    }
+
+    // === Gripper fingers (the end-effector, described in HyMeKo) ===
+    finger_l: meta_kinematics.kinematics.elements.link {
+        mass 0.02;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.012, 0.036, 0.06]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.finger_color; origin [0.0, 0.0, 0.03];
+    }
+    finger_r: meta_kinematics.kinematics.elements.link {
+        mass 0.02;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.012, 0.036, 0.06]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.finger_color; origin [0.0, 0.0, 0.03];
+    }
+
+    @arm_joint_control {
+        (+ meta_kinematics.kinematics.control_attributes.position,
+         + meta_kinematics.kinematics.control_attributes.velocity,
+         - meta_kinematics.kinematics.control_attributes.position,
+         - meta_kinematics.kinematics.control_attributes.velocity,
+         - meta_kinematics.kinematics.control_attributes.effort);
+    }
+
+    @j_fix: meta_kinematics.kinematics.fixed_joint {
+        (+ world [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - base_link);
+    }
+    @j0: meta_kinematics.kinematics.rev_joint {
+        (+ base_link [[0.0, 0.0, 0.05], [0.0, 0.0, 0.0]], - link_0, - meta_kinematics.kinematics.axes.AXIS_Z);
+        @control: arm_joint_control {}
+    }
+    @j1: meta_kinematics.kinematics.rev_joint {
+        (+ link_0 [[0.0, 0.15, 0.15], [0.0, 0.0, 90.0]], - link_1, - meta_kinematics.kinematics.axes.AXIS_X);
+        @control: arm_joint_control {}
+    }
+    @j2: meta_kinematics.kinematics.rev_joint {
+        (+ link_1 [[0.0, 0.0, 0.3], [0.0, 0.0, 0.0]], - link_2, - meta_kinematics.kinematics.axes.AXIS_X);
+        @control: arm_joint_control {}
+    }
+    @j3: meta_kinematics.kinematics.rev_joint {
+        (+ link_2 [[-0.15, 0.0, 0.15], [0.0, 0.0, 0.0]], - link_3, - meta_kinematics.kinematics.axes.AXIS_Z);
+        @control: arm_joint_control {}
+    }
+    @j4: meta_kinematics.kinematics.rev_joint {
+        (+ link_3 [[0.0, 0.15, 0.25], [0.0, 0.0, 0.0]], - link_4, - meta_kinematics.kinematics.axes.AXIS_X);
+        @control: arm_joint_control {}
+    }
+    @jtool: meta_kinematics.kinematics.rev_joint {
+        (+ link_4 [[0.0, 0.0, 0.15], [0.0, 0.0, 0.0]], - tool, - meta_kinematics.kinematics.axes.AXIS_Z);
+        @control: arm_joint_control {}
+    }
+
+    // === Gripper joints: prismatic fingers off the tool (the env drives them oppositely to grasp) ===
+    @grip_l: meta_kinematics.kinematics.prismatic_joint {
+        (+ tool [[-0.035, 0.0, 0.1], [0.0, 0.0, 0.0]], - finger_l, - meta_kinematics.kinematics.axes.AXIS_X);
+        @control: arm_joint_control {}
+    }
+    @grip_r: meta_kinematics.kinematics.prismatic_joint {
+        (+ tool [[0.035, 0.0, 0.1], [0.0, 0.0, 0.0]], - finger_r, - meta_kinematics.kinematics.axes.AXIS_X);
+        @control: arm_joint_control {}
+    }
+}

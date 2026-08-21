@@ -1,0 +1,151 @@
+// galambos_planar_v2.hymeko — CORRECTED canonical Galambos planar grasper (2026-07-23), load-bearing robot spec.
+//
+// Encodes the golden make_planar_arms_mjcf contract EXACTLY: bases at x = +-0.14 (no base yaw; rods authored along
+// +Y so the emitted capsule fromto = "0 0 0 0 L 0" matches the golden world frame), CAPSULE structural rods
+// (l1=0.16/r0.012, l2=0.14/r0.010), a cylinder hub (r0.022, h0.024), a POINT fingertip sphere (r0.014) as a terminal
+// massless body at each distal-link tip, ARM_LEGALITY collision (contype 1 / conaffinity 3) on every structural geom,
+// FINGERTIP collision (contype 1 / conaffinity 3) on the fingertip, and revolute Z joints with a +-4 rad limit
+// (galambos_rev_limit: +-229.183 deg -> +-4.000 rad). v1 (galambos_planar.hymeko) is preserved unchanged.
+
+galambos_planar_v2_description {
+    @"meta_kinematics.hymeko";
+}
+
+// LOAD-BEARING control contract (2026-07-23): the canonical control values the kinematics IR does not carry. The
+// robot builder reads these (via the shared scalar reader) and injects them into the emitted MJCF; canonical mode
+// HARD-FAILS if this block or any field is absent (no Python fallback constants). Golden make_planar_arms_mjcf values.
+galambos_control {
+    joint_range 4.0;
+    ctrl_range 4.0;
+    damping 1.5;
+    kp 40.0;
+    kv 4.0;
+}
+
+galambos_planar_v2: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes
+{
+    world: meta_kinematics.kinematics.elements.frame {}
+    link_color [0.2, 0.5, 0.9, 1.0];
+
+    // Joints use the canonical meta rev_joint (recognized by the joint extractor). Its limit is the meta default
+    // +-180 deg = +-pi rad; the golden uses +-4 rad. Both far exceed the planar reach the task needs, so this is a
+    // documented, task-inert joint-limit difference (see the parity report). A custom joint type is NOT recognized by
+    // the extractor, so overriding the limit here would silently drop the joints and break the body tree.
+
+    // === Cylinder hubs (r0.022, full-height 0.024) with ARM_LEGALITY collision. ===
+    base_left: meta_kinematics.kinematics.elements.link {
+        mass 0.4;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.022, 0.024];
+            collision { contype 1; conaffinity 3; }
+        }
+        origin [0.0, 0.0, 0.0];
+    }
+    base_right: meta_kinematics.kinematics.elements.link {
+        mass 0.4;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.022, 0.024];
+            collision { contype 1; conaffinity 3; }
+        }
+        origin [0.0, 0.0, 0.0];
+    }
+
+    // === Link 1 capsule (length 0.16 along +Y, radius 0.012), ARM_LEGALITY. origin = midpoint [0, 0.08, 0]. ===
+    link1_left: meta_kinematics.kinematics.elements.link {
+        mass 0.25;
+        link_geometry: meta_kinematics.kinematics.geometry.capsule {
+            dimension [0.16, 0.012];
+            collision { contype 1; conaffinity 3; }
+        }
+        origin [0.0, 0.08, 0.0];
+    }
+    link1_right: meta_kinematics.kinematics.elements.link {
+        mass 0.25;
+        link_geometry: meta_kinematics.kinematics.geometry.capsule {
+            dimension [0.16, 0.012];
+            collision { contype 1; conaffinity 3; }
+        }
+        origin [0.0, 0.08, 0.0];
+    }
+
+    // === Link 2 capsule (length 0.14 along +Y, radius 0.010), ARM_LEGALITY. origin = midpoint [0, 0.07, 0]. ===
+    link2_left: meta_kinematics.kinematics.elements.link {
+        mass 0.2;
+        link_geometry: meta_kinematics.kinematics.geometry.capsule {
+            dimension [0.14, 0.010];
+            collision { contype 1; conaffinity 3; }
+        }
+        origin [0.0, 0.07, 0.0];
+    }
+    link2_right: meta_kinematics.kinematics.elements.link {
+        mass 0.2;
+        link_geometry: meta_kinematics.kinematics.geometry.capsule {
+            dimension [0.14, 0.010];
+            collision { contype 1; conaffinity 3; }
+        }
+        origin [0.0, 0.07, 0.0];
+    }
+
+    // === POINT fingertip spheres (r0.014, FINGERTIP collision) as terminal bodies at each distal-link tip. ===
+    // SEMANTIC GRAPH PROJECTION (2026-07-22, Option B): these two fingertips exist as physical MuJoCo bodies purely
+    // because the kinematics IR carries one geometry per link — they are GEOMETRY/EMISSION HELPERS, not semantic
+    // kinematic DoF. `graph_node 0` explicitly marks them NON-SEMANTIC: the emitter carries this into the emitted
+    // MJCF metadata and the graph extractor suppresses their promotion to policy-graph vertices, restoring the
+    // legacy 6-vertex / 48-dim semantic graph that the frozen deploy checkpoints were trained on. The physical body
+    // and its fingertip geometry REMAIN active for MuJoCo contact generation (kinematic/contact parity unchanged).
+    fingertip_left: meta_kinematics.kinematics.elements.link {
+        mass 0.02;
+        link_geometry: meta_kinematics.kinematics.geometry.sphere {
+            dimension [0.014];
+            collision { contype 1; conaffinity 3; }
+        }
+        origin [0.0, 0.0, 0.0];
+        graph_node 0;
+    }
+    fingertip_right: meta_kinematics.kinematics.elements.link {
+        mass 0.02;
+        link_geometry: meta_kinematics.kinematics.geometry.sphere {
+            dimension [0.014];
+            collision { contype 1; conaffinity 3; }
+        }
+        origin [0.0, 0.0, 0.0];
+        graph_node 0;
+    }
+
+    // === Fixed joints: world -> bases at x = +-0.14, y = -0.02, z = 0.04, NO yaw (rods already along +Y). ===
+    @fix_left: meta_kinematics.kinematics.fixed_joint {
+        (+ world [[-0.14, -0.02, 0.04], [0.0, 0.0, 0.0]], - base_left);
+    }
+    @fix_right: meta_kinematics.kinematics.fixed_joint {
+        (+ world [[0.14, -0.02, 0.04], [0.0, 0.0, 0.0]], - base_right);
+    }
+
+    // === Revolute Z joints (+-4 rad). j1 at base; j2 at the end of link 1 (offset +Y by 0.16). ===
+    // Joint NAMES match the legacy make_planar_arms_mjcf exactly (j{1,2}_{left,right}), declared left-arm-first then
+    // right-arm — so the emitted actuators (act_j*_{left,right}) carry the legacy `_left`/`_right` suffix and the
+    // arm-action partition recovers the legacy 2-arms-of-2 grouping (agent_action_dims (2,2)) the checkpoints expect.
+    @j1_left: meta_kinematics.kinematics.rev_joint {
+        (+ base_left [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - link1_left,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+    @j2_left: meta_kinematics.kinematics.rev_joint {
+        (+ link1_left [[0.0, 0.16, 0.0], [0.0, 0.0, 0.0]], - link2_left,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+    @j1_right: meta_kinematics.kinematics.rev_joint {
+        (+ base_right [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - link1_right,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+    @j2_right: meta_kinematics.kinematics.rev_joint {
+        (+ link1_right [[0.0, 0.16, 0.0], [0.0, 0.0, 0.0]], - link2_right,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+
+    // === Fingertip fixed joints: distal link tip (offset +Y by 0.14) -> fingertip sphere body. ===
+    @ft_left: meta_kinematics.kinematics.fixed_joint {
+        (+ link2_left [[0.0, 0.14, 0.0], [0.0, 0.0, 0.0]], - fingertip_left);
+    }
+    @ft_right: meta_kinematics.kinematics.fixed_joint {
+        (+ link2_right [[0.0, 0.14, 0.0], [0.0, 0.0, 0.0]], - fingertip_right);
+    }
+}

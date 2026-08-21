@@ -1,0 +1,170 @@
+// Dual-FANUC handover task — HymeKo cognitive task description.
+//
+// Operates on the dual-FANUC Gazebo cell defined in
+//   ../../../sim/dual_fanuc/world.sdf
+// (which instantiates two arms from
+//   fanuc_lrmate200id.hymeko).
+//
+// Task: fanuc_left picks a `part` from the `input_tray`, hands it
+// off to fanuc_right at a known `handover_pose`, and fanuc_right
+// places it on the `output_tray`.
+//
+// This file PARSES + VALIDATES via `hymeko validate`. Emission to
+// BehaviorTree.CPP / PDDL / ROS 2 action server is an open
+// follow-up — see docs/notes/2026-05-16-hymeko-tasks-design.md.
+
+dual_fanuc_handover_description {
+  @"../../meta_task.hymeko";
+  @"../../meta_kinematics.hymeko";
+  using task.actions       as a;
+  using task.composites    as c;
+  using task.conditions    as cond;
+  using task.coordination  as coord;
+  using task.scene         as scn;
+  using kinematics.elements as el;
+}
+
+handover_task: a, c, cond, coord, scn, el
+{
+    // ─── Scene anchors (poses + objects) ─────────────────────────
+    // These are lightweight references — frames are positions in
+    // world space, scene_objects are manipulable things at those
+    // positions.
+
+    input_tray_frame:   el.frame {}
+    output_tray_frame:  el.frame {}
+    handover_pose_left: el.frame {}  // where fanuc_left's tool sits
+    handover_pose_right: el.frame {} // where fanuc_right's tool sits
+    home_pose_left:     el.frame {}
+    home_pose_right:    el.frame {}
+
+    @part: scn.scene_object {
+        mass_kg 0.2;
+        (+ input_tray_frame);
+    }
+
+    @input_pickup: scn.pickup_pose {
+        (+ part, + input_tray_frame);
+    }
+    @output_place: scn.place_pose {
+        (+ part, + output_tray_frame);
+    }
+
+    // ─── Per-arm "agent" handles ────────────────────────────────
+    // The handover task targets `fanuc_left` and `fanuc_right` —
+    // both produced from the same fanuc_lrmate200id.hymeko via
+    // Gazebo `<include>` at distinct poses. The task IR names
+    // them; the emitter resolves to the running model in each
+    // arm's namespace at execution time.
+
+    fanuc_left:  el.frame {}
+    fanuc_right: el.frame {}
+
+    // ─── Actions per arm ────────────────────────────────────────
+    // Each action is a hyperedge over the actor (the arm's tool
+    // flange — referenced via the per-arm frame above) and a
+    // target (a pose or a scene element).
+
+    // Phase 1A: fanuc_left moves to the input tray.
+    @move_left_to_input: a.move_to {
+        (+ fanuc_left, - input_pickup);
+    }
+
+    // Phase 1B: fanuc_left closes its gripper on the part.
+    @grip_left_close: a.grip_close {
+        (+ fanuc_left, - part);
+    }
+
+    // Phase 2A: both arms move to their handover poses.
+    @move_left_to_handover: a.move_to {
+        (+ fanuc_left, - handover_pose_left);
+    }
+    @move_right_to_handover: a.move_to {
+        (+ fanuc_right, - handover_pose_right);
+    }
+
+    // Phase 3: the dual-arm handover. The handover primitive
+    // expands at emit time into the three-step subtree
+    // (close right, sync, open left).
+    @do_handover: coord.handover {
+        (+ fanuc_left, - fanuc_right, + part);
+    }
+
+    // Phase 4: fanuc_right moves to the output tray and places.
+    @move_right_to_output: a.move_to {
+        (+ fanuc_right, - output_place);
+    }
+    @grip_right_open: a.grip_open {
+        (+ fanuc_right);
+    }
+
+    // Phase 5: both arms return home in parallel.
+    @move_left_home:  a.move_to {
+        (+ fanuc_left, - home_pose_left);
+    }
+    @move_right_home: a.move_to {
+        (+ fanuc_right, - home_pose_right);
+    }
+
+    // ─── Conditions (gates / postconditions) ────────────────────
+    // Optional: verify the handover actually transferred the part.
+
+    @post_handover_check: cond.holding {
+        (+ fanuc_right, - part);
+    }
+    @check_handover: cond.postcondition {
+        (+ do_handover, - post_handover_check);
+    }
+
+    // ─── Composite control flow ─────────────────────────────────
+    // The top-level task is a sequence of phases. Phase 2 (move to
+    // handover poses) is a parallel block so both arms move
+    // simultaneously; the implicit synchronize-at-end of the
+    // parallel block is what makes phase 3's handover safe.
+
+    @phase2_parallel: c.parallel {
+        (+ move_left_to_handover, + move_right_to_handover);
+        policy "all";
+    }
+
+    @phase5_parallel: c.parallel {
+        (+ move_left_home, + move_right_home);
+        policy "all";
+    }
+
+    @pick_handover_place: c.sequence {
+        (+ move_left_to_input,
+         + grip_left_close,
+         + phase2_parallel,
+         + do_handover,
+         + move_right_to_output,
+         + grip_right_open,
+         + phase5_parallel);
+    }
+
+    // ─── Task entry point + agent declaration ───────────────────
+    // The entry node is the conventional top-level handle for
+    // emitters: the BT.CPP / PDDL / ROS 2 emitter recognises
+    // exactly one node with type `task.entry` (or the
+    // first-declared composite, by convention). The entry's
+    // hyperedge binds the body composite AND names the agents
+    // the task controls.
+    @entry_node: c.entry {
+        (+ pick_handover_place, - fanuc_left, - fanuc_right);
+    }
+}
+
+// =====================================================================
+// Validation footer (informational).
+//
+//   $ target/release/hymeko validate \
+//       data/robotics/sim/dual_fanuc/handover_task.hymeko
+//   → "✅ ... is valid" (only the standard meta_kinematics warnings,
+//      if any, surface).
+//
+//   $ target/release/hymeko inspect \
+//       data/robotics/sim/dual_fanuc/handover_task.hymeko
+//   → IR pretty-print; expect ~11 actions, 3 composites, 1 condition,
+//     1 coordination primitive, 6 scene frames, 1 scene_object,
+//     2 pickup/place pose anchors, and 1 task_definition.
+// =====================================================================

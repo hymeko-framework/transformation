@@ -1,0 +1,29 @@
+// meta_experiment.hymeko — declarative EXPERIMENT/CAMPAIGN vocabulary (budgets + arms).
+//
+// Completes the substrate stack: meta_kinematics (robot), meta_env (scene), meta_reward (reward),
+// meta_strategy (algorithm), meta_controller (scripted demonstrator) — and meta_experiment: the CAMPAIGN
+// itself as data. A concrete experiment (e.g. galambos_ab_deliver.hymeko) declares its training budget and
+// its A/B arms as field-carrying param terms bundled in an `experiment_spec`; the runner reads it via
+// AbConfig.from_hymeko (exp_galambos_coord_ab). Launching a different experiment is pointing at a
+// different profile — not editing argparse calls.
+
+meta_experiment {}
+
+experiment {
+    // === Type roots ===
+    @param {}             // a field-carrying config term (scalars, vectors, strings)
+    @experiment_spec {}   // the bundle: budget + arms
+
+    params {
+        @budget: + <isa> experiment.param {}   // difficulty, steps, demos, epochs, seeds, and the training
+                                               // strategy selector: algorithm "bc" | "td3_bc" | "dagger"
+                                               // (read by TrainingSpec.from_hymeko; default "bc" when absent)
+        @arms:   + <isa> experiment.param {}   // which variants run, treatment reward profile + label
+        @offpolicy: + <isa> experiment.param {}   // off-policy knob overrides (noise_scale, bc_coef,
+                                               // critic_warmup, adaptive_bc, ...) — optional; the trainer's
+                                               // defaults apply when absent
+        @dagger: + <isa> experiment.param {}   // DAgger strategy knobs (dagger_iters, rollouts_per_iter,
+                                               // beta, beta_decay, expert_replay_ratio, n_eval) — optional;
+                                               // used when @budget declares algorithm "dagger"
+    }
+}

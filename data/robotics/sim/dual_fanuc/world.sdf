@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Dual FANUC LR Mate 200iD-style cell.
+
+  Both arms instantiate ONE compiled HymeKo cognitive description
+  (`fanuc_lrmate200id.hymeko` → `model.sdf`) via Gazebo `<include>` —
+  this is the single-source-of-truth property the dual-arm scenario
+  demonstrates. To change the kinematics, joint limits, or visual
+  proportions of BOTH arms simultaneously, edit the `.hymeko` file
+  and re-emit `model.sdf`; no edit to this world file is needed.
+
+  Run (modern Gazebo Sim ≥ 7 / "garden" / "harmonic"):
+      gz sim -v 4 -r data/robotics/sim/dual_fanuc/world.sdf
+
+  Or set GZ_SIM_RESOURCE_PATH first:
+      export GZ_SIM_RESOURCE_PATH=$(pwd)/data/robotics/sim
+      gz sim -v 4 -r data/robotics/sim/dual_fanuc/world.sdf
+-->
+<sdf version="1.8">
+  <world name="dual_fanuc_cell">
+    <physics name="default" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <plugin filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system"
+            name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>10 10</size>
+            </plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>10 10</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.3 0.3 0.3 1</ambient>
+            <diffuse>0.5 0.5 0.5 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!--
+      The two arms below are the SAME compiled HymeKo IR, placed at
+      different poses. They differ only by the `<name>` override and
+      `<pose>` override on the include.
+    -->
+    <include>
+      <uri>model://dual_fanuc</uri>
+      <name>fanuc_left</name>
+      <pose>-0.6 0 0 0 0 0</pose>
+    </include>
+
+    <include>
+      <uri>model://dual_fanuc</uri>
+      <name>fanuc_right</name>
+      <pose>0.6 0 0 0 0 3.14159</pose>
+    </include>
+
+    <!--
+      A common work-cell fixture (a fixed pedestal between the two
+      arms) to make the dual-arm scene visually purposeful. Add a
+      pick-and-place object or tool changer here for richer scenarios.
+    -->
+    <model name="work_table">
+      <static>true</static>
+      <pose>0 0 0.40 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.6 0.6 0.05</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.6 0.6 0.05</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.4 0.3 0.2 1</ambient>
+            <diffuse>0.6 0.45 0.30 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

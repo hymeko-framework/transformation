@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<robot name="stewart_platform">
+  <link name="base"/>
+  <link name="ee"/>
+  <link name="leg1_lower"/><link name="leg1_upper"/>
+  <link name="leg2_lower"/><link name="leg2_upper"/>
+  <link name="leg3_lower"/><link name="leg3_upper"/>
+  <link name="leg4_lower"/><link name="leg4_upper"/>
+  <link name="leg5_lower"/><link name="leg5_upper"/>
+  <link name="leg6_lower"/><link name="leg6_upper"/>
+  <!-- Each of 6 legs: base→lower (revolute), lower→upper (prismatic),
+        upper→ee (revolute). Each leg forms a k=4 loop with the base
+        and ee. -->
+
+  <joint name="j1_base"  type="revolute">
+    <parent link="base"/><child link="leg1_lower"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="j1_strut" type="prismatic">
+    <parent link="leg1_lower"/><child link="leg1_upper"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="1" effort="100" velocity="1"/>
+  </joint>
+  <joint name="j1_ee"    type="revolute">
+    <parent link="leg1_upper"/><child link="ee"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="j2_base"  type="revolute">
+    <parent link="base"/><child link="leg2_lower"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="j2_strut" type="prismatic">
+    <parent link="leg2_lower"/><child link="leg2_upper"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="1" effort="100" velocity="1"/>
+  </joint>
+  <joint name="j2_ee"    type="revolute">
+    <parent link="leg2_upper"/><child link="ee"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="j3_base"  type="revolute">
+    <parent link="base"/><child link="leg3_lower"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="j3_strut" type="prismatic">
+    <parent link="leg3_lower"/><child link="leg3_upper"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="1" effort="100" velocity="1"/>
+  </joint>
+  <joint name="j3_ee"    type="revolute">
+    <parent link="leg3_upper"/><child link="ee"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="j4_base"  type="revolute">
+    <parent link="base"/><child link="leg4_lower"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="j4_strut" type="prismatic">
+    <parent link="leg4_lower"/><child link="leg4_upper"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="1" effort="100" velocity="1"/>
+  </joint>
+  <joint name="j4_ee"    type="revolute">
+    <parent link="leg4_upper"/><child link="ee"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="j5_base"  type="revolute">
+    <parent link="base"/><child link="leg5_lower"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="j5_strut" type="prismatic">
+    <parent link="leg5_lower"/><child link="leg5_upper"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="1" effort="100" velocity="1"/>
+  </joint>
+  <joint name="j5_ee"    type="revolute">
+    <parent link="leg5_upper"/><child link="ee"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="j6_base"  type="revolute">
+    <parent link="base"/><child link="leg6_lower"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="j6_strut" type="prismatic">
+    <parent link="leg6_lower"/><child link="leg6_upper"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="1" effort="100" velocity="1"/>
+  </joint>
+  <joint name="j6_ee"    type="revolute">
+    <parent link="leg6_upper"/><child link="ee"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+</robot>

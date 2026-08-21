@@ -1,0 +1,29 @@
+[package]
+name = "hymeko_query"
+version = "0.1.0"
+edition = "2024"
+autotests = false
+description = "Pattern-matching query engine for HyMeKo hypergraph IR"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/kyberszittya/hymeko_framework_rust"
+
+[lib]
+name = "hymeko_query"
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+hymeko_core = { workspace = true }
+parser = { workspace = true, optional = true }
+env_logger = "0.11.9"
+log = "0.4.29"
+
+[features]
+default = ["interpret"]
+interpret = ["parser"]  # AST-to-Predicate interpreter requires parser
+
+[dev-dependencies]
+hymeko_formats = { path = "../hymeko_formats" }
+
+[[test]]
+name = "integration"
+path = "tests/mod.rs"

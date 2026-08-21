@@ -1,0 +1,10 @@
+minimal_test_2nodes_1_edge
+{}
+context
+{
+    node0{}
+    node1{}
+    @e0 { ( - node0[0.85],
+             + context.node1[0.9]);
+    }
+}

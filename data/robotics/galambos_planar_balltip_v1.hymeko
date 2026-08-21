@@ -1,0 +1,171 @@
+// galambos_planar_balltip_v1.hymeko — BALLTIP_INTERARM_FILTERED_V1 robot variant of galambos_planar_v3 (2026-07-24).
+//
+// TWO declarative changes vs the frozen canonical galambos_planar_v3.hymeko, both sourced HERE (not hard-coded in a
+// script), so the whole variant is selected by choosing this robot spec:
+//
+//   1. SPHERICAL FINGERTIPS — the fingertip sphere radius is enlarged 0.014 -> 0.020 (a clearly ball-shaped tip whose
+//      COLLISION and VISUAL geometry are one and the same geom). The golden INERTIAL contract (galambos_inertia below)
+//      is preserved UNCHANGED, so the arm dynamics are identical to the frozen baseline — the only mechanical change is
+//      the tip contact/visual radius (explicit + reproducible: 0.014 -> 0.020). Mass/inertia are NOT altered.
+//
+//   2. SIMULATOR-LEVEL INTER-ARM COLLISION FILTERING — via MuJoCo collision groups (contype/conaffinity), NOT by
+//      ignoring contact events. Left-arm geoms carry contype 4, right-arm geoms contype 8, both conaffinity 3; the coin
+//      keeps 2/2 and the floor 1/3. MuJoCo collides A,B iff (A.contype & B.conaffinity) | (B.contype & A.conaffinity):
+//        left<->right : (4&3)|(8&3) = 0        -> DISABLED (filtered)
+//        left<->coin  : (4&2)|(2&3) = 0|2      -> enabled
+//        right<->coin : (8&2)|(2&3) = 0|2      -> enabled
+//        arm<->floor  : (4&3)|(1&3) = 0|1      -> enabled     (and 8/3 likewise)
+//        coin<->floor : (2&3)|(1&2) = 2|0      -> enabled (unchanged)
+//      Intra-arm self-collision behaviour is preserved (adjacent-link parent->child excludes are still emitted by the
+//      builder). No inter-arm collision reward penalty belongs in this variant — the filtered contacts do not exist.
+
+galambos_planar_balltip_v1_description {
+    @"meta_kinematics.hymeko";
+}
+
+// Collision POLICY declaration (read into the run manifest / query). inter_arm_filtered 1 => left/right arm collision
+// disabled via distinct contype bits (the .hymeko grammar takes only numeric scalars, so the policy is encoded as the
+// group masks themselves; the manifest reader derives inter_arm = "filtered" when left_contype != right_contype).
+galambos_collision {
+    inter_arm_filtered 1;
+    left_contype 4;
+    right_contype 8;
+    conaffinity 3;
+    coin_contype 2;
+    coin_conaffinity 2;
+}
+
+// LOAD-BEARING control contract — identical to galambos_planar_v3 (canonical HARD-FAILS without it).
+galambos_control {
+    joint_range 4.0;
+    ctrl_range 4.0;
+    damping 1.5;
+    kp 40.0;
+    kv 4.0;
+}
+
+// LOAD-BEARING inertial contract — PRESERVED UNCHANGED from galambos_planar_v3 (the frozen golden dynamics). The tip
+// radius change is collision+visual only; the tip mass stays folded into link2 exactly as in the baseline.
+galambos_inertia {
+    base  { mass 0.03649274; px 0.0; py 0.0;        pz 0.0; qw 1.0;        qx 0.0;        qy 0.0; qz 0.0;
+            ixx 0.0000061672731046; iyy 0.0000061672731046; izz 0.0000088312431439; }
+    link1 { mass 0.07962052; px 0.0; py 0.08;       pz 0.0; qw 0.70710678; qx 0.70710678; qy 0.0; qz 0.0;
+            ixx 0.00020897444059; iyy 0.00020897444059; izz 0.0000056284472389; }
+    link2 { mass 0.05966513; px 0.0; py 0.08348498; pz 0.0; qw 0.70710678; qx 0.70710678; qy 0.0; qz 0.0;
+            ixx 0.00014220119809; iyy 0.00014220119809; izz 0.0000032677992269; }
+}
+
+galambos_planar_balltip_v1: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes
+{
+    world: meta_kinematics.kinematics.elements.frame {}
+    link_color [0.2, 0.5, 0.9, 1.0];
+
+    // === Cylinder hubs (r0.022, h0.024). LEFT contype 4 / RIGHT contype 8 (inter-arm filtered), conaffinity 3. ===
+    base_left: meta_kinematics.kinematics.elements.link {
+        mass 0.4;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.022, 0.024];
+            collision { contype 4; conaffinity 3; }
+        }
+        origin [0.0, 0.0, 0.0];
+    }
+    base_right: meta_kinematics.kinematics.elements.link {
+        mass 0.4;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.022, 0.024];
+            collision { contype 8; conaffinity 3; }
+        }
+        origin [0.0, 0.0, 0.0];
+    }
+
+    // === Link 1 capsule (length 0.16, radius 0.012). ===
+    link1_left: meta_kinematics.kinematics.elements.link {
+        mass 0.25;
+        link_geometry: meta_kinematics.kinematics.geometry.capsule {
+            dimension [0.16, 0.012];
+            collision { contype 4; conaffinity 3; }
+        }
+        origin [0.0, 0.08, 0.0];
+    }
+    link1_right: meta_kinematics.kinematics.elements.link {
+        mass 0.25;
+        link_geometry: meta_kinematics.kinematics.geometry.capsule {
+            dimension [0.16, 0.012];
+            collision { contype 8; conaffinity 3; }
+        }
+        origin [0.0, 0.08, 0.0];
+    }
+
+    // === Link 2 capsule (length 0.14, radius 0.010). ===
+    link2_left: meta_kinematics.kinematics.elements.link {
+        mass 0.2;
+        link_geometry: meta_kinematics.kinematics.geometry.capsule {
+            dimension [0.14, 0.010];
+            collision { contype 4; conaffinity 3; }
+        }
+        origin [0.0, 0.07, 0.0];
+    }
+    link2_right: meta_kinematics.kinematics.elements.link {
+        mass 0.2;
+        link_geometry: meta_kinematics.kinematics.geometry.capsule {
+            dimension [0.14, 0.010];
+            collision { contype 8; conaffinity 3; }
+        }
+        origin [0.0, 0.07, 0.0];
+    }
+
+    // === SPHERICAL fingertips — radius 0.020 (enlarged from 0.014), collision+visual one geom. graph_node 0 keeps them
+    //     NON-SEMANTIC (frozen 6-vertex/48-dim graph). LEFT contype 4 / RIGHT contype 8. ===
+    fingertip_left: meta_kinematics.kinematics.elements.link {
+        mass 0.02;
+        link_geometry: meta_kinematics.kinematics.geometry.sphere {
+            dimension [0.020];
+            collision { contype 4; conaffinity 3; }
+        }
+        origin [0.0, 0.0, 0.0];
+        graph_node 0;
+    }
+    fingertip_right: meta_kinematics.kinematics.elements.link {
+        mass 0.02;
+        link_geometry: meta_kinematics.kinematics.geometry.sphere {
+            dimension [0.020];
+            collision { contype 8; conaffinity 3; }
+        }
+        origin [0.0, 0.0, 0.0];
+        graph_node 0;
+    }
+
+    // === Fixed base joints (bases at x = +-0.14, y = -0.02, z = 0.04, no yaw). ===
+    @fix_left: meta_kinematics.kinematics.fixed_joint {
+        (+ world [[-0.14, -0.02, 0.04], [0.0, 0.0, 0.0]], - base_left);
+    }
+    @fix_right: meta_kinematics.kinematics.fixed_joint {
+        (+ world [[0.14, -0.02, 0.04], [0.0, 0.0, 0.0]], - base_right);
+    }
+
+    // === Revolute Z joints (+-4 rad), names match the legacy make_planar_arms_mjcf (j{1,2}_{left,right}). ===
+    @j1_left: meta_kinematics.kinematics.rev_joint {
+        (+ base_left [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - link1_left,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+    @j2_left: meta_kinematics.kinematics.rev_joint {
+        (+ link1_left [[0.0, 0.16, 0.0], [0.0, 0.0, 0.0]], - link2_left,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+    @j1_right: meta_kinematics.kinematics.rev_joint {
+        (+ base_right [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - link1_right,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+    @j2_right: meta_kinematics.kinematics.rev_joint {
+        (+ link1_right [[0.0, 0.16, 0.0], [0.0, 0.0, 0.0]], - link2_right,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+
+    // === Fingertip fixed joints (distal link tip -> fingertip sphere). ===
+    @ft_left: meta_kinematics.kinematics.fixed_joint {
+        (+ link2_left [[0.0, 0.14, 0.0], [0.0, 0.0, 0.0]], - fingertip_left);
+    }
+    @ft_right: meta_kinematics.kinematics.fixed_joint {
+        (+ link2_right [[0.0, 0.14, 0.0], [0.0, 0.0, 0.0]], - fingertip_right);
+    }
+}

@@ -1,0 +1,23 @@
+<mujoco model="{{config:robot_name}}">
+  <compiler angle="radian" meshdir="meshes/"/>
+  <worldbody>
+{{#each links}}
+    <body name="{{name}}">
+{{#if field:mass}}
+      <inertial mass="{{field:mass}}" pos="0 0 0"/>
+{{/if}}
+{{#if field:link_geometry}}
+      <geom type="cylinder" size="0.05 0.1"/>
+{{/if}}
+    </body>
+{{/each}}
+  </worldbody>
+  <actuator>
+{{#each revolute_joints}}
+    <motor name="{{name}}_motor" joint="{{name}}" gear="1"/>
+{{/each}}
+{{#each continuous_joints}}
+    <motor name="{{name}}_motor" joint="{{name}}" gear="1"/>
+{{/each}}
+  </actuator>
+</mujoco>

@@ -1,0 +1,24 @@
+// meta_strategy.hymeko — declarative RL training STRATEGY vocabulary (explore / exploit).
+//
+// Completes the "MDP + algorithm as data" picture: meta_kinematics (robot), meta_env (scene),
+// meta_reward (reward), and now meta_strategy — the PPO algorithm's exploration and exploitation
+// knobs. A concrete strategy (e.g. galambos_strategy.hymeko) instantiates these as field-carrying
+// config terms bundled in a `strategy_spec`; the trainer reads them via
+// hymeko_rl/strategy_spec.py::StrategySpec.from_hymeko. Each term carries scalar fields only.
+
+meta_strategy {}
+
+strategy {
+    @param {}
+    @strategy_spec {}
+
+    params {
+        // Exploration tactic: `ent_coef` (entropy bonus), `log_std_init` (initial action-noise
+        // scale; std = exp(log_std_init)), `curriculum_iters` (anneal start-state difficulty 0->1).
+        @exploration:  + <isa> strategy.param {}
+
+        // Exploitation: `gamma`, `lam` (GAE), `clip` (PPO ratio clip), `lr`, `update_epochs`,
+        // `value_warmup`, `n_steps` (rollout length), `n_iters` (training iterations).
+        @exploitation: + <isa> strategy.param {}
+    }
+}

@@ -1,0 +1,33 @@
+// arm_gripper_import.hymeko — arm+gripper with NO arm-kinematics duplication: import the arm model and
+// attach the gripper fingers to its `tool` link via a cross-profile instance reference (`arm.tool`).
+// This is the elegant composite (vs the self-contained arm_gripper.hymeko). Probes HyMeKo cross-model
+// kinematic attachment. Validates via `hymeko inspect`/`validate` if supported.
+
+arm_gripper_import_description {
+    @"meta_kinematics.hymeko";
+    @"anthropomorphic_arm.hymeko";
+    using robot as arm;
+}
+
+arm_gripper: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes, arm
+{
+    finger_color [0.85, 0.45, 0.20, 1.0];
+
+    finger_l: meta_kinematics.kinematics.elements.link {
+        mass 0.02;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.012, 0.036, 0.06]; }
+        visual -> link_geometry; collision -> link_geometry; color -> arm_gripper.finger_color; origin [0.0, 0.0, 0.03];
+    }
+    finger_r: meta_kinematics.kinematics.elements.link {
+        mass 0.02;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.012, 0.036, 0.06]; }
+        visual -> link_geometry; collision -> link_geometry; color -> arm_gripper.finger_color; origin [0.0, 0.0, 0.03];
+    }
+
+    @grip_l: meta_kinematics.kinematics.prismatic_joint {
+        (+ arm.tool [[-0.035, 0.0, 0.1], [0.0, 0.0, 0.0]], - finger_l, - meta_kinematics.kinematics.axes.AXIS_X);
+    }
+    @grip_r: meta_kinematics.kinematics.prismatic_joint {
+        (+ arm.tool [[0.035, 0.0, 0.1], [0.0, 0.0, 0.0]], - finger_r, - meta_kinematics.kinematics.axes.AXIS_X);
+    }
+}

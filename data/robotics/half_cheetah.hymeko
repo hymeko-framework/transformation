@@ -1,0 +1,57 @@
+// half_cheetah.hymeko — a planar (sagittal) running cheetah, in HyMeKo.
+//
+// Mirrors humanoid.hymeko / quadruped.hymeko's RL-ready pattern (hand-authored, single-DOF sagittal
+// joints for a tractable action space). A long torso + two three-segment legs (back + front), all
+// hinges AXIS_Y (the plane of forward running). The env promotes @base to a PLANAR base
+// (slide-x + slide-z + pitch-y, via quadruped_env.set_base_mode(..., "planar")) + a floor, so the
+// body runs forward in the sagittal plane and cannot fall sideways — HalfCheetah-style. Kinematic tree:
+//
+//   world --base(planar)--> torso
+//                             +--bthigh(Y)--> bshin --bknee(Y)--> bfoot   (back leg)
+//                             +--fthigh(Y)--> fshin --fknee(Y)--> ffoot   (front leg)
+//
+// 6 revolute joints (bthigh/bknee/bfoot · fthigh/fknee/ffoot) = the RL action space; the planar base
+// is passive (the legs do the work). Origins are mid-link, in the parent joint's frame. Masses/lengths
+// approximate the gymnasium half_cheetah morphology at a coarser, tractable resolution.
+// Validate via `hymeko validate`; compile via hymeko_rl.env.arm_world.emit_arm_mjcf.
+
+half_cheetah_description {
+    @"meta_kinematics.hymeko";
+}
+
+half_cheetah: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes
+{
+    world: meta_kinematics.kinematics.elements.frame {}
+
+    torso_color [0.20, 0.55, 0.80, 1.0];
+    leg_color   [0.85, 0.55, 0.20, 1.0];
+    foot_color  [0.35, 0.35, 0.40, 1.0];
+
+    // === Torso: a long box along +x (the running body) ===
+    torso: meta_kinematics.kinematics.elements.link { mass 6.0; link_geometry: meta_kinematics.kinematics.geometry.box { dimension [1.0, 0.12, 0.10]; } visual -> link_geometry; collision -> link_geometry; color -> half_cheetah.torso_color; origin [0.0, 0.0, 0.0]; }
+
+    // === Back leg: bthigh -> bshin -> bfoot (cylinders down) ===
+    bthigh: meta_kinematics.kinematics.elements.link { mass 1.6; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.046, 0.29]; } visual -> link_geometry; collision -> link_geometry; color -> half_cheetah.leg_color;  origin [0.0, 0.0, -0.145]; }
+    bshin:  meta_kinematics.kinematics.elements.link { mass 1.4; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.045, 0.30]; } visual -> link_geometry; collision -> link_geometry; color -> half_cheetah.leg_color;  origin [0.0, 0.0, -0.150]; }
+    bfoot:  meta_kinematics.kinematics.elements.link { mass 0.9; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.043, 0.19]; } visual -> link_geometry; collision -> link_geometry; color -> half_cheetah.foot_color; origin [0.0, 0.0, -0.095]; }
+
+    // === Front leg: fthigh -> fshin -> ffoot (cylinders down) ===
+    fthigh: meta_kinematics.kinematics.elements.link { mass 1.5; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.046, 0.27]; } visual -> link_geometry; collision -> link_geometry; color -> half_cheetah.leg_color;  origin [0.0, 0.0, -0.135]; }
+    fshin:  meta_kinematics.kinematics.elements.link { mass 1.2; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.045, 0.21]; } visual -> link_geometry; collision -> link_geometry; color -> half_cheetah.leg_color;  origin [0.0, 0.0, -0.105]; }
+    ffoot:  meta_kinematics.kinematics.elements.link { mass 0.7; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.043, 0.14]; } visual -> link_geometry; collision -> link_geometry; color -> half_cheetah.foot_color; origin [0.0, 0.0, -0.070]; }
+
+    // === Planar base: world -> torso at running height 0.60 m (env promotes to slide-x/slide-z/pitch-y + floor) ===
+    @base: meta_kinematics.kinematics.conti_joint {
+        (+ world [[0.0, 0.0, 0.60], [0.0, 0.0, 0.0]], - torso, - meta_kinematics.kinematics.axes.AXIS_Y);
+    }
+
+    // === Back leg joints: bhip (torso rear -> bthigh) · bknee (bthigh end -> bshin) · bankle (bshin end -> bfoot) ===
+    @bhip:   meta_kinematics.kinematics.rev_joint { (+ torso  [[-0.50, 0.0, 0.0],  [0.0,0.0,0.0]], - bthigh, - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @bknee:  meta_kinematics.kinematics.rev_joint { (+ bthigh [[0.0, 0.0, -0.29],  [0.0,0.0,0.0]], - bshin,  - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @bankle: meta_kinematics.kinematics.rev_joint { (+ bshin  [[0.0, 0.0, -0.30],  [0.0,0.0,0.0]], - bfoot,  - meta_kinematics.kinematics.axes.AXIS_Y); }
+
+    // === Front leg joints: fhip (torso front -> fthigh) · fknee (fthigh end -> fshin) · fankle (fshin end -> ffoot) ===
+    @fhip:   meta_kinematics.kinematics.rev_joint { (+ torso  [[0.50, 0.0, 0.0],   [0.0,0.0,0.0]], - fthigh, - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @fknee:  meta_kinematics.kinematics.rev_joint { (+ fthigh [[0.0, 0.0, -0.27],  [0.0,0.0,0.0]], - fshin,  - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @fankle: meta_kinematics.kinematics.rev_joint { (+ fshin  [[0.0, 0.0, -0.21],  [0.0,0.0,0.0]], - ffoot,  - meta_kinematics.kinematics.axes.AXIS_Y); }
+}

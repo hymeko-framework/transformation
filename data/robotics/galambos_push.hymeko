@@ -1,0 +1,62 @@
+// galambos_push.hymeko — the scripted push-controller coin-toss demonstrator, declaratively.
+//
+// k fingertips form a fan of "slots" behind the coin along the coin->zone ray (slot i = the back direction
+// rotated by the i-th fan angle — the rotation-group view of the formation) and push the coin toward the
+// zone; press (and thus speed) scales down inside brake_dist so the coin settles and dwell accrues.
+//
+// The FSM is DATA: phases are `fsm_phase` nodes; each binds its target law by name and declares its
+// outgoing transitions as `on <guard-event> to <phase>;`. Python's PushDemonstrator
+// (hymeko_rl/experiments/galambos_demo.py) binds the named guards/laws and walks THIS graph — adding or
+// rewiring a phase is an edit here, not in the code. Parameters likewise (press_max 0.012 is the measured
+// 2026-07-05 sweep winner: 0.80 vs 0.006's 0.54 median delivery).
+//
+// The bundle arc orders the phases; the FIRST phase is the initial state.
+
+galambos_push_description {
+    @"meta_controller.hymeko";
+    using controller.params as cp;
+    using controller.phases as ph;
+    using controller        as c;
+}
+
+galambos_push: cp, ph, c
+{
+    // Route each tip around the coin to its slot (never through the front sector — no bulldozing).
+    @approach: ph.fsm_phase {
+        law approach_orbit;
+        on slots_reached to push;
+        on coin_at_zone to hold;
+    }
+
+    // Press the slot fan into the coin's back and drive it along the coin->zone ray (brake law inside).
+    @push: ph.fsm_phase {
+        law pressed_slots;
+        on formation_broken to approach;
+        on coin_at_zone to hold;
+    }
+
+    // Coin at the zone centre: freeze and be the backstop while dwell accrues.
+    @hold: ph.fsm_phase {
+        law freeze;
+        on coin_left_zone to approach;
+    }
+
+    // Formation shape: fan half-angle, approach-orbit clearance, forbidden front sector, slot-arrival gate.
+    @geometry: cp.geometry {
+        v_half_angle 0.70;
+        swing_margin 0.030;
+        front_avoid 1.05;
+        slot_tol 0.020;
+    }
+
+    // Motion: press depth (servo error = push force; measured winner), orbit step, brake-onset distance.
+    @gait: cp.gait {
+        press_max 0.012;
+        max_arc 0.50;
+        brake_dist 0.060;
+    }
+
+    @controller_spec: c.controller_spec {
+        (+ approach, + push, + hold, + geometry, + gait);
+    }
+}

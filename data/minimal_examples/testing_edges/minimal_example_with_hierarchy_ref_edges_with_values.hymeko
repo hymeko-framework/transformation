@@ -1,0 +1,25 @@
+Minimal_Example{}
+context
+{
+    node_lev_0
+    {
+        node0{
+
+        }
+        node1{}
+        node2{}
+        node3{
+            node0{}
+
+        }
+    }
+    node_lev_1
+    {
+        node0{}
+        @e0 { ( - node0[0.85],
+             + context.node_lev_0.node1[0.9],
+             - context.node_lev_0.node2[-0.615],
+             -context.node_lev_0.node0[0.5, 0.6]);
+        }
+    }
+}

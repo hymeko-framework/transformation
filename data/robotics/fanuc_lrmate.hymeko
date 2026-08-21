@@ -1,0 +1,107 @@
+// fanuc_lrmate.hymeko — a 6R arm with the FANUC LR Mate 200iD joint-rotation configuration.
+//
+// Axis sequence (the FANUC DH joint-rotation config):  j0=Z  j1=Y  j2=Y  j3=Z  j4=Y  jtool=Z
+//   - j0 (Z)         : base yaw
+//   - j1, j2 (Y, Y)  : shoulder + elbow pitch about a COMMON horizontal axis  -> planar reach, no twist
+//   - j3,j4,jtool (Z,Y,Z): a SPHERICAL wrist (roll-pitch-roll, near-intersecting axes)
+//
+// Why this robot: the previous anthropomorphic_arm (Z, X+90°, X, Z, X, Z, fat r=0.075 links) could only
+// point its tool straight down by folding onto itself -> self-collision (measured: link_0↔link_3, link_3↔tool;
+// no collision-free top-down grasp at any radius — reports/2026-06-22-pick-place-phase0.md). The FANUC config
+// orients the tool with the compact wrist instead of the arm, and the links are SLIM cylinders (r≈0.03–0.045,
+// vs 0.075) so non-adjacent links no longer false-collide. Joint names / tool body match the env + the gripper
+// import, so PickPlaceEnv(robot=...) and arm_gripper_fanuc_import.hymeko reuse it unchanged.
+//
+// Dimensions are LR Mate 200iD-scale (reach ~0.7 m). Validates via `hymeko emit -f mjcf`.
+
+fanuc_lrmate_description {
+  @"meta_kinematics.hymeko";
+}
+
+robot: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes
+{
+    world: meta_kinematics.kinematics.elements.frame {}
+
+    base_color [0.15, 0.15, 0.18, 1.0];
+    arm_color  [1.0, 0.84, 0.0, 1.0];        // FANUC yellow
+    wrist_color [0.2, 0.2, 0.22, 1.0];
+
+    // === Links (slim cylinders: visual == collision) ===
+    base_link: meta_kinematics.kinematics.elements.link {
+        mass 8.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.07, 0.10]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.base_color; origin [0.0, 0.0, 0.05];
+    }
+    link_0: meta_kinematics.kinematics.elements.link {       // J1 yaw column
+        mass 3.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.05, 0.10]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.arm_color; origin [0.0, 0.0, 0.05];
+    }
+    link_1: meta_kinematics.kinematics.elements.link {       // upper arm
+        mass 2.5;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.045, 0.33]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.arm_color; origin [0.0, 0.0, 0.165];
+    }
+    link_2: meta_kinematics.kinematics.elements.link {       // forearm
+        mass 2.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.038, 0.32]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.arm_color; origin [0.0, 0.0, 0.16];
+    }
+    link_3: meta_kinematics.kinematics.elements.link {       // wrist roll housing
+        mass 0.6;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.035, 0.04]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.wrist_color; origin [0.0, 0.0, 0.02];
+    }
+    link_4: meta_kinematics.kinematics.elements.link {       // wrist pitch body
+        mass 0.4;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.032, 0.04]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.wrist_color; origin [0.0, 0.0, 0.02];
+    }
+    tool: meta_kinematics.kinematics.elements.link {         // flange / tool roll (gripper mounts here)
+        mass 0.3;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.06, 0.09, 0.05]; }
+        visual -> link_geometry; collision -> link_geometry; color -> robot.wrist_color; origin [0.0, 0.0, 0.025];
+    }
+
+    @arm_joint_control {
+        (+ meta_kinematics.kinematics.control_attributes.position,
+         + meta_kinematics.kinematics.control_attributes.velocity,
+         - meta_kinematics.kinematics.control_attributes.position,
+         - meta_kinematics.kinematics.control_attributes.velocity,
+         - meta_kinematics.kinematics.control_attributes.effort);
+    }
+
+    @j_fix: meta_kinematics.kinematics.fixed_joint {
+        (+ world [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - base_link);
+    }
+    // J1 — base yaw (Z)
+    @j0: meta_kinematics.kinematics.rev_joint {
+        (+ base_link [[0.0, 0.0, 0.10], [0.0, 0.0, 0.0]], - link_0, - meta_kinematics.kinematics.axes.AXIS_Z);
+        @control: arm_joint_control {}
+    }
+    // J2 — shoulder pitch (Y), offset forward
+    @j1: meta_kinematics.kinematics.rev_joint {
+        (+ link_0 [[0.04, 0.0, 0.10], [0.0, 0.0, 0.0]], - link_1, - meta_kinematics.kinematics.axes.AXIS_Y);
+        @control: arm_joint_control {}
+    }
+    // J3 — elbow pitch (Y)
+    @j2: meta_kinematics.kinematics.rev_joint {
+        (+ link_1 [[0.0, 0.0, 0.33], [0.0, 0.0, 0.0]], - link_2, - meta_kinematics.kinematics.axes.AXIS_Y);
+        @control: arm_joint_control {}
+    }
+    // J4 — wrist roll (Z, along forearm)
+    @j3: meta_kinematics.kinematics.rev_joint {
+        (+ link_2 [[0.0, 0.0, 0.32], [0.0, 0.0, 0.0]], - link_3, - meta_kinematics.kinematics.axes.AXIS_Z);
+        @control: arm_joint_control {}
+    }
+    // J5 — wrist pitch (Y), near-coincident with J4 (compact spherical wrist)
+    @j4: meta_kinematics.kinematics.rev_joint {
+        (+ link_3 [[0.0, 0.0, 0.02], [0.0, 0.0, 0.0]], - link_4, - meta_kinematics.kinematics.axes.AXIS_Y);
+        @control: arm_joint_control {}
+    }
+    // J6 — tool roll (Z)
+    @jtool: meta_kinematics.kinematics.rev_joint {
+        (+ link_4 [[0.0, 0.0, 0.04], [0.0, 0.0, 0.0]], - tool, - meta_kinematics.kinematics.axes.AXIS_Z);
+        @control: arm_joint_control {}
+    }
+}

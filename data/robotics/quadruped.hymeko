@@ -1,0 +1,140 @@
+// quadruped.hymeko — a faithful, cute Aibo ERS-1000 robot dog (22 actuated DOF), described in HyMeKo.
+//
+// Sony's current Aibo (ERS-1000) has exactly 22 joints; this model reproduces that DOF layout:
+//     Legs   : 3-axis × 4  = 12   (hip_abduct AXIS_X → hip_flex AXIS_Y → knee AXIS_Y)
+//     Head   : 3-axis      =  3   (yaw AXIS_Z → pitch AXIS_Y → roll AXIS_X)
+//     Neck   : 1-axis      =  1   (pitch AXIS_Y — nodding)
+//     Waist  : 1-axis      =  1   (yaw AXIS_Z — spine twist between the front & rear body)
+//     Mouth  : 1-axis      =  1   (jaw, AXIS_Y)
+//     Ears   : 1-axis × 2  =  2   (AXIS_Y)
+//     Tail   : 2-axis      =  2   (pan AXIS_Z → tilt AXIS_Y)
+//                          = 22 total.
+//
+// Dog-like ROUNDED body (Aibo-inspired): the front ("torso") and rear ("rear_body") masses are SPHERES that
+// overlap at the waist into a rounded loaf; the leg roots are big silver ball-joints (spheres); the legs are
+// bent into a natural standing stance (elbow forward / hock back); rounded thighs and dark paws; a silver face
+// with a muzzle, black nose, two eyes and floppy ears; a fluffy tail. All face/paw/tip parts are FIXED cosmetic
+// links (no extra DOF, stays 22). Orientation on a geom is set by its joint mount rpy (as the 4-wheel robot
+// lays its wheels flat) — so the bent stance is baked into the hip/knee mount angles.
+//
+// world --@base(Z→<freejoint>)--> torso --waist--> rear_body ; head/tail/ears/mouth articulated.
+// For STANDING the env controls the 12 leg joints and holds the 10 expressive joints at a neutral posture.
+// Validates via `hymeko validate` / emits via `hymeko emit -f mjcf`.
+
+quadruped_description {
+    @"meta_kinematics.hymeko";
+}
+
+quadruped: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes
+{
+    world: meta_kinematics.kinematics.elements.frame {}
+
+    // Aibo palette: cream-white body, silver face, white legs with silver ball-joints, dark-brown ears/nose,
+    // near-black eyes, silver-white paws.
+    body_color  [0.95, 0.94, 0.92, 1.0];
+    face_color  [0.74, 0.74, 0.77, 1.0];
+    leg_color   [0.92, 0.92, 0.93, 1.0];
+    joint_color [0.70, 0.70, 0.74, 1.0];
+    accent_color[0.26, 0.20, 0.18, 1.0];
+    eye_color   [0.05, 0.05, 0.08, 1.0];
+    paw_color   [0.85, 0.85, 0.87, 1.0];
+
+    // === FRONT body ("torso": rounded chest; front legs + head; standing height measured here) ===
+    torso: meta_kinematics.kinematics.elements.link {
+        mass 1.5;
+        link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.088]; }
+        visual -> link_geometry; collision -> link_geometry; color -> quadruped.body_color;
+        origin [0.0, 0.0, 0.0];
+    }
+    // === REAR body (rounded haunch; rear legs + tail), joined to the torso by the waist joint ===
+    rear_body: meta_kinematics.kinematics.elements.link {
+        mass 1.3;
+        link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.084]; }
+        visual -> link_geometry; collision -> link_geometry; color -> quadruped.body_color;
+        origin [-0.10, 0.0, 0.0];      // sphere centred behind the waist → overlaps the torso into a loaf
+    }
+    // Mid-belly (cosmetic, fixed to the torso): bridges the chest & haunch spheres into one long dachshund loaf.
+    mid_body: meta_kinematics.kinematics.elements.link { mass 0.2; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.082]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.body_color; origin [0.0, 0.0, 0.0]; }
+
+    // === Head chain: neck(1) + head 3-axis gimbal + cosmetic face(muzzle/nose/eyes) + jaw(1) + ears(2) ===
+    neck: meta_kinematics.kinematics.elements.link { mass 0.10; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.03, 0.06]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.body_color; origin [0.0, 0.0, 0.03]; }
+    head_gz: meta_kinematics.kinematics.elements.link { mass 0.02; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.012]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.face_color; origin [0.0, 0.0, 0.0]; }
+    head_gy: meta_kinematics.kinematics.elements.link { mass 0.02; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.012]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.face_color; origin [0.0, 0.0, 0.0]; }
+    head: meta_kinematics.kinematics.elements.link { mass 0.24; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.06]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.face_color; origin [0.012, 0.0, 0.012]; }
+    muzzle: meta_kinematics.kinematics.elements.link { mass 0.04; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.028, 0.085]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.face_color; origin [0.0, 0.0, 0.042]; }
+    nose: meta_kinematics.kinematics.elements.link { mass 0.005; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.015]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.accent_color; origin [0.0, 0.0, 0.0]; }
+    eye_l: meta_kinematics.kinematics.elements.link { mass 0.003; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.015]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.eye_color; origin [0.0, 0.0, 0.0]; }
+    eye_r: meta_kinematics.kinematics.elements.link { mass 0.003; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.015]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.eye_color; origin [0.0, 0.0, 0.0]; }
+    jaw: meta_kinematics.kinematics.elements.link { mass 0.02; link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.075, 0.04, 0.012]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.face_color; origin [0.035, 0.0, 0.0]; }
+    ear_l: meta_kinematics.kinematics.elements.link { mass 0.012; link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.012, 0.045, 0.075]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.accent_color; origin [0.0, 0.0, 0.03]; }
+    ear_r: meta_kinematics.kinematics.elements.link { mass 0.012; link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.012, 0.045, 0.075]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.accent_color; origin [0.0, 0.0, 0.03]; }
+
+    // === Tail: 2-axis (pan + tilt) on the rear body, fluffy rounded tip ===
+    tail_seg: meta_kinematics.kinematics.elements.link { mass 0.02; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.016]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.accent_color; origin [0.0, 0.0, 0.0]; }
+    tail: meta_kinematics.kinematics.elements.link { mass 0.04; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.013, 0.10]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.accent_color; origin [0.0, 0.0, 0.05]; }
+    tail_tip: meta_kinematics.kinematics.elements.link { mass 0.01; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.024]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.body_color; origin [0.0, 0.0, 0.0]; }
+
+    // === Leg links (per leg: big ball-joint shoulder + rounded thigh + shin + dark paw) ===
+    hip_bracket_fl: meta_kinematics.kinematics.elements.link { mass 0.05; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.05]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.joint_color; origin [0.0, 0.0, 0.0]; }
+    thigh_fl: meta_kinematics.kinematics.elements.link { mass 0.28; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.025, 0.10]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.leg_color; origin [0.0, 0.0, -0.05]; }
+    shin_fl:  meta_kinematics.kinematics.elements.link { mass 0.18; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.016, 0.10]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.leg_color; origin [0.0, 0.0, -0.05]; }
+    paw_fl: meta_kinematics.kinematics.elements.link { mass 0.03; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.026]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.paw_color; origin [0.0, 0.0, 0.0]; }
+    hip_bracket_fr: meta_kinematics.kinematics.elements.link { mass 0.05; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.05]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.joint_color; origin [0.0, 0.0, 0.0]; }
+    thigh_fr: meta_kinematics.kinematics.elements.link { mass 0.28; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.025, 0.10]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.leg_color; origin [0.0, 0.0, -0.05]; }
+    shin_fr:  meta_kinematics.kinematics.elements.link { mass 0.18; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.016, 0.10]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.leg_color; origin [0.0, 0.0, -0.05]; }
+    paw_fr: meta_kinematics.kinematics.elements.link { mass 0.03; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.026]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.paw_color; origin [0.0, 0.0, 0.0]; }
+    hip_bracket_bl: meta_kinematics.kinematics.elements.link { mass 0.05; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.05]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.joint_color; origin [0.0, 0.0, 0.0]; }
+    thigh_bl: meta_kinematics.kinematics.elements.link { mass 0.28; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.025, 0.10]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.leg_color; origin [0.0, 0.0, -0.05]; }
+    shin_bl:  meta_kinematics.kinematics.elements.link { mass 0.18; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.016, 0.10]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.leg_color; origin [0.0, 0.0, -0.05]; }
+    paw_bl: meta_kinematics.kinematics.elements.link { mass 0.03; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.026]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.paw_color; origin [0.0, 0.0, 0.0]; }
+    hip_bracket_br: meta_kinematics.kinematics.elements.link { mass 0.05; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.05]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.joint_color; origin [0.0, 0.0, 0.0]; }
+    thigh_br: meta_kinematics.kinematics.elements.link { mass 0.28; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.025, 0.10]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.leg_color; origin [0.0, 0.0, -0.05]; }
+    shin_br:  meta_kinematics.kinematics.elements.link { mass 0.18; link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.016, 0.10]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.leg_color; origin [0.0, 0.0, -0.05]; }
+    paw_br: meta_kinematics.kinematics.elements.link { mass 0.03; link_geometry: meta_kinematics.kinematics.geometry.sphere { dimension [0.026]; } visual -> link_geometry; collision -> link_geometry; color -> quadruped.paw_color; origin [0.0, 0.0, 0.0]; }
+
+    // === World fixation / base joint — DECLARED here, promoted by the env ===
+    @base: meta_kinematics.kinematics.conti_joint {
+        (+ world [[0.0, 0.0, 0.25], [0.0, 0.0, 0.0]], - torso, - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+
+    // === Waist (1) : torso → rear_body (spine yaw) ===
+    @waist: meta_kinematics.kinematics.rev_joint { (+ torso [[-0.11, 0.0, 0.0], [0.0,0.0,0.0]], - rear_body, - meta_kinematics.kinematics.axes.AXIS_Z); }
+    @mid_body_j: meta_kinematics.kinematics.fixed_joint { (+ torso [[-0.075, 0.0, 0.0], [0.0,0.0,0.0]], - mid_body); }
+
+    // === Neck (1) + Head 3-axis (yaw Z → pitch Y → roll X) + cosmetic face + Mouth (1) + Ears (2) ===
+    @neck_j:    meta_kinematics.kinematics.rev_joint { (+ torso   [[0.075, 0.0, 0.06], [0.0, 15.0, 0.0]], - neck,    - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @head_yaw:  meta_kinematics.kinematics.rev_joint { (+ neck    [[0.0, 0.0, 0.06],   [0.0,-15.0, 0.0]], - head_gz, - meta_kinematics.kinematics.axes.AXIS_Z); }
+    @head_pitch:meta_kinematics.kinematics.rev_joint { (+ head_gz [[0.0, 0.0, 0.0],    [0.0,0.0,0.0]],    - head_gy, - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @head_roll: meta_kinematics.kinematics.rev_joint { (+ head_gy [[0.0, 0.0, 0.0],    [0.0,0.0,0.0]],    - head,    - meta_kinematics.kinematics.axes.AXIS_X); }
+    @muzzle_j:  meta_kinematics.kinematics.fixed_joint { (+ head [[0.045, 0.0, -0.006], [0.0, 90.0, 0.0]], - muzzle); }
+    @nose_j:    meta_kinematics.kinematics.fixed_joint { (+ head [[0.128, 0.0, -0.004], [0.0,0.0,0.0]], - nose); }
+    @eye_l_j:   meta_kinematics.kinematics.fixed_joint { (+ head [[0.05,  0.033, 0.032], [0.0,0.0,0.0]], - eye_l); }
+    @eye_r_j:   meta_kinematics.kinematics.fixed_joint { (+ head [[0.05, -0.033, 0.032], [0.0,0.0,0.0]], - eye_r); }
+    @mouth:     meta_kinematics.kinematics.rev_joint { (+ head    [[0.045, 0.0, -0.03], [0.0,0.0,0.0]], - jaw,     - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @ear_l_j:   meta_kinematics.kinematics.rev_joint { (+ head    [[-0.02, 0.05, 0.045], [25.0,0.0,0.0]], - ear_l, - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @ear_r_j:   meta_kinematics.kinematics.rev_joint { (+ head    [[-0.02,-0.05, 0.045], [-25.0,0.0,0.0]], - ear_r, - meta_kinematics.kinematics.axes.AXIS_Y); }
+
+    // === Tail 2-axis (pan Z → tilt Y), angled up-back on the rear body, fluffy tip ===
+    @tail_pan:  meta_kinematics.kinematics.rev_joint { (+ rear_body [[-0.17, 0.0, 0.05], [0.0, -50.0, 0.0]], - tail_seg, - meta_kinematics.kinematics.axes.AXIS_Z); }
+    @tail_tilt: meta_kinematics.kinematics.rev_joint { (+ tail_seg  [[0.0, 0.0, 0.0],    [0.0,0.0,0.0]],     - tail,     - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @tail_tip_j:meta_kinematics.kinematics.fixed_joint { (+ tail    [[0.0, 0.0, 0.10],   [0.0,0.0,0.0]],     - tail_tip); }
+
+    // === Legs: hip_abduct (X) → hip_flex (Y, bent) → knee (Y, bent) + fixed paw. Natural dog stance. ===
+    // Front legs: thigh forward, shin back (elbow bend). Rear legs: thigh back, shin forward (hock bend).
+    @hip_abduct_fl: meta_kinematics.kinematics.rev_joint { (+ torso          [[ 0.05,  0.062, -0.05], [0.0,0.0,0.0]],  - hip_bracket_fl, - meta_kinematics.kinematics.axes.AXIS_X); }
+    @hip_flex_fl:   meta_kinematics.kinematics.rev_joint { (+ hip_bracket_fl [[ 0.0, 0.0, 0.0],       [0.0, 12.0, 0.0]], - thigh_fl,     - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @knee_fl:       meta_kinematics.kinematics.rev_joint { (+ thigh_fl       [[ 0.0, 0.0, -0.10],     [0.0,-26.0, 0.0]], - shin_fl,      - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @paw_fl_j:      meta_kinematics.kinematics.fixed_joint { (+ shin_fl      [[ 0.0, 0.0, -0.10],     [0.0,0.0,0.0]],   - paw_fl); }
+    @hip_abduct_fr: meta_kinematics.kinematics.rev_joint { (+ torso          [[ 0.05, -0.062, -0.05], [0.0,0.0,0.0]],  - hip_bracket_fr, - meta_kinematics.kinematics.axes.AXIS_X); }
+    @hip_flex_fr:   meta_kinematics.kinematics.rev_joint { (+ hip_bracket_fr [[ 0.0, 0.0, 0.0],       [0.0, 12.0, 0.0]], - thigh_fr,     - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @knee_fr:       meta_kinematics.kinematics.rev_joint { (+ thigh_fr       [[ 0.0, 0.0, -0.10],     [0.0,-26.0, 0.0]], - shin_fr,      - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @paw_fr_j:      meta_kinematics.kinematics.fixed_joint { (+ shin_fr      [[ 0.0, 0.0, -0.10],     [0.0,0.0,0.0]],   - paw_fr); }
+    @hip_abduct_bl: meta_kinematics.kinematics.rev_joint { (+ rear_body      [[-0.145,  0.062, -0.05], [0.0,0.0,0.0]], - hip_bracket_bl, - meta_kinematics.kinematics.axes.AXIS_X); }
+    @hip_flex_bl:   meta_kinematics.kinematics.rev_joint { (+ hip_bracket_bl [[ 0.0, 0.0, 0.0],       [0.0,-12.0, 0.0]], - thigh_bl,     - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @knee_bl:       meta_kinematics.kinematics.rev_joint { (+ thigh_bl       [[ 0.0, 0.0, -0.10],     [0.0, 26.0, 0.0]], - shin_bl,      - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @paw_bl_j:      meta_kinematics.kinematics.fixed_joint { (+ shin_bl      [[ 0.0, 0.0, -0.10],     [0.0,0.0,0.0]],   - paw_bl); }
+    @hip_abduct_br: meta_kinematics.kinematics.rev_joint { (+ rear_body      [[-0.145, -0.062, -0.05], [0.0,0.0,0.0]], - hip_bracket_br, - meta_kinematics.kinematics.axes.AXIS_X); }
+    @hip_flex_br:   meta_kinematics.kinematics.rev_joint { (+ hip_bracket_br [[ 0.0, 0.0, 0.0],       [0.0,-12.0, 0.0]], - thigh_br,     - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @knee_br:       meta_kinematics.kinematics.rev_joint { (+ thigh_br       [[ 0.0, 0.0, -0.10],     [0.0, 26.0, 0.0]], - shin_br,      - meta_kinematics.kinematics.axes.AXIS_Y); }
+    @paw_br_j:      meta_kinematics.kinematics.fixed_joint { (+ shin_br      [[ 0.0, 0.0, -0.10],     [0.0,0.0,0.0]],   - paw_br); }
+}

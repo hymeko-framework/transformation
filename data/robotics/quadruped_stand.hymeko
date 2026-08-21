@@ -1,0 +1,73 @@
+// quadruped_stand.hymeko -- the Aibo STANDING (balance) MDP declared END-TO-END in HyMeKo.
+//
+// One source = the whole standing control problem over the faithful 22-DOF Aibo (quadruped.hymeko):
+//   - PLANT      : the imported Aibo robot (torso + 22 joints). The env holds the 10 expressive joints at
+//                  neutral (spring) and RL controls the 12 legs -- a declared control subset.
+//   - TUNING     : the balance env's scalar knobs (@stand scene): upright cos, height tol, torque, horizon...
+//   - OBJECTIVE  : reward = sum weight*term (@reward_spec): the GATED `standing` predicate (== the DwellMetric)
+//                  plus dense height/levelness shaping. reward == metric.
+//   - STRATEGY   : the training algorithm as data (@experiment_spec): BC warm-start -> TD3+BC.
+//
+// Loaded by QuadrupedGoalEnv.from_hymeko (env: scene + RewardSpec.from_hymeko) and TrainingSpec.from_hymeko
+// (trainer). base="free" / task="stand" are structural to a standing task (a fixed base cannot fall), so the
+// env fixes them; everything else here is runtime-tunable (edit this file, git tracks it, the env re-reads it --
+// no code change; feedback-reward-definition-in-hymeko). The witness of "HyMeKo as a declarative control
+// substrate" (project-hymeko-as-control-substrate) on a real 22-DOF robot.
+
+quadruped_stand_description {
+    @"quadruped.hymeko";
+    @"meta_kinematics.hymeko";   // the plant's vocab must be imported here too (engine follows only 1 import level)
+    @"meta_scenario.hymeko";
+    @"meta_reward.hymeko";
+    @"meta_experiment.hymeko";
+    using scenario          as scn;
+    using reward.terms      as rew;
+    using reward            as r;
+    using experiment.params as xp;
+    using experiment        as x;
+}
+
+quadruped_stand: scn, rew, r, xp, x
+{
+    // --- balance env tuning (runtime-editable scalars; base=free & task=stand are structural, set by the env) ---
+    @stand: scn.scene {
+        stand_cos        0.9;      // upright iff torso-levelness cos > this
+        stand_height_tol 0.08;     // at-height iff |z - nominal| < this  (both => the graded `standing` predicate)
+        ctrl_range       50.0;     // leg-motor torque scale (N.m)
+        frame_skip       5;
+        max_steps        250;      // episode horizon (matches the DwellMetric window)
+        flip_cos         -0.2;     // terminate if the free base inverts past this
+        leg_damping      0.8;
+        leg_armature     0.02;
+        init_noise       0.02;
+    }
+
+    // --- reward terms (typed signals from meta_reward; weights live on the bundle arc) ---
+    @stand_bonus: rew.standing {}       // +1 iff upright AND at height -- the gated success predicate (dominant)
+    @height:      rew.torso_height {}   // -|z - h|      (dense height gradient)
+    @level:       rew.upright {}        // +cos(tilt)    (dense levelness gradient)
+    @still:       rew.stand_still {}    // -|v_x|        (hold ground, don't drift)
+    @smooth:      rew.joint_velocity {} // -sum qdot^2   (don't thrash the legs to balance)
+
+    // --- OBJECTIVE: the scalar reward sum weight*term (reward == the DwellMetric it is graded on) ---
+    @reward_spec: r.reward_spec {
+        (+ stand_bonus 5.0, + height 3.0, + level 1.0, + still 0.1, + smooth 0.001);
+    }
+
+    // --- STRATEGY: the training algorithm as declared data (BC warm-start -> TD3+BC anti-collapse recipe) ---
+    @budget: xp.budget {
+        algorithm "td3_bc";
+        total_steps 150000;
+        n_demos 200;
+        bc_epochs 200;
+        seeds [0, 1, 2];
+    }
+    @offpolicy: xp.offpolicy {
+        critic_huber 1.0;       // bound the spiky-terminal TD target (framework stability fix, 2026-07-05)
+        bc_coef 2.5;            // BC anchor strength (hold the policy near the PD-hold standing demos)
+        critic_lr 0.0003;
+    }
+    @experiment_spec: x.experiment_spec {
+        (+ budget, + offpolicy);
+    }
+}

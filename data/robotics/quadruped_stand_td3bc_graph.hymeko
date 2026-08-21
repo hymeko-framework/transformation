@@ -1,0 +1,40 @@
+// quadruped_stand_td3bc_graph.hymeko -- TD3+BC for Aibo standing, as a signed dataflow HYPERGRAPH.
+//
+// The third topology in the family (cf. quadruped_stand_dagger.hymeko = cyclic imitation, and
+// quadruped_stand_bc_graph.hymeko = acyclic BC). What distinguishes TD3+BC is a CRITIC node (an off-policy value
+// estimator) with Q-target edges: the critic feeds the actor's max-Q gradient, and the target nets feed the
+// critic's TD bootstrap (target -> critic). StrategyGraph.classify reads the critic node as "td3_bc" -- the same
+// critic whose VALUE DRIFT collapsed standing to 0.0. So all three algorithms are told apart by their dataflow
+// shape, not a string. Validates via `hymeko validate`.
+
+quadruped_stand_td3bc_graph_description {
+    @"meta_strategy_graph.hymeko";
+    using strategy as sg;
+}
+
+quadruped_stand_td3bc_graph: sg
+{
+    // === Stages ===
+    @expert_demos:  sg.stage { role "source"; n_demos 200; }        // D0 = DART demos (BC warm-start + BC anchor)
+    @bc_warmstart:  sg.stage { role "bc"; bc_epochs 200; }          // clone -> pi0 (act with it from step 0)
+    @rollout:       sg.stage { role "rollout"; noise 0.1; }         // collect transitions into the replay buffer
+    @critic:        sg.stage { role "critic"; critic_huber 1.0; critic_lr 0.0003; }  // twin-Q TD update (the DISCRIMINATOR)
+    @actor:         sg.stage { role "actor"; bc_coef 2.5; }         // delayed policy update: max-Q + BC anchor to demos
+    @target:        sg.stage { role "target"; tau 0.005; }          // polyak target nets (the TD bootstrap source)
+    @evaluate:      sg.stage { role "eval"; n_eval 24; }
+
+    // === Signed dataflow hyperedges (+ producer, - consumer) ===
+    @f_demos:       sg.flow { (+ expert_demos, - bc_warmstart, - actor); }  // demos -> initial BC + the actor BC anchor
+    @f_init:        sg.flow { (+ bc_warmstart, - rollout); }        // pi0 -> rollout (warm start)
+    @f_transitions: sg.flow { (+ rollout, - critic); }             // replay transitions -> critic TD update
+    @f_qvalue:      sg.flow { (+ critic, - actor); }               // Q(s,mu(s)) -> actor's max-Q gradient
+    @f_policy:      sg.flow { (+ actor, - rollout, - target, - evaluate); }  // updated policy -> next rollout + target + eval
+    @f_target:      sg.flow { (+ target, - critic); }             // target nets -> critic's TD bootstrap (closes the Q-loop)
+
+    @strategy_graph: sg.strategy_graph {
+        (+ expert_demos, + bc_warmstart, + rollout, + critic, + actor, + target, + evaluate,
+         + f_demos, + f_init, + f_transitions, + f_qvalue, + f_policy, + f_target);
+        total_steps 150000;
+        seeds [0, 1, 2];
+    }
+}

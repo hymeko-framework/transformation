@@ -1,0 +1,92 @@
+// Triad rapport demo — robot agent r1 (kinematic structure).
+//
+// Differential-drive 2-wheel platform: chassis (box) + head (sphere)
+// + 2 wheels (cylinder) + 2 revolute joints.
+//
+// Emits to SDF via:
+//   hymeko emit -f sdf data/robotics/triad_r1.hymeko \
+//       -o data/models/triad_r1/model.sdf -n triad_r1
+//
+// Runtime plugins (DiffDrive subscriber on /cmd_vel, PosePublisher,
+// camera sensor on the head) are appended by scripts/emit_triad_sdf.py
+// because the SDF emitter ships the geometric structure but not
+// the gz-specific plugin/sensor extensions.
+//
+// Plan: docs/plans/2026-05-18-gz-rapport-demo/.
+
+triad_r1_description {
+    @"meta_kinematics.hymeko";
+}
+
+triad_r1: meta_kinematics.kinematics.elements,
+          meta_kinematics.kinematics.geometry,
+          meta_kinematics.kinematics.axes
+{
+    chassis_color [0.30, 0.30, 0.35, 1.0];
+    head_color    [0.95, 0.55, 0.20, 1.0];
+    wheel_color   [0.05, 0.05, 0.05, 1.0];
+
+    diffdrive_control: meta_kinematics.kinematics.elements.control {
+        update_rate 100;
+    }
+
+    chassis: meta_kinematics.kinematics.elements.link {
+        mass 10.0;
+        link_geometry: meta_kinematics.kinematics.geometry.box {
+            dimension [0.40, 0.30, 0.15];
+        }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        color     -> triad_r1.chassis_color;
+        origin [0.0, 0.0, 0.10];
+    }
+
+    head: meta_kinematics.kinematics.elements.link {
+        mass 1.0;
+        link_geometry: meta_kinematics.kinematics.geometry.sphere {
+            dimension [0.12];
+        }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        color     -> triad_r1.head_color;
+        origin [0.0, 0.0, 0.45];
+    }
+
+    left_wheel: meta_kinematics.kinematics.elements.link {
+        mass 0.5;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.05, 0.04];
+        }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        color     -> triad_r1.wheel_color;
+        origin [0.0, 0.0, 0.05];
+    }
+
+    right_wheel: meta_kinematics.kinematics.elements.link {
+        mass 0.5;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.05, 0.04];
+        }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        color     -> triad_r1.wheel_color;
+        origin [0.0, 0.0, 0.05];
+    }
+
+    @neck: meta_kinematics.kinematics.fixed_joint {
+        (+ chassis [[0.0, 0.0, 0.35], [0.0, 0.0, 0.0]], - head,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+
+    @left_wheel_joint: meta_kinematics.kinematics.conti_joint {
+        (+ chassis [[0.0, 0.20, -0.05], [-1.5707963, 0.0, 0.0]],
+         - left_wheel,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+    @right_wheel_joint: meta_kinematics.kinematics.conti_joint {
+        (+ chassis [[0.0, -0.20, -0.05], [-1.5707963, 0.0, 0.0]],
+         - right_wheel,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+}

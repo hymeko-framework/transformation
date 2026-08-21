@@ -1,0 +1,38 @@
+// traceability_smc.hymeko — minimal requirements-trace witness (SMC paper, item 5).
+//
+// A pick-and-place cell: four requirements (one derived) satisfied / allocated by
+// four components, expressed as signed n-ary hyperedges. The SAME model emits a
+// SysML v2 requirements model and a DOT traceability graph (one IR → many views).
+
+traceability_smc_description {
+    @"meta_sysml_trace.hymeko";
+}
+
+pick_place_cell: meta_sysml_trace.sysml_trace.elements
+{
+    // ── Requirements ──────────────────────────────────────────────
+    R1_safe_stop:      meta_sysml_trace.sysml_trace.elements.requirement { text "Cell halts within 200 ms on E-stop."; }
+    R2_pos_accuracy:   meta_sysml_trace.sysml_trace.elements.requirement { text "End-effector positioning error <= 0.5 mm."; }
+    R3_cycle_time:     meta_sysml_trace.sysml_trace.elements.requirement { text "Pick-place cycle <= 4 s."; }
+    R2a_repeatability: meta_sysml_trace.sysml_trace.elements.requirement { text "Repeatability <= 0.1 mm."; }
+
+    // ── Components (blocks) ───────────────────────────────────────
+    SafetyController: meta_sysml_trace.sysml_trace.elements.block {}
+    MotionPlanner:    meta_sysml_trace.sysml_trace.elements.block {}
+    Arm:              meta_sysml_trace.sysml_trace.elements.block {}
+    Gripper:          meta_sysml_trace.sysml_trace.elements.block {}
+
+    // ── Traceability (signed hyperedges: + realizing component, - requirement) ──
+    //   A requirement with two realizers (R2 ← MotionPlanner, Arm) is two edges —
+    //   the conventional MBSE traceability form; the IR's signed n-ary generality
+    //   is the formal contribution, exercised by the robotics witness.
+    @sat_safe:   meta_sysml_trace.sysml_trace.satisfies { (+ SafetyController, - R1_safe_stop); }
+    @sat_pos_mp: meta_sysml_trace.sysml_trace.satisfies { (+ MotionPlanner, - R2_pos_accuracy); }
+    @sat_pos_arm:meta_sysml_trace.sysml_trace.satisfies { (+ Arm, - R2_pos_accuracy); }
+    @sat_cycle:  meta_sysml_trace.sysml_trace.satisfies { (+ MotionPlanner, - R3_cycle_time); }
+    @sat_grip:   meta_sysml_trace.sysml_trace.satisfies { (+ Gripper, - R3_cycle_time); }
+
+    // R2a is derived from R2 (+ derived, - source); and allocated to the Arm.
+    @der_rep:    meta_sysml_trace.sysml_trace.derives      { (+ R2a_repeatability, - R2_pos_accuracy); }
+    @alloc_rep:  meta_sysml_trace.sysml_trace.allocated_to { (+ R2a_repeatability, - Arm); }
+}

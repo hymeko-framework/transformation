@@ -1,0 +1,10 @@
+// Imports the shared profile and references its instance decl cross-profile via a using-alias.
+xprofile_importer_description {
+    @"minimal_example_library.hymeko";
+    @"xprofile_shared.hymeko";
+    using xprofile_shared_description.xprofile_shared as xs;
+}
+xprofile_importer: xs {
+    A1 {}
+    @E1 { (+ xs.shared_thing, - A1); }
+}

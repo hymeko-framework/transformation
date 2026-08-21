@@ -1,0 +1,172 @@
+diff_drive_robot_4wh_camera {
+  @"meta_kinematics.hymeko";
+  @"meta_topic.hymeko";
+  using kinematics.elements as el;
+  using kinematics.geometry as geo;
+  using kinematics.axes as ax;
+  using kinematics.sensors as sens;
+  using kinematics.controllers as ctrl;
+}
+
+diff_robot: el, geo, ax
+{
+    body_color [0.0, 0.0, 1.0, 1.0];
+    wheel_color [0.0, 0.0, 0.0, 1.0];
+    camera_color [0.86, 0.86, 0.86, 1.0];
+
+    diffdrive_control: el.control {
+        update_rate 100;
+    }
+
+    @wheel_joint_control {
+        (+  meta_kinematics.kinematics.control_attributes.velocity,
+         -  meta_kinematics.kinematics.control_attributes.position,
+         -  meta_kinematics.kinematics.control_attributes.velocity);
+    }
+    base_link: el.link {
+        mass 25.0;
+        link_geometry: geo.box {
+            dimension [0.7, 0.5, 0.2];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> diff_robot.body_color;
+        origin [0.0, 0.0, 0.05];
+    }
+    wheel_fr: el.link {
+        mass 2.0;
+        link_geometry: geo.cylinder {
+            dimension [0.2, 0.1];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> diff_robot.wheel_color;
+        origin [0.0, 0.0, 0.05];
+    }
+    wheel_fl: el.link {
+        mass 2.0;
+        link_geometry: geo.cylinder {
+            dimension [0.2, 0.1];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> diff_robot.wheel_color;
+        origin [0.0, 0.0, 0.05];
+    }
+    wheel_rr: el.link {
+        mass 2.0;
+        link_geometry: geo.cylinder {
+            dimension [0.2, 0.1];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> diff_robot.wheel_color;
+        origin [0.0, 0.0, 0.05];
+    }
+    wheel_rl: el.link {
+        mass 2.0;
+        link_geometry: geo.cylinder {
+            dimension [0.2, 0.1];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> diff_robot.wheel_color;
+        origin [0.0, 0.0, 0.05];
+    }
+    camera_link: el.link {
+        mass 0.5;
+        link_geometry: geo.box {
+            dimension [0.05, 0.2, 0.1];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> diff_robot.camera_color;
+        origin [0.0, 0.0, 0.05];
+    }
+
+    @camera_joint: meta_kinematics.kinematics.fixed_joint {
+        (+ base_link [[0.35, 0.0, 0.15], [0.0, 0.0, 0.0]], - camera_link,
+         - ax.AXIS_Z);
+    }
+
+    @joint_fr: meta_kinematics.kinematics.conti_joint {
+        (+ base_link [[0.25, 0.25, 0.05], [-90.0, 0.0, 0.0]], - wheel_fr,
+         - ax.AXIS_Z);
+        @control: wheel_joint_control {}
+    }
+    @joint_fl: meta_kinematics.kinematics.conti_joint {
+        (+ base_link [[0.25, -0.25, 0.05], [90.0, 0.0, 0.0]], - wheel_fl,
+         - ax.AXIS_M_Z);
+        @control: wheel_joint_control {}
+    }
+    @joint_rr: meta_kinematics.kinematics.conti_joint {
+        (+ base_link [[-0.25, 0.25, 0.05], [-90.0, 0.0, 0.0]], - wheel_rr,
+         - ax.AXIS_Z);
+        @control: wheel_joint_control {}
+    }
+    @joint_rl: meta_kinematics.kinematics.conti_joint {
+        (+ base_link [[-0.25, -0.25, 0.05], [90.0, 0.0, 0.0]], - wheel_rl,
+         - ax.AXIS_M_Z);
+        @control: wheel_joint_control {}
+    }
+
+    @joint_state_broadcaster: el.control_definition {
+        (+ diff_robot.diffdrive_control,
+         - sens.joint_state_broadcaster);
+    }
+    @sim_control_plugin: meta_kinematics.kinematics.sim_plugin {
+        plugin "gz_ros2_control::GazeboSimROS2ControlPlugin";
+        filename "gz_ros2_control-system";
+        parameters "diff_control.yaml";
+    }
+    @gazebo_sim_system: meta_kinematics.kinematics.control_plugin {
+        plugin "gz_ros2_control/GazeboSimSystem";
+        filename "gz_ros2_control-system";
+        (- joint_fr, - joint_fl, - joint_rr, - joint_rl);
+    }
+    diff_drive_base_controller: ctrl.diff_drive_controller {
+       publish_rate 50.0;
+       wheel_separation 0.5;
+       wheel_radius 0.2;
+       base_frame_id "base_link";
+       odom_frame_id "odom";
+       pose_covariance  [0.001, 0.001, 0.0, 0.0, 0.0, 0.01];
+       twist_covariance [0.001, 0.0,   0.0, 0.0, 0.0, 0.01];
+
+       @interfaces {
+           (+  meta_kinematics.kinematics.control_attributes.velocity,
+            -  meta_kinematics.kinematics.control_attributes.position,
+            -  meta_kinematics.kinematics.control_attributes.velocity);
+       }
+       @joints {
+            (- joint_fr ["right"], - joint_rr ["right"],
+             - joint_fl ["left"], - joint_rl ["left"]);
+       }
+    }
+    camera: sens.rgb_camera {
+        image_size [640, 480];
+        focal_length [0.05, 0.05];
+        distortion [0.0, 0.0, 0.0, 0.0, 0.0];
+        update_rate 30.0;
+        fov [60];
+        always_on 1;
+        clip [0.1, 100.0];
+    }
+    camera_image_topic_definition: meta_topic.communication.topic_definition {
+        topic_name "camera";
+        message_type "sensor_msgs/Image";
+    }
+    camera_info_topic_definition: meta_topic.communication.topic_definition {
+        topic_name "camera_info";
+        message_type "sensor_msgs/CameraInfo";
+    }
+    @camera_topic: meta_topic.communication.topic {
+        (+ camera_image_topic_definition,
+         + camera_info_topic_definition,
+         - camera);
+    }
+    @camera_connection: sens.sensor_connection {
+        (+ camera,
+         - camera_link);
+    }
+}

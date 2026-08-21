@@ -1,0 +1,58 @@
+// meta_observation.hymeko — HymeKo observation / state-space vocabulary.
+// Companion to meta_kinematics.hymeko (links, joints, sensors) and
+// meta_task.hymeko (actions, conditions, coordination).
+//
+// An observation `.hymeko` references kinematic vertices (joints, links,
+// frames, end effectors) from the SAME compiled IR that describes the
+// robot, so one IR carries BOTH the structure AND the agent's
+// observation / state space. Its star-expansion is the per-vertex
+// feature tensor the policy reads — i.e. the declarative form of
+// hymeko_rl/env/arm_reach_env.py::node_features().
+//
+// Proposal / rationale: reports/2026-06-18-hymeko-rl-observation-proposal.md.
+// Status: vocabulary parses via the engine; an example
+// (arm_reach_observation.hymeko) validates via the CLI. The
+// star-expansion -> torch obs-tensor bridge is hymeko_rl.HypergraphState.
+
+meta_observation {}
+
+observation {
+    // === Type hierarchy roots ===
+    meta_channel {}
+    @feature: + <isa> meta_channel {}   // a per-vertex feature channel
+    @global:  + <isa> meta_channel {}   // a broadcast (task-level) feature channel
+    @space {}                           // an observation space = a bundle of channels
+
+    // === Per-vertex feature channels ===
+    // Each channel reads a kinematic quantity onto its incident vertices.
+    // Hyperedge: (+ vertex_set) — the kinematic vertices the channel covers.
+    // `dim` is the per-vertex width; the assembled obs tensor has
+    // (N_vertices, Σ dim) columns.
+    features {
+        @joint_position: + <isa> observation.feature { dim 1; }   // qpos
+        @joint_velocity: + <isa> observation.feature { dim 1; }   // qvel
+        @joint_effort:   + <isa> observation.feature { dim 1; }   // applied torque/force
+        @link_pose:      + <isa> observation.feature { dim 3; }   // Cartesian position
+        @link_twist:     + <isa> observation.feature { dim 6; }   // linear + angular velocity
+    }
+
+    // === Global (task) feature channels — broadcast to every vertex ===
+    globals {
+        // Target Cartesian position. Hyperedge: (+ target_frame).
+        @target_position: + <isa> observation.global { dim 3; }
+
+        // End-effector error = target - current. Hyperedge: (+ effector, - target_frame).
+        @ee_error:        + <isa> observation.global { dim 3; }
+
+        // A named goal / command scalar (e.g. a gait or velocity command).
+        // Hyperedge: (+ frame).
+        @command:         + <isa> observation.global { dim 1; }
+    }
+
+    // === Observation space assembly ===
+    // The state space = a named bundle of channels over the kinematic
+    // hypergraph. Compiling it star-expands the channels onto the
+    // kinematic vertices, yielding the (N_vertices, Σ dim) obs tensor.
+    // Hyperedge: (+ channel_1, + channel_2, ...).
+    @observation_space: + <isa> observation.space {}
+}

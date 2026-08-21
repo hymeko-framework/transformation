@@ -1,0 +1,52 @@
+// meta_context.hymeko — shared multi-context-state vocabulary.
+//
+// Companion to data/robotics/meta_kinematics.hymeko. Where meta_kinematics
+// declares the *kinematic* vocabulary (links, joints, axes, sensors,
+// controllers), this file declares the *context-state* vocabulary used by
+// the multi-context robot descriptions of the MDPI Technologies paper
+// (grasping / maintenance / safety layers): contextual signals, the
+// functional hyperedge roles that map a context's inputs to its outputs,
+// and the grasp-mode enumeration.
+//
+// Concrete scenarios import this file and declare only their instance
+// hypergraph — see hymeko_ros2_demo/.../scenarios/hymeko_robot_reuse.hymeko.
+// This is the MDSD single-source-of-truth counterpart of the bare-type
+// re-declarations in the paper-faithful baseline (scenarios/hymeko_robot.hymeko).
+
+meta_context
+{
+
+}
+
+context_model {
+    // Contextual state kinds. A `context` is a scoped sub-hypergraph; the
+    // remaining kinds are the vertices that live inside one.
+    states {
+        meta_state {}
+        context:   + <isa> meta_state {}
+        signal:    + <isa> meta_state {}
+        counter:   + <isa> meta_state {}
+        mode:      + <isa> meta_state {}
+        reference: + <isa> meta_state {}
+        tool:      + <isa> meta_state {}
+        payload:   + <isa> meta_state {}
+        component: + <isa> meta_state {}
+    }
+
+    // Grasp-mode enumeration (the paper's M_g).
+    grasp_modes {
+        grasp_mode {}
+        parallel_mode: + <isa> grasp_mode {}
+        envelope_mode: + <isa> grasp_mode {}
+        pinch_mode:    + <isa> grasp_mode {}
+    }
+
+    // Functional hyperedge roles — signed X -> Y maps inside a context.
+    //   interpretation : single-input derivation   (arity 2)
+    //   aggregation    : multi-input fusion         (arity >= 3)
+    //   constraint     : cross-layer constraint     (spans contexts)
+    @context_edge {}
+    @interpretation: + <isa> context_edge {}
+    @aggregation:    + <isa> context_edge {}
+    @constraint:     + <isa> context_edge {}
+}

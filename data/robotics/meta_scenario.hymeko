@@ -1,0 +1,16 @@
+// meta_scenario.hymeko — declarative RL *scenario* description.
+//
+// Companion to meta_kinematics (structure), meta_observation (obs channels), meta_reward (reward), and
+// meta_task (behaviour). A scenario WIRES those into a runnable environment: it carries the scene geometry
+// (mount/table heights, object spawn annulus, target, box) and references — via @"…" imports — the robot
+// (a kinematics composite) and the reward profile. One IR thus describes structure + observation + reward +
+// the scenario that assembles them. (Task automaton + HTL spec references are added with the FSM line.)
+//
+// A scenario is a single `scene` instance whose body is the scene-parameter bundle, read by
+// hymeko_rl.env.scenario.ScenarioSpec.from_hymeko. Validates via `hymeko inspect`.
+
+meta_scenario {}
+
+scenario {
+    @scene {}   // a scene-parameter bundle that builds an RL environment
+}

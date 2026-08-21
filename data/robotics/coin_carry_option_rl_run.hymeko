@@ -1,0 +1,86 @@
+// coin_carry_option_rl_run.hymeko — the concrete coin carry-option semi-MDP RL run, declaratively (Stage-5/5b config).
+//
+// Instantiates option_rl_meta. The skill routing (trainable upstream carry_option / frozen downstream settling_pi0), the
+// handoff certificate, and the phase automaton live in coin_carry_option_v1.hymeko (§1/§2A/§3) and are composed by the
+// reader (coin_option_rl_spec.py). This file adds the option-RL run semantics so a query over the parsed graph answers the
+// whole run, and the reader regenerates the runtime config WITHOUT hand-written duplicate topology.
+
+coin_carry_option_rl_run_description {
+    @"option_rl_meta.hymeko";
+    using option_rl as orl;
+}
+
+coin_carry_option_rl_run: orl
+{
+    // The option: which automaton, and the load-bearing action contract.
+    @option: orl.option_spec {
+        automaton coin_carry_option_v1;
+        bellman_action theta_center;          // the Bellman action IS the proposal center
+        selected_action_role provenance;      // the search-selected candidate is provenance, not the trained action
+    }
+
+    // The TRAINABLE upstream proposal policy and the checkpoint bound to the run.
+    @proposal: orl.proposal_policy {
+        binding carry_option;
+        training_state trainable;
+        checkpoint carry_proposal_refined;
+    }
+
+    // Fixed local search around the proposal center.
+    @generator: orl.candidate_generator {
+        kind structured_random_around;
+        std_amp 0.6;
+        std_dur 2.0;
+    }
+    @scorer: orl.candidate_scorer {
+        kind structured_score;
+    }
+    @search: orl.fixed_budget_search {
+        budget 8;                             // the search budget is FIXED at b=8 for the whole run
+    }
+    @provenance: orl.selected_action_provenance {
+        role provenance_only;
+        is_trained_action 0;                  // theta_selected is NEVER the trained action
+    }
+
+    // Semi-MDP bootstrap: R_option + gamma^tau Q'; terminal transitions do not bootstrap.
+    @target: orl.semi_mdp_target {
+        bootstrap_discount gamma_tau;
+        terminal_bootstrap 0;
+        gamma 0.99;
+        r_option complete_option_consequence; // discounted physical reward over the full carry->settle->K6 consequence
+    }
+
+    // What each option transition stores; the Bellman action is the center.
+    @replay: orl.replay_contract {
+        bellman_action theta_center;
+        selected_action provenance_only;
+    }
+
+    // Trainer backends implementing the declared trainer contract.
+    @trainer: orl.trainer {
+        primary sac;
+        control td3;
+    }
+
+    // Physical checkpoint selection — NOT critic Q alone.
+    @eval: orl.evaluation_contract {
+        physical_metric held_out_k6_paired;
+        selection paired_bootstrap_ci;
+        critic_q_alone 0;
+    }
+
+    // Seed-disjoint train / dev / final manifests.
+    @manifest: orl.run_manifest {
+        train_lo 9000;
+        train_hi 10800;
+        dev_lo 11000;
+        dev_hi 12200;
+        final_lo 12200;
+        final_hi 13600;
+    }
+
+    @run_spec: orl.run_spec {
+        (+ option, + proposal, + generator, + scorer, + search, + provenance, + target, + replay, + trainer, + eval, + manifest);
+    }
+}

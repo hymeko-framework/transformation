@@ -1,0 +1,26 @@
+// galambos_env_o2_heavy.hymeko — OBJ_O2-M: the DYNAMICS ablation (R11.7A U6).
+//
+// Identical Galambos scene/task to galambos_env.hymeko; ONLY the manipulated object differs. O2-M has the
+// SAME geometry as the reference coin (round disk, radius 0.02) but 2x the mass (density 2000 = 2 x the
+// reference 1000), friction unchanged. This isolates DYNAMICS (mass/inertia) from geometry and friction.
+
+galambos_env_description {
+    @"meta_env.hymeko";
+    using env.params as p;
+    using env        as e;
+}
+
+galambos_env: p, e
+{
+    @zone:   p.target_zone { half 0.04; rx_lo -0.05; rx_hi 0.05; ry_lo 0.10; ry_hi 0.18; randomize 1.0; }
+    @spawn:  p.coin_spawn  { rx_lo -0.20; rx_hi 0.20; ry_lo 0.05; ry_hi 0.23; clearance 0.03; }
+    @bounds: p.workspace   { x_bound 0.40; y_min -0.08; y_max 0.45; }
+    @succ:   p.success     { steps 5.0; }
+
+    // O2-M: same geometry as O0, density doubled (2000) ⇒ 2x mass; friction unchanged.
+    @dsk:    p.disk        { shape "cylinder"; family "disk_heavy"; radius 0.02; half 0.02; density 2000.0; damping 2.5; spin_damping 0.8; frictionloss 0.0; }
+
+    @env_spec: e.env_spec {
+        (+ zone, + spawn, + bounds, + succ, + dsk);
+    }
+}

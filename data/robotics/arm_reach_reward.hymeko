@@ -1,0 +1,30 @@
+// arm_reach_reward.hymeko — the SHARED reach reward model, reused by both the plain reach task and
+// the safety task (no more copy-pasting the reach reward + frame bindings into each). A profile that
+// imports this references the dense reach term cross-profile as `arr.dist`
+// (`using arm_reach_reward_description.arm_reach_reward as arr`). Enabled by the cross-profile
+// instance reference feature (APPROVED-CORE-EDIT: xprofile-instance-refs, 2026-06-19).
+// Validates via `hymeko inspect`.
+
+arm_reach_reward_description {
+    @"meta_kinematics.hymeko";
+    @"meta_task.hymeko";
+    @"meta_reward.hymeko";
+    using kinematics.elements as el;
+    using task.actions        as act;
+    using reward.terms        as rew;
+}
+
+arm_reach_reward: el, act, rew
+{
+    flange:       el.frame {}
+    target_frame: el.frame {}
+
+    // Drive the flange to the target (Cartesian move_to goal).
+    @goal: act.move_to { (+ flange, - target_frame); }
+
+    // Dense shaping: -‖ee - target‖ (weight 1.0).
+    @dist: rew.reach_distance {
+        weight 1.0;
+        (+ flange, - target_frame);
+    }
+}

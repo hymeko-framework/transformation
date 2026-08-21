@@ -1,0 +1,47 @@
+// arm_reach_safe_task.hymeko — the reaching task with safety + configuration penalties.
+//
+// REUSES the shared reach reward (arm_reach_reward.hymeko) via `arr.dist` (cross-profile instance
+// reference — APPROVED-CORE-EDIT: xprofile-instance-refs) and adds:
+//   - ground_penalty / self_collision_penalty  (DEATH: the env also terminates the episode)
+//   - joint_limit_penalty / below_ground_penalty (soft, per-step)
+//   - a termination_spec declaring what ends the episode (read by the env).
+// Weights are BOUNDED (≈ return scale), not an unbounded spike — an unbounded terminal penalty
+// corrupted the shared HSiKAN critic in the Phase 2 PPO debug. Tune the weights here, no code.
+// Validates via `hymeko inspect`.
+
+arm_reach_safe_task_description {
+    // meta_kinematics is imported too (the shared reward profile uses `el` — phase-1 cross-profile
+    // constraint: the importer supplies the namespaces the shared profile's aliases need).
+    @"meta_kinematics.hymeko";
+    @"meta_task.hymeko";
+    @"meta_reward.hymeko";
+    @"arm_reach_reward.hymeko";
+    using task.termination    as term;
+    using task                as t;
+    using reward.terms        as rew;
+    using reward              as r;
+    using arm_reach_reward_description.arm_reach_reward as arr;
+}
+
+arm_reach_safe_task: term, t, rew, r, arr
+{
+    // Death penalties (env terminates on these) — bounded.
+    @ground:  rew.ground_penalty         { weight 5.0; }
+    @selfcol: rew.self_collision_penalty { weight 5.0; }
+
+    // Soft configuration penalties.
+    @jlim:    rew.joint_limit_penalty    { weight 0.5; }
+    @below:   rew.below_ground_penalty   { weight 1.0; }
+
+    // Assembled scalar reward = shared reach term + the penalties.
+    @reach_reward: r.reward_spec {
+        (+ arr.dist, + ground, + selfcol, + jlim, + below);
+    }
+
+    // Death predicate — what ends the episode — declared in the model (read by the env).
+    @on_ground:  term.ground_contact {}
+    @on_selfcol: term.self_collision {}
+    @dies_when: t.termination_spec {
+        (+ on_ground, + on_selfcol);
+    }
+}

@@ -1,0 +1,32 @@
+// galambos_env_o8_hexagon.hymeko — OBJ_O8-H: the 6-corner SHAPE ablation (Track A2 N-gon family, 2026-08-12).
+//
+// Identical Galambos scene/task to galambos_env.hymeko; ONLY the manipulated object differs. O8-H is a regular
+// HEXAGONAL prism (n_sides 6), equal projected area to the reference disk (radius 0.02) and same thickness ⇒
+// same mass at the default density, friction unchanged. `compose_planar_scene`'s "ngon" branch derives the
+// equal-area circumradius R_eq = sqrt(2*pi*radius^2 / (n*sin(2*pi/n))) ≈ 0.02199 m (footprint ~22.0 mm, closer
+// to the coin than the pentagon — the many-corner end of the corner-count axis approaching a circle).
+//
+// Corner-count axis: triangle (3) → pentagon (5) → hexagon (6) → … → circle. Isolates SHAPE (corner count) from
+// size, mass, and friction — the same single-axis discipline as O4-S / O6-T / O7-P.
+
+galambos_env_description {
+    @"meta_env.hymeko";
+    using env.params as p;
+    using env        as e;
+}
+
+galambos_env: p, e
+{
+    @zone:   p.target_zone { half 0.04; rx_lo -0.05; rx_hi 0.05; ry_lo 0.10; ry_hi 0.18; randomize 1.0; }
+    @spawn:  p.coin_spawn  { rx_lo -0.20; rx_hi 0.20; ry_lo 0.05; ry_hi 0.23; clearance 0.03; }
+    @bounds: p.workspace   { x_bound 0.40; y_min -0.08; y_max 0.45; }
+    @succ:   p.success     { steps 5.0; }
+
+    // O8-H: regular hexagonal prism, n_sides 6, equal projected area (radius = equal-area disk radius 0.02),
+    // density default ⇒ mass = O0.
+    @dsk:    p.disk        { shape "ngon"; family "prism_hexagon"; radius 0.02; n_sides 6.0; half 0.02; damping 2.5; spin_damping 0.8; frictionloss 0.0; }
+
+    @env_spec: e.env_spec {
+        (+ zone, + spawn, + bounds, + succ, + dsk);
+    }
+}

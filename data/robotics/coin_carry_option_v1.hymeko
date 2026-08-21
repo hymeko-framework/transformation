@@ -1,0 +1,118 @@
+// coin_carry_option_v1.hymeko — the CARRY OPTION as a declarative FSM (the thing that actually runs).
+//
+// This is the executable automaton for the strict-0 carry option that precedes the frozen settling skill:
+//   PUSH -> BRAKE -> RELEASE -> (HANDOFF | COMPLETED | ABORTED)
+// and after a valid handoff (strict>=1) the FROZEN settling pi_0 carries the episode to DELIVERED / SETTLED.
+//
+// The FSM is DATA: phases are `fsm_phase` nodes; each binds its backend LAW by name (the push/brake/release
+// amplitude of the option parameter theta, or the frozen settling policy) and declares its outgoing
+// transitions as `on <guard-event> to <phase>;`. Python (hymeko_rl/coin_delivery/coin_carry_fsm.py) binds
+// ONLY the named guard predicates + law->action backends and WALKS this graph — the transition topology
+// (which phase follows which on which event) is sourced HERE, not duplicated in the executor's if/elif.
+//
+// Guard events (evaluated by the coin backend on the live sim state):
+//   handoff       strict >= 1                    (a valid handoff was reached — from ANY macro phase)
+//   abort         safety-abort predicate trips   (irreversible contact loss / divergence — from ANY phase)
+//   push_reached  dtz <= PUSH_DTZ                 push drove the coin into the brake band
+//   push_timeout  phase steps >= T_push           push duration budget spent
+//   brake_centered dtz <= CENTER_TOL              braking pulled the coin into containment
+//   brake_slow    speed < 1.5 * SETTLE_VEL        braking removed enough velocity
+//   brake_timeout phase steps >= T_brake          brake duration budget spent
+//   release_done  phase steps >= T_release        release finished with no handoff -> option completes
+//   delivered     K6 dwell satisfied              frozen settling delivered the coin
+//   settle_horizon settling ran to the horizon    settling ended without K6
+//
+// The bundle arc orders the phases; the FIRST phase (PUSH) is the initial state.
+
+coin_carry_option_description {
+    @"meta_controller.hymeko";
+    using controller.params as cp;
+    using controller.phases as ph;
+    using controller        as c;
+}
+
+coin_carry_option: cp, ph, c
+{
+    // Commit the push amplitude a_push until the coin enters the brake band or the push budget is spent.
+    // §3 skill routing: PUSH/BRAKE/RELEASE are the TRAINABLE UPSTREAM option (the learned carry option); their
+    // checkpoint is a runtime manifest (the RL/proposal actor), not fixed here.
+    @PUSH: ph.fsm_phase {
+        law push_amplitude;
+        skill_role upstream;
+        training_state trainable;
+        binding carry_option;
+        on handoff to HANDOFF;
+        on abort to ABORTED;
+        on push_reached to BRAKE;
+        on push_timeout to BRAKE;
+    }
+
+    // Commit the brake amplitude a_brake until the coin is centred / slow enough or the brake budget is spent.
+    @BRAKE: ph.fsm_phase {
+        law brake_amplitude;
+        skill_role upstream;
+        training_state trainable;
+        binding carry_option;
+        on handoff to HANDOFF;
+        on abort to ABORTED;
+        on brake_centered to RELEASE;
+        on brake_slow to RELEASE;
+        on brake_timeout to RELEASE;
+    }
+
+    // Commit the release amplitude a_release; if no handoff is reached the macro completes (re-decide).
+    @RELEASE: ph.fsm_phase {
+        law release_amplitude;
+        skill_role upstream;
+        training_state trainable;
+        binding carry_option;
+        on handoff to HANDOFF;
+        on abort to ABORTED;
+        on release_done to COMPLETED;
+    }
+
+    // Valid handoff: the FROZEN downstream settling policy pi_0 owns continuation to the K6 decision. The handoff is
+    // permitted ONLY by the declared certificate; the frozen checkpoint identity/hash is pinned here for provenance.
+    @HANDOFF: ph.fsm_phase {
+        law frozen_settling;
+        skill_role downstream;
+        training_state frozen;
+        binding settling_pi0;
+        handoff_certificate stable_entry_v1;
+        checkpoint pi0_shared_clip_actor;
+        checkpoint_sha 1902454c;
+        on delivered to DELIVERED;
+        on settle_horizon to SETTLED;
+    }
+
+    // Terminal markers (backend law `terminal` is a no-op; these carry the certificate outcome).
+    @COMPLETED: ph.fsm_phase { law terminal; skill_role terminal; training_state none; }
+    @ABORTED:   ph.fsm_phase { law terminal; skill_role terminal; training_state none; }
+    @DELIVERED: ph.fsm_phase { law terminal; skill_role terminal; training_state none; }
+    @SETTLED:   ph.fsm_phase { law terminal; skill_role terminal; training_state none; }
+
+    // Option parameter theta budgets (the option actor emits a_push/brake/release + these durations).
+    @budget: cp.gait {
+        t_min 2.0;
+        t_max 18.0;
+        push_dtz 0.06;
+    }
+
+    // Certificate / monitor semantics — the SINGLE source of the delivery verdict's tolerances and events.
+    // The online trace-monitor (hymeko_rl/coin_delivery/coin_carry_monitor.py) reads THESE, not Python constants:
+    //   strict_ok      = dtz <= center_tol AND speed < settle_vel      (the strict-dwell predicate)
+    //   strict         = strict + 1 if strict_ok else 0                (consecutive-dwell counter)
+    //   handoff        = strict >= 1                                   (a valid handoff was reached)
+    //   containment    = dtz <= center_tol                            (coin fully contained; enter/exit events)
+    //   delivered / K6 = max strict >= held_dwell AND touched          (the frozen K=6 delivery certificate)
+    @certificate: cp.gait {
+        center_tol 0.02;
+        settle_vel 0.06;
+        held_dwell 6.0;
+        entry_tol 0.05;
+    }
+
+    @controller_spec: c.controller_spec {
+        (+ PUSH, + BRAKE, + RELEASE, + HANDOFF, + COMPLETED, + ABORTED, + DELIVERED, + SETTLED, + budget, + certificate);
+    }
+}

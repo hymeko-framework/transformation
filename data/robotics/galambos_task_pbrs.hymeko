@@ -1,0 +1,41 @@
+// galambos_task_pbrs.hymeko — POTENTIAL-BASED reward shaping variant (2026-07-04).
+//
+// The principled cure for the farming/oscillation pathology (a canonical specification-gaming instance — cf.
+// DeepMind's Coast Runners). Potential-based reward shaping (Ng, Harada & Russell 1999): a shaping term of the
+// form F(s,s') = γ·Φ(s') − Φ(s) provably LEAVES THE OPTIMAL POLICY INVARIANT — it telescopes over a trajectory to
+// Φ(end) − Φ(start), independent of the path, so it CANNOT be farmed (dipping in/out of the zone nets zero). This
+// gives the same dense guidance the farmable per-step in_zone/both annuities gave, WITHOUT the farming incentive.
+//
+//   task reward (sparse, aligned):  terminal_deliver (+1 one-shot on completing) + oob (keep coin on table)
+//   PBRS shaping (dense, farm-proof): zone_progress  Φ = −disk_to_zone   (progress toward the zone)
+//                                     grasp_progress Φ = −max(l,r) tip   (progress toward the two-finger grasp)
+//
+// Oracle: the TASK reward (terminal + oob) certifies delivers; PBRS preserves that optimum by the theorem. The
+// implementation lives in reward.py (_pbrs_shaping, γ=0.99 matching the training discount); the previous potential
+// is tracked per-episode on the env and re-initialised in reset(). This is the P3 A/B treatment.
+
+galambos_task_description {
+    @"meta_kinematics.hymeko";
+    @"meta_reward.hymeko";
+    using kinematics.elements as el;
+    using reward.terms        as rew;
+    using reward              as r;
+}
+
+galambos_task_pbrs: el, rew, r
+{
+    disk:        el.frame {}
+    target_zone: el.frame {}
+
+    // Task terms (sparse, aligned) + PBRS shaping terms (dense, policy-invariant).
+    @terminaldeliver: rew.terminal_deliver {}   // +1 one-shot on the completing step (anti-farming task reward)
+    @oob:             rew.out_of_bounds    {}    // keep the coin on the table
+    @zoneprogress:    rew.zone_progress    {}    // PBRS: γΦ(s')−Φ(s), Φ = −disk_to_zone
+    @graspprogress:   rew.grasp_progress   {}    // PBRS: γΦ(s')−Φ(s), Φ = −max(left,right) fingertip distance
+
+    // Bundle: sparse aligned task + potential-based shaping (weights scale the potentials; any positive scaling
+    // is still a valid potential, so the optimum stays invariant — only the gradient magnitude changes).
+    @grasp_reward: r.reward_spec {
+        (+ terminaldeliver 30.0, + oob 2.0, + zoneprogress 20.0, + graspprogress 20.0);
+    }
+}

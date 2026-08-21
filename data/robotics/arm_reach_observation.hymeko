@@ -1,0 +1,46 @@
+// arm_reach_observation.hymeko — the reaching observation, declaratively.
+//
+// The HyMeKo form of hymeko_rl/env/arm_reach_env.py::node_features():
+// per actuated joint [qpos, qvel] + broadcast [target(3), ee_error(3)]
+// = 8 features per kinematic vertex. The star-expansion of `reach_state`
+// is the (N_vertices, 8) observation tensor the policy reads — one .hymeko
+// source for the robot's structure AND its observation / state space.
+//
+// The joint / frame handles are bound by name to the robot's actual
+// kinematic vertices at compile time, exactly as a meta_task instance
+// binds its pose handles. Validates via `hymeko inspect`.
+
+arm_reach_observation_description {
+    @"meta_kinematics.hymeko";
+    @"meta_observation.hymeko";
+    using observation.features as feat;
+    using observation.globals  as glob;
+    using observation          as obs;
+    using kinematics.elements  as el;
+}
+
+arm_reach_obs: feat, glob, obs, el
+{
+    // Kinematic handles the observation reads (bind by name to the robot's
+    // joints / end-effector frame, like task pose handles).
+    j1: el.frame {}
+    j2: el.frame {}
+    j3: el.frame {}
+    j4: el.frame {}
+    flange:       el.frame {}
+    target_frame: el.frame {}
+
+    // Per-vertex feature channels over the actuated joints.
+    @qpos: feat.joint_position { (+ j1, + j2, + j3, + j4); }
+    @qvel: feat.joint_velocity { (+ j1, + j2, + j3, + j4); }
+
+    // Global (broadcast) channels.
+    @target: glob.target_position { (+ target_frame); }
+    @err:    glob.ee_error        { (+ flange, - target_frame); }
+
+    // The assembled state space: per-vertex [qpos(1), qvel(1), target(3),
+    // err(3)] = 8. Its star-expansion is the (N, 8) obs tensor.
+    @reach_state: obs.observation_space {
+        (+ qpos, + qvel, + target, + err);
+    }
+}

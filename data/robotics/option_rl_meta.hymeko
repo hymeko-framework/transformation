@@ -1,0 +1,27 @@
+// option_rl_meta.hymeko — declarative METAMODEL for the task-independent option-RL runtime (hymeko_rl/option_rl).
+//
+// This does NOT reimplement SAC / TD3 / replay buffers / optimizers in the DSL — their numerics stay backend operations.
+// HyMeKo declares their STRUCTURAL ROLE, bindings, invariants, and provenance, so a query over the parsed graph can answer
+// what the run is (proposal checkpoint, search budget, generator/scorer, trainable/frozen skill, handoff certificate, the
+// Bellman action, what the selected candidate represents, whether the target uses gamma^tau, the trainer backend, the
+// physical selection metric, and the train/dev/final manifests). A concrete run (coin_carry_option_rl_run.hymeko)
+// instantiates these type roots.
+
+option_rl_meta {}
+
+option_rl {
+    // === Type roots — the structural pieces of a semi-MDP option-RL run ===
+    @option_spec {}                  // the option: automaton + the Bellman-action / selected-action contract
+    @option_transition {}            // (s, action=proposal_center, R_option, tau, s_next, terminal, provenance)
+    @proposal_policy {}              // the TRAINABLE upstream proposal (obs -> theta_center); its checkpoint
+    @candidate_generator {}          // samples candidates around the proposal center (fixed distribution)
+    @candidate_scorer {}             // the frozen local-search score used to select the executed candidate
+    @fixed_budget_search {}          // the fixed b-search wrapper (budget frozen across the run)
+    @selected_action_provenance {}   // the executed candidate — PROVENANCE only, never the trained action
+    @semi_mdp_target {}              // R_option + (1-terminal) * gamma^tau * Q'(s',pi'); terminal does not bootstrap
+    @replay_contract {}              // what each option transition stores; the Bellman action is the center
+    @trainer {}                      // the RL backend(s) implementing the trainer contract (SAC primary, TD3 control)
+    @evaluation_contract {}          // physical checkpoint selection (held-out K6, paired) — NOT critic Q alone
+    @run_manifest {}                 // train / dev / final seed-disjoint panels of the run
+    @run_spec {}                     // the bundle: an ordered set of the above members = one option-RL run description
+}

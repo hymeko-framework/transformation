@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<robot name="delta_robot">
+  <link name="base"/>
+  <link name="ee"/>
+  <link name="arm1_upper"/><link name="arm1_lower"/>
+  <link name="arm2_upper"/><link name="arm2_lower"/>
+  <link name="arm3_upper"/><link name="arm3_lower"/>
+
+  <joint name="j1_shoulder" type="revolute">
+    <parent link="base"/><child link="arm1_upper"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="j1_elbow" type="revolute">
+    <parent link="arm1_upper"/><child link="arm1_lower"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+  <joint name="j1_wrist" type="revolute">
+    <parent link="arm1_lower"/><child link="ee"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+  <joint name="j2_shoulder" type="revolute">
+    <parent link="base"/><child link="arm2_upper"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="j2_elbow" type="revolute">
+    <parent link="arm2_upper"/><child link="arm2_lower"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+  <joint name="j2_wrist" type="revolute">
+    <parent link="arm2_lower"/><child link="ee"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+  <joint name="j3_shoulder" type="revolute">
+    <parent link="base"/><child link="arm3_upper"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="j3_elbow" type="revolute">
+    <parent link="arm3_upper"/><child link="arm3_lower"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+  <joint name="j3_wrist" type="revolute">
+    <parent link="arm3_lower"/><child link="ee"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+</robot>

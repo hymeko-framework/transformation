@@ -1,0 +1,28 @@
+// pick_place_scenario.hymeko — the FANUC top-down pick-and-place as ONE declarative scenario.
+//
+// Replaces the Python-hand-configured `fanuc_pick_env(...)` cfg dict: the scene geometry lives here, the
+// robot (arm+gripper composite) and the reward are pulled in by @"…" import. ScenarioSpec.from_hymeko reads
+// this and builds the identical PickPlaceEnv (a parity test guards "identical"). Numbers mirror the verified
+// reliable config in hymeko_rl/render_pick_place.py. Validates via `hymeko inspect`.
+
+pick_place_scenario_description {
+    @"meta_scenario.hymeko";
+    @"arm_gripper_fanuc_import.hymeko";   // the robot: FANUC LR Mate-config arm + parallel-jaw gripper
+    @"pick_place_task.hymeko";            // the reward: the 7-term pick-and-place reward_spec
+    using scenario as scn;
+}
+
+pick_place_scenario: scn
+{
+    @scene: scn.scene {
+        mount_height 0.12;                // pedestal height (== table_top: base→box geometry as floor-grasp)
+        table_top 0.12;                   // table surface height
+        box_mass 0.15;
+        lift_thresh 0.035;                // "lifted clear" threshold (m)
+        place_radius 0.075;               // success radius around the target (m)
+        max_steps 620;
+        obj_radius [0.28, 0.40];          // object spawn annulus (collision-free top-down reach)
+        target_xy [0.34, 0.0];            // place target on the table
+        arm_home [0.0, 1.0, 0.8, 0.0, 0.8, 0.0];   // bent, non-singular ready posture
+    }
+}

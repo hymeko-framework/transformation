@@ -1,0 +1,5 @@
+camera_rig {}
+context
+{
+    cameras: camera_base {}
+}

@@ -1,0 +1,12 @@
+gazebo_world_transform {}
+context
+{
+    links: link {}
+    frames: frame {}
+    @fixed_joints: fixed_joint {}
+    @revolute_joints: rev_joint {}
+    @continuous_joints: conti_joint {}
+    @prismatic_joints: prismatic_joint {}
+    @sim_plugins: sim_plugin {}
+    @control_plugins: control_plugin {}
+}

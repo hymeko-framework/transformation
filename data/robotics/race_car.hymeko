@@ -1,0 +1,86 @@
+// race_car.hymeko — a low, long, four-wheeled high-speed car, in HyMeKo.
+//
+// Distinct vehicle from robot_4wh.hymeko (a small skid-steer robot that wheelies/backflips above ~5 m/s):
+// this is built for STABLE high speed (target ~200 km/h ≈ 55 m/s). The stability levers vs robot_4wh:
+//   * long wheelbase (±0.9 m → 1.8 m) so wheel-torque reaction cannot pitch the body into a wheelie;
+//   * low centre of gravity (heavy low chassis, wheels mounted at chassis-centre height);
+//   * big wheels (radius 0.33 m → 55 m/s needs only ~167 rad/s, not ~278 for the 0.2 m robot wheels);
+//   * heavy chassis (300 kg) so traction (μ·mg) is large and the accel is gradual, not a wheelspin.
+// Four velocity-controlled wheels (as the diff-drive interface declares); straight-line sprint + gentle
+// differential steering. Wheel mounting mirrors robot_4wh's proven convention (conti_joint AXIS_Z + ±90°
+// euler orients the cylinder to roll forward). The env injects a freejoint on base_link + a floor.
+// Validate via `hymeko validate`; compile via hymeko_rl.env.arm_world.emit_arm_mjcf.
+
+race_car_description {
+    @"meta_kinematics.hymeko";
+}
+
+race_car: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes
+{
+    body_color  [0.80, 0.10, 0.12, 1.0];
+    wheel_color [0.05, 0.05, 0.05, 1.0];
+
+    drive_control: meta_kinematics.kinematics.elements.control {
+        update_rate 200;
+    }
+
+    @wheel_joint_control {
+        (+ meta_kinematics.kinematics.control_attributes.velocity,
+         - meta_kinematics.kinematics.control_attributes.position,
+         - meta_kinematics.kinematics.control_attributes.velocity);
+    }
+
+    // Low, long, heavy chassis — the CG driver. Bottom sits above the wheel contact (wheels radius 0.33).
+    base_link: meta_kinematics.kinematics.elements.link {
+        mass 300.0;
+        link_geometry: meta_kinematics.kinematics.geometry.box {
+            dimension [2.4, 1.0, 0.22];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> race_car.body_color;
+        origin [0.0, 0.0, 0.0];
+    }
+
+    // Four big wheels (radius 0.33 m, half-width 0.13 m), 8 kg each.
+    wheel_fr: meta_kinematics.kinematics.elements.link {
+        mass 8.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.33, 0.13]; }
+        visual -> link_geometry; collision -> link_geometry; color -> race_car.wheel_color; origin [0.0, 0.0, 0.0];
+    }
+    wheel_fl: meta_kinematics.kinematics.elements.link {
+        mass 8.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.33, 0.13]; }
+        visual -> link_geometry; collision -> link_geometry; color -> race_car.wheel_color; origin [0.0, 0.0, 0.0];
+    }
+    wheel_rr: meta_kinematics.kinematics.elements.link {
+        mass 8.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.33, 0.13]; }
+        visual -> link_geometry; collision -> link_geometry; color -> race_car.wheel_color; origin [0.0, 0.0, 0.0];
+    }
+    wheel_rl: meta_kinematics.kinematics.elements.link {
+        mass 8.0;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.33, 0.13]; }
+        visual -> link_geometry; collision -> link_geometry; color -> race_car.wheel_color; origin [0.0, 0.0, 0.0];
+    }
+
+    // Wheels at the four corners: long wheelbase (x = ±0.9), wide track (y = ±0.55), mounted at chassis-centre
+    // height (z = 0) so the CG stays low. AXIS_Z + ±90° euler orients each cylinder to roll about the lateral
+    // axis (forward rolling), as in robot_4wh.
+    @joint_fr: meta_kinematics.kinematics.conti_joint {
+        (+ base_link [[0.9, 0.55, 0.0], [-90.0, 0.0, 0.0]], - wheel_fr, - meta_kinematics.kinematics.axes.AXIS_Z);
+        @control: wheel_joint_control {}
+    }
+    @joint_fl: meta_kinematics.kinematics.conti_joint {
+        (+ base_link [[0.9, -0.55, 0.0], [90.0, 0.0, 0.0]], - wheel_fl, - meta_kinematics.kinematics.axes.AXIS_M_Z);
+        @control: wheel_joint_control {}
+    }
+    @joint_rr: meta_kinematics.kinematics.conti_joint {
+        (+ base_link [[-0.9, 0.55, 0.0], [-90.0, 0.0, 0.0]], - wheel_rr, - meta_kinematics.kinematics.axes.AXIS_Z);
+        @control: wheel_joint_control {}
+    }
+    @joint_rl: meta_kinematics.kinematics.conti_joint {
+        (+ base_link [[-0.9, -0.55, 0.0], [90.0, 0.0, 0.0]], - wheel_rl, - meta_kinematics.kinematics.axes.AXIS_M_Z);
+        @control: wheel_joint_control {}
+    }
+}

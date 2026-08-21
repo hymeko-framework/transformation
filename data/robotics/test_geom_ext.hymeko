@@ -1,0 +1,36 @@
+// test_geom_ext.hymeko — CORE-extension test fixture (2026-07-23): a capsule link WITH a collision mask and a box
+// link WITHOUT one. Exercises GeometryShape::Capsule + GeometryInfo.collision + the "absent collision = None" path.
+
+test_geom_ext_description {
+    @"meta_kinematics.hymeko";
+}
+
+test_geom_ext: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes
+{
+    world: meta_kinematics.kinematics.elements.frame {}
+
+    // Capsule rod WITH an explicit collision mask (contype 1 / conaffinity 3 = ARM_LEGALITY).
+    rod_cap: meta_kinematics.kinematics.elements.link {
+        mass 0.25;
+        link_geometry: meta_kinematics.kinematics.geometry.capsule {
+            dimension [0.16, 0.012];
+            collision { contype 1; conaffinity 3; }
+        }
+        origin [0.08, 0.0, 0.0];
+    }
+
+    // Box link WITHOUT a collision block -> collision must parse as None (historical default).
+    hub_box: meta_kinematics.kinematics.elements.link {
+        mass 0.4;
+        link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.044, 0.044, 0.024]; }
+        origin [0.0, 0.0, 0.0];
+    }
+
+    @fix_world: meta_kinematics.kinematics.fixed_joint {
+        (+ world [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - hub_box);
+    }
+    @rev_cap: meta_kinematics.kinematics.rev_joint {
+        (+ hub_box [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - rod_cap,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+}

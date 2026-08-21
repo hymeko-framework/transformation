@@ -1,0 +1,10 @@
+mjcf_transform {}
+context
+{
+    links: link {}
+    frames: frame {}
+    @fixed_joints: fixed_joint {}
+    @revolute_joints: rev_joint {}
+    @continuous_joints: conti_joint {}
+    @prismatic_joints: prismatic_joint {}
+}

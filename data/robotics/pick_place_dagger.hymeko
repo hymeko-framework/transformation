@@ -1,0 +1,38 @@
+// pick_place_dagger.hymeko — DAgger training strategy for FANUC pick-place, declared as data.
+//
+// The training STRATEGY is a declared field (algorithm "dagger") + a @dagger knob block, read by
+// TrainingSpec.from_hymeko and dispatched by pick_place_dagger.py. Reuses the generic experiment_spec
+// grammar (meta_experiment.hymeko) — no Rust / CORE change. The plant (fanuc_pick_env) and the scripted
+// expert are bound in Python: the strategy is data, the plant is code (as with the galambos experiment).
+//
+// DAgger pushes past the BC ceiling (place 0.625) toward the expert ceiling (place 0.875) in the imitation
+// regime — no critic, so the TD3+BC value-drift collapse (reports/2026-07-06-fanuc-pick-td3bc.md) cannot recur.
+
+pick_place_dagger_description {
+    @"meta_experiment.hymeko";
+    using experiment.params as xp;
+    using experiment        as x;
+}
+
+pick_place_dagger: xp, x
+{
+    @budget: xp.budget {
+        algorithm "dagger";
+        n_demos 18;
+        bc_epochs 80;
+        seeds [0, 1, 2];
+    }
+    @dagger: xp.dagger {
+        dagger_iters 4;             // number of aggregation rounds after BC0
+        rollouts_per_iter 12;       // learner episodes rolled + expert-labelled per round
+        beta 0.5;                   // round-1 expert-action mixing prob (label is ALWAYS the expert)
+        beta_decay 0.5;             // beta_r = beta * beta_decay^(r-1)  (learner-dominated by later rounds)
+        expert_replay_ratio 1.0;    // oversample factor for the original expert demos in the retrain set
+        warm_start 1.0;             // 1=continue re-BC from the prior round (smoother, less D1 dip); 0=fresh
+        n_eval 24;                  // eval episodes per round (LiftPlaceMetric, divergence-guarded) — tightened
+                                    // from 8 to 24 (resolution ±0.042) to firm up the per-seed / median estimate
+    }
+    @experiment_spec: x.experiment_spec {
+        (+ budget, + dagger);
+    }
+}

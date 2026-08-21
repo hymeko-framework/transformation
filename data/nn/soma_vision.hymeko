@@ -1,0 +1,51 @@
+// Minimal Soma-family vision classifier, as a HyMeKo dataflow.
+//
+// Soma (the cognitive stack's reflex/vision lane) turns an image into a patch
+// hypergraph and classifies it. This is the *minimal* expression of that path
+// in the canonical IR, using the emittable meta_nn layer vocabulary:
+//
+//   patches ─→ patch_conv (hypergraph conv over the patch graph)
+//           ─→ walk_conv  (open-walk conv — the Soma walk-conv)
+//           ─→ head       (signed classifier → class logits)
+//
+// It compiles + validates (the A1–A5 gate) and emits a torch.nn.Module via the
+// torch_dataflow transform; the hero demo checks structural parity (every
+// declared layer is realised). The faithful Hodge-/stim-graph internals live in
+// hymeko_neuro/models/hymeko_gomb/soma/vision and are a later round-trip item.
+
+soma_vision_description {
+    @"meta_nn.hymeko";
+    using nn.layers  as lyr;
+    using nn.tensors as ten;
+    using nn.ggk     as ggk;
+}
+
+soma_vision: lyr, ten, ggk {
+
+    // ── Tensors ─────────────────────────────────────────────────────
+    patches:   ten.t_input      { shape [16]; }  // per-patch features
+    patch_emb: ten.t_activation { shape [16]; }
+    walk_emb:  ten.t_activation { shape [16]; }
+    logits:    ten.t_output     { shape [10]; }  // 10 classes (e.g. MNIST)
+
+    // ── Layers ──────────────────────────────────────────────────────
+    // Patch-graph aggregation: a hypergraph convolution over the patch graph.
+    patch_conv: lyr.hypergraph_conv {
+        d_in 16;
+        d_out 16;
+        kernel: + <isa> ggk.bspline { degree 3; n_knots 8; }
+    }
+
+    // Open-walk convolution over the patch graph (the Soma walk-conv).
+    walk_conv: lyr.walk_layer {
+        hidden 16; walk_len 3; spline_kind "catmull_rom"; grid 5;
+    }
+
+    // Classifier head.
+    head: lyr.signed_classifier { d_in 16; d_out 10; }
+
+    // ── Dataflow ────────────────────────────────────────────────────
+    @flow_patch: lyr.dataflow { (+ patches,   ~ patch_conv, - patch_emb); }
+    @flow_walk:  lyr.dataflow { (+ patch_emb, ~ walk_conv,  - walk_emb); }
+    @flow_head:  lyr.dataflow { (+ walk_emb,  ~ head,       - logits); }
+}

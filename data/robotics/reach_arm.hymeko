@@ -1,0 +1,94 @@
+// reach_arm.hymeko — a compact 4-DOF reaching arm: the tractable *canonical* robot for the
+// HSiKAN-vs-MLP architecture comparison. Light (desktop-scale) links and a
+// base(Z)-shoulder(Y)-elbow(Y)-wrist(Z) chain, sized so behaviour cloning under position
+// control reaches reliably. The same `.hymeko` source yields the MJCF scene, the kinematic
+// hypergraph, the observation, and the reward — the "one source" story on an arm that works.
+//
+// Kinematics mirror the hand-authored `hymeko_rl/env/arm_world.py` arm (which BC-clones), so
+// the emitted-from-.hymeko arm is behaviourally equivalent — now canonical, not hand-written.
+
+reach_arm_description {
+  @"meta_kinematics.hymeko";
+}
+
+reach_arm: meta_kinematics.kinematics.elements, meta_kinematics.kinematics.geometry, meta_kinematics.kinematics.axes
+{
+    world: meta_kinematics.kinematics.elements.frame {}
+
+    link_color [0.2, 0.5, 0.9, 1.0];
+
+    // === Links (Moveo/desktop-scale masses, kg) ===
+    base_link: meta_kinematics.kinematics.elements.link {
+        mass 1.5;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.06, 0.08];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> reach_arm.link_color;
+        origin [0.0, 0.0, 0.04];
+    }
+    shoulder_link: meta_kinematics.kinematics.elements.link {
+        mass 0.8;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.035, 0.12];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> reach_arm.link_color;
+        origin [0.0, 0.0, 0.06];
+    }
+    elbow_link: meta_kinematics.kinematics.elements.link {
+        mass 0.6;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.03, 0.24];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> reach_arm.link_color;
+        origin [0.0, 0.0, 0.12];
+    }
+    wrist_link: meta_kinematics.kinematics.elements.link {
+        mass 0.4;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.025, 0.18];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> reach_arm.link_color;
+        origin [0.0, 0.0, 0.09];
+    }
+    flange: meta_kinematics.kinematics.elements.link {
+        mass 0.15;
+        link_geometry: meta_kinematics.kinematics.geometry.cylinder {
+            dimension [0.03, 0.05];
+        }
+        visual -> link_geometry;
+        collision -> link_geometry;
+        color -> reach_arm.link_color;
+        origin [0.0, 0.0, 0.025];
+    }
+
+    // === Fixed joint: world -> base ===
+    @j_fix: meta_kinematics.kinematics.fixed_joint {
+        (+ world [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - base_link);
+    }
+
+    // === Revolute joints (axes Z/Y/Y/Z; limits inherited from rev_joint: ±180°, 50 N·m) ===
+    @j1: meta_kinematics.kinematics.rev_joint {
+        (+ base_link [[0.0, 0.0, 0.08], [0.0, 0.0, 0.0]], - shoulder_link,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+    @j2: meta_kinematics.kinematics.rev_joint {
+        (+ shoulder_link [[0.0, 0.0, 0.12], [0.0, 0.0, 0.0]], - elbow_link,
+         - meta_kinematics.kinematics.axes.AXIS_Y);
+    }
+    @j3: meta_kinematics.kinematics.rev_joint {
+        (+ elbow_link [[0.0, 0.0, 0.24], [0.0, 0.0, 0.0]], - wrist_link,
+         - meta_kinematics.kinematics.axes.AXIS_Y);
+    }
+    @j4: meta_kinematics.kinematics.rev_joint {
+        (+ wrist_link [[0.0, 0.0, 0.18], [0.0, 0.0, 0.0]], - flange,
+         - meta_kinematics.kinematics.axes.AXIS_Z);
+    }
+}

@@ -1,0 +1,21 @@
+Minimal_Example
+{
+    author "Csaba";
+}
+context
+{
+/* Multi-line comment to indicate long description
+        and monsters are here  
+    val0 <int> 56;
+    val1 <string> "vakond";
+    val2 <real> 56.891;
+    /// Undefined value, get it in runtime
+    val_undef <real>;
+    val3 3444.4623;
+    /// Redefine PI value
+    pi 3.14156;
+    val_float;
+    // A simple vector
+    vector [15.6, 17.8, 16.3, 12.3, 67.8, 45, 2];
+
+}

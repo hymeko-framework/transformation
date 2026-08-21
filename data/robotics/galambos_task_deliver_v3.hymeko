@@ -1,0 +1,55 @@
+// galambos_task_deliver_v3.hymeko - CORRECTED canonical delivery reward (2026-07-23).
+// v3 supersedes v2b for corrected-runtime RL: same contact-quality-gated terms, but the TERMINAL delivery is bound
+// to the ONE canonical strict-held-dwell contract held_dwell_steps = 6 (K=6, matching the headline strict
+// certificate). terminalgraded (+30 graded) is emitted EXACTLY ONCE on the step strict dwell reaches 6, then
+// success=true, terminated=true, dense accumulation stops. v2b PRESERVED unchanged (5-step) for historical repro.
+// The env consumes held_dwell_steps and the terminalgraded weight from THIS file (both load-bearing, sentinel-tested).
+// held_dwell_steps 6
+
+// galambos_task_deliver_v3.hymeko — CONTACT-QUALITY-GATED deliver reward for the v2 physical-contact env.
+//
+// v2b fixes the two defects the 2026-07-07 calibration found in galambos_task_deliver_v2 (which is KEPT as the
+// FAILED calibration baseline — do not overwrite it): the v2 reward RANKED the body-shove exploit ABOVE the clean
+// two-fingertip demonstrator at every arm_body weight, because (1) the terminal delivery bonus was awarded for
+// ANY delivery regardless of HOW, and (2) the penalty measured body-only contact PRESENCE (step count), which
+// mis-hit the scripted controller's incidental distal-link graze more than the exploit's body shove.
+//
+// Two versioned fixes:
+//   1) `body_progress_penalty` replaces `arm_body_coin_contact` — penalise body-only PROGRESS (the toward-zone
+//      coin speed under a non-fingertip arm↔coin contact), NOT contact-step count. An incidental graze that does
+//      not move the coin costs ~0; a body shove that drives the coin at the target is penalised in proportion.
+//   2) `terminal_deliver_graded` replaces `terminal_deliver` — the delivery bonus is SCALED by the contact grade:
+//      full (+1) for a fingertip-dominant delivery, +0.2 for body-assisted, -0.5 (penalty) for a body-driven
+//      exploit. A body-shove delivery cannot earn the clean delivery reward.
+//
+// Weights are calibration SEEDS (report reports/2026-07-07-v2-contact-reward-calibration.md); the A/B/C/D ablation
+// tunes them. Do NOT start BC/DAgger/RL until this reward passes the calibration (scripted > exploit).
+
+galambos_task_description {
+    @"meta_kinematics.hymeko";
+    @"meta_reward.hymeko";
+    using kinematics.elements as el;
+    using reward.terms        as rew;
+    using reward              as r;
+}
+
+galambos_task_deliver_v3: el, rew, r
+{
+    disk:        el.frame {}
+    target_zone: el.frame {}
+
+    @approach:        rew.grasp_approach {}
+    @bothapproach:    rew.both_approach  {}
+    @zoneprog:        rew.zone_progress  {}   // PBRS toward-zone progress (fingertip AND body); body part cancelled below
+    @oob:             rew.out_of_bounds  {}
+    @terminalgraded:  rew.terminal_deliver_graded {}   // v2b: delivery bonus gated by contact-quality grade
+    @bodyprogpen:     rew.body_progress_penalty   {}   // v2b: penalise body-only toward-zone PROGRESS (not count)
+
+    // v2b shape: the delivering base (approach + bothapproach + oob + PBRS zoneprog) with the graded terminal
+    // (fingertip-dominant only earns the full +30) and the progress-scaled body penalty strong enough that a
+    // body-driven push is net-negative — so the exploit is NOT reward-optimal and the clean grasp wins.
+    @grasp_reward: r.reward_spec {
+        (+ approach 4.0, + bothapproach 4.0, + oob 2.0, + terminalgraded 30.0, + zoneprog 10.0,
+         + bodyprogpen 5.0);
+    }
+}

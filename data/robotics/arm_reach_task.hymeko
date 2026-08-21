@@ -1,0 +1,26 @@
+// arm_reach_task.hymeko — the plain reaching task's reward, declaratively.
+//
+// Now REUSES the shared reach reward model (arm_reach_reward.hymeko) via a cross-profile instance
+// reference (`arr.dist`) instead of re-declaring the reach term — the shared-model refactor
+// (APPROVED-CORE-EDIT: xprofile-instance-refs). The reward is just the dense reach distance.
+// Validates via `hymeko inspect`.
+
+arm_reach_task_description {
+    // The meta vocab the shared reward profile uses must also be imported here (phase-1 constraint
+    // of cross-profile refs: no transitive indexing yet — the importer supplies the namespaces).
+    @"meta_kinematics.hymeko";
+    @"meta_task.hymeko";
+    @"meta_reward.hymeko";
+    @"arm_reach_reward.hymeko";
+    using reward as r;
+    using arm_reach_reward_description.arm_reach_reward as arr;
+}
+
+arm_reach_task: r, arr
+{
+    // The assembled scalar reward = the shared dense reach-distance term, weighted on the arc (the
+    // hyperedge carries the weight; the imported `dist` term node does not).
+    @reach_reward: r.reward_spec {
+        (+ arr.dist 1.0);
+    }
+}

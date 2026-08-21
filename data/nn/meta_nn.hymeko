@@ -1,0 +1,154 @@
+meta_nn
+{
+
+}
+nn {
+    units {
+        // Numeric values are dimensionless; tensor shapes use cardinal counts.
+        time      "step";   // forward-pass step
+        magnitude "scalar"; // generic floating-point
+    }
+
+    // ─── Tensor vertices ────────────────────────────────────────────────
+    // Tensors are the data carried between layer hypervertices in the
+    // dataflow view. Their `shape` field is a 1-D list of dimensions.
+    //
+    // Type names are PREFIXED with `t_` so the inheritance walker
+    // (which matches by short name, not by full path) doesn't collide
+    // with port / neuron names that share the same intuitive meaning.
+    // User authors `y: ten.t_output { shape [2]; }`.
+    tensors {
+        meta_tensor {}
+        t_input:      + <isa> meta_tensor {}
+        t_activation: + <isa> meta_tensor {}
+        t_output:     + <isa> meta_tensor {}
+    }
+
+    // ─── Port decls (layer hypervertex interface) ──────────────────────
+    // Ports are nested INSIDE layer hypervertices and expose the
+    // hypervertex's interface to the outer dataflow. Outer dataflow
+    // hyperedges reference the layer hypervertex; the projection
+    // π_factor resolves port-incidences against those edges.
+    ports {
+        meta_port {}
+        input:  + <isa> meta_port {}
+        output: + <isa> meta_port {}
+    }
+
+    // ─── Neuron decls (factor view leaves) ──────────────────────────────
+    // Neurons are the leaf-level activation units inside layer
+    // hypervertices. The factor view's hypergraph is built from these.
+    neurons {
+        meta_neuron {}
+        input:  + <isa> meta_neuron {}
+        hidden: + <isa> meta_neuron {}
+        output: + <isa> meta_neuron {}
+    }
+
+    // ─── GGK kernel specs ───────────────────────────────────────────────
+    // Generalised Generative Kernel K = (B, G, μ, r). Each spec is a
+    // typed decl that layers reference via `ggk -> some_spec`. Shared
+    // GGK specs across layers dedupe via canonical-IR hashing.
+    ggk {
+        meta_ggk {}
+        bspline:  + <isa> meta_ggk {}
+        bezier:   + <isa> meta_ggk {}
+        rbf:      + <isa> meta_ggk {}
+        hermite:  + <isa> meta_ggk {}
+        wavelet:  + <isa> meta_ggk {}
+    }
+
+    // ─── Factor decls (intra-layer hyperedges) ──────────────────────────
+    // Factors live inside a layer hypervertex's body. Each factor is a
+    // hyperedge: `+` source neurons, `-` sink neuron, optional `~`
+    // output-port marker.
+    factors {
+        @meta_factor {}
+        @hypergraph_conv: + <isa> meta_factor {}
+    }
+
+    // ─── Layer decls (hypervertices in the dataflow view) ───────────────
+    // Each layer is a hypervertex: a node decl with a body containing
+    // input ports, hidden neurons, output ports, and intra-layer
+    // factors. The outer dataflow references the layer by name (its
+    // hypervertex identity), not its internal neurons.
+    layers {
+        meta_layer {}
+        hypergraph_conv: + <isa> meta_layer {}
+        mean_pool:       + <isa> meta_layer {}
+        max_pool:        + <isa> meta_layer {}
+        readout_linear:  + <isa> meta_layer {}
+
+        // ─── Tier-1: plain feed-forward primitives ─────────────────
+        // Linear layer with explicit (d_in, d_out) — emits torch.nn.Linear.
+        linear_layer:    + <isa> meta_layer {}
+        // Activation hypervertices — emit torch.nn.ReLU / Sigmoid / Tanh.
+        // Carry no learnable parameters; needed for explicit dataflow
+        // wiring of the activation between two linear layers.
+        relu_layer:      + <isa> meta_layer {}
+        sigmoid_layer:   + <isa> meta_layer {}
+        tanh_layer:      + <isa> meta_layer {}
+
+        // ─── Tier-2: composite blocks shipped with ehk_torch_stub ──
+        // Residual block: y = x + Linear(ReLU(Linear(x))). Has fields
+        // hidden (d_in == d_out for residual sum). Emits a
+        // ResidualBlock(hidden=...) instantiation; the internal
+        // structure is realised by the helper class, NOT by HyMeKo
+        // hypergraph topology (multi-input dataflow not yet supported).
+        residual_block:  + <isa> meta_layer {}
+        // Highway block: y = T(x)·F(x) + (1−T(x))·x with a learned
+        // sigmoid gate T. Same field surface as residual_block.
+        highway_block:   + <isa> meta_layer {}
+
+        // ─── Tier-3: signed-cycle KAN primitives ────────────────────
+        // signedkan_layer: realises the Option-C signed-incidence
+        // factor for one fixed arity k. Forward, per signed cycle
+        // c=(v_1,...,v_k) with σ assignments:
+        //   h_c = Σ_s ∈ {+,−,~0} φ_e^s ( Σ_{i: σ_i=s} φ_v^s(h_{v_i}) )
+        // Carries fields:
+        //   hidden  : channel width
+        //   arity   : k for this layer (matches construct_k_cycles arity)
+        //   spline_kind : "bspline" | "catmull_rom" | "kochanek_bartels"
+        //   grid    : spline grid size
+        // Internal structure (inner / outer φ pair, σ-mask aggregation,
+        // three branch sum) is realised by the helper class; the IR
+        // captures the shape contract only — multi-input dataflow
+        // (needed to wire the M_e sparse mm in pure HyMeKo) is not yet
+        // supported and is deferred to a later tier.
+        signedkan_layer: + <isa> meta_layer {}
+
+        // arity_mixer: combines per-arity cycle embeddings with
+        // learned softmax weights α_k. Forward:
+        //   h_e = Σ_k softmax(α)_k · M_e^{(k)} h_c^{(k)}
+        // Single tensor input (one per arity-channel) is conceptually
+        // a multi-input op; current single-input dataflow encodes
+        // it as a stacked input per port.
+        arity_mixer:     + <isa> meta_layer {}
+
+        // signed_classifier: linear classifier over edge embeddings.
+        // Trivial wrapper around nn.Linear, named separately so that
+        // the dataflow walker distinguishes "head" from "body" Linears
+        // for downstream analyses.
+        signed_classifier: + <isa> meta_layer {}
+
+        // walk_layer: open-walk sibling of signedkan_layer.  Same
+        // signed-aggregation Option-C structure but consuming
+        // length-`walk_len` simple walks (open paths, walk_len+1
+        // vertices) enumerated by hymeko.enumerate_k_walks_rs
+        // instead of closed cycles.  Carries:
+        //   hidden    : channel width
+        //   walk_len  : L (number of edges in the walk)
+        //   spline_kind : "bspline" | "catmull_rom" | "kochanek_bartels"
+        //   grid    : spline grid size
+        // Walk-HSiKAN is the architectural extension that contains
+        // both HSiKAN (closed cycles) and SGCN (length-L walks) as
+        // special cases.
+        walk_layer:      + <isa> meta_layer {}
+
+        // Dataflow hyperedge type: outer-level wiring between layer
+        // hypervertices and tensors. Conventional incidence pattern:
+        //   (+ in_tensor, ~ layer_hypervertex, - out_tensor)
+        // For readout: (+ in_tensor, ~ readout_layer)  — no out_tensor.
+        @dataflow {}
+    }
+}

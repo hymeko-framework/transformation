@@ -1,0 +1,149 @@
+// meta_reward.hymeko — declarative reward terms for RL over the kinematic hypergraph.
+//
+// Companion to meta_observation.hymeko (observation channels) and meta_task.hymeko
+// (behaviour). A reward_spec is a *weighted bundle of terms*; the env evaluates the
+// scalar reward as Σ weight·term(state). Each term references kinematic vertices
+// (effector, target frame) from the same compiled IR as the robot — one IR carries the
+// structure, the observation, AND the reward.
+//
+// Mirrors meta_observation's shape: a small type root + a `terms` namespace of kinds,
+// each `<isa>` the term root. WEIGHTS ARE NOT ON THE TERM: the reward_spec bundle declares
+// each term's weight on its arc — `@reward { (+ approach 4.0, …); }` — so the weight is a
+// property of the hyperedge relationship, not the term node. Validates via `hymeko inspect`.
+
+meta_reward {}
+
+reward {
+    // === Type roots ===
+    @reward_term {}    // a single reward signal over the state (its weight is set by the bundle arc)
+    @reward_spec {}    // a bundle of weighted arcs = the scalar reward Σ weight·term
+
+    // === Reward terms (typed signals; the weight lives on the reward_spec arc) ===
+    terms {
+        // Dense shaping: -weight·‖pos(effector) - pos(target)‖.
+        // Hyperedge: (+ effector, - target).
+        @reach_distance: + <isa> reward.reward_term {}
+
+        // Sparse success: +weight when the effector is within the goal tolerance.
+        @success_bonus:  + <isa> reward.reward_term {}
+
+        // Control-effort penalty: -weight·‖action‖².
+        @action_cost:    + <isa> reward.reward_term {}
+
+        // === Safety / configuration penalties (a task profile's arc sets the weight) ===
+        // Death penalty when a robot geom contacts the ground (the env also terminates the episode).
+        @ground_penalty:         + <isa> reward.reward_term {}
+
+        // Death penalty when two non-adjacent robot links collide (env terminates the episode).
+        @self_collision_penalty: + <isa> reward.reward_term {}
+
+        // Soft penalty -weight·(1 - joint_margin)² as any joint approaches its range limit.
+        @joint_limit_penalty:    + <isa> reward.reward_term {}
+
+        // Soft penalty when a link dips below the ground plane (folding into the floor/base).
+        @below_ground_penalty:   + <isa> reward.reward_term {}
+
+        // === Planar grasping (Galambos) ===
+        // Dense approach: -weight·½(‖nearest_left_link - disk‖ + ‖nearest_right_link - disk‖).
+        // Bridges 'arms near the coin' → 'two-finger contact' (the gradient the sparse
+        // both_contact cliff cannot supply on its own).
+        @grasp_approach: + <isa> reward.reward_term {}
+
+        // Coordination shaping: -max(left,right) fingertip→coin distance. Penalises the FARTHER arm, so
+        // both fingertips must close simultaneously (the compensable mean `grasp_approach` cannot).
+        @both_approach: + <isa> reward.reward_term {}
+
+        // POTENTIAL-BASED reward shaping (Ng-Harada-Russell 1999): γΦ(s')-Φ(s), provably policy-invariant, so
+        // it CANNOT be farmed (telescopes to Φ(end)-Φ(start)). Replaces the farmable in_zone/both annuities.
+        @zone_progress:  + <isa> reward.reward_term {}   // Φ = -disk_to_zone   (progress toward the zone)
+        @grasp_progress: + <isa> reward.reward_term {}   // Φ = -max(l,r) tip   (progress toward the grasp)
+        // NONLINEAR conjunction: Φ = -max(disk_to_zone, l_tip, r_tip). Progress requires grasp AND carry TOGETHER
+        // (the worst of the three gates), so the policy can't earn zone-progress by one-finger pushing. Farm-proof.
+        @conjunctive_progress: + <isa> reward.reward_term {}
+
+        // +weight when both fingers touch the disk (encourages a two-sided grasp).
+        @both_contact: + <isa> reward.reward_term {}
+
+        // +weight (sparse success) when the disk rests inside the target zone.
+        @in_zone:      + <isa> reward.reward_term {}
+
+        // +weight (grasp-GATED success) when the disk is in the zone AND was genuinely grasped (both
+        // fingertips contacted it at some point). A knock (disk shoved in without a two-finger grasp) earns 0.
+        @grasp_deliver: + <isa> reward.reward_term {}
+
+        // ONE-SHOT terminal delivery bonus: +weight exactly on the step that COMPLETES the held-in-zone dwell,
+        // 0 otherwise. The anti-farming term — pays for COMPLETING delivery, not for holding contact (annuity).
+        @terminal_deliver: + <isa> reward.reward_term {}
+
+        // Overshoot brake: -weight·‖disk velocity‖ while the disk is near the zone, so the policy
+        // decelerates it into the zone instead of pushing it through.
+        @settle:       + <isa> reward.reward_term {}
+
+        // Pre-grasp stillness: -weight·‖coin velocity‖ until both fingers grasp the coin, then 0 —
+        // gentle, controlled corralling (no flinging) without punishing the slow corral the task needs.
+        @coin_pregrasp_still: + <isa> reward.reward_term {}
+
+        // Anti-stall: -weight·max(0, v_min - arm joint speed) — penalises an idle arm so the policy
+        // keeps exploring instead of freezing.
+        @arm_motion:   + <isa> reward.reward_term {}
+
+        // Centring bonus: +weight·(1 - dist/zone_half) inside the zone — grades precision toward the
+        // exact zone centre (denser than the binary in_zone success).
+        @center_bonus: + <isa> reward.reward_term {}
+
+        // Arm-arm collision: -weight while the two arms touch each other (keep the fingers from
+        // crashing together instead of cooperating).
+        @arm_collision: + <isa> reward.reward_term {}
+
+        // Finger-finger collision: -weight only when the two FINGERTIP links touch EACH OTHER (a crash, not a
+        // coin-pinch). Narrower than arm_collision (which suppressed the whole approach at weight) — does not fire
+        // during a real grasp (coin between the fingertips).
+        @fingers_collision: + <isa> reward.reward_term {}
+
+        // Out-of-bounds: -weight when the disk is knocked off the table (death) — discourages
+        // ballistic over-pushing.
+        @out_of_bounds: + <isa> reward.reward_term {}
+
+        // ── Generic "fast and smooth goal-reaching" terms (any actuated robot) ──
+        // Progress: +weight·(prev_dist - dist) — dense forward signal toward the goal (the locomotion
+        // driver; telescopes to total distance closed). Stronger for learning a gait than flat -distance.
+        @goal_progress:       + <isa> reward.reward_term {}
+
+        // Time pressure: -weight every step — reach the goal in fewer steps. Pairs with a distance term
+        // (reach_distance / goal_progress) so the objective is minimum-time, not just minimum-distance.
+        @time_penalty:        + <isa> reward.reward_term {}
+
+        // Joint-velocity smoothness: -weight·Σ q̇² over the actuated joints — no thrashing.
+        @joint_velocity:      + <isa> reward.reward_term {}
+
+        // Joint-acceleration smoothness (jerk): -weight·Σ q̈² over the actuated joints — smooth, not snappy.
+        @joint_acceleration:  + <isa> reward.reward_term {}
+
+        // ── Hamiltonian / centroidal-momentum + Lyapunov terms (underactuated locomotion, 2026-07-17) ──
+        // Reward the RIGHT centroidal momentum distribution + a control-Lyapunov certificate. All MuJoCo-native
+        // (mj_energy* / mj_subtreeVel), normalised to O(1) so the reward_spec weights set the balance. The 6
+        // unactuated free-base DOF are shaped only through contact forces the joints induce → reward their momenta.
+        @vertical_bounce:                + <isa> reward.reward_term {}   // -v_z² (CIP anti-bounce; z-only special case)
+        @forward_momentum:               + <isa> reward.reward_term {}   // + p_com,x/(m·v*)   (propulsion as momentum)
+        @transverse_momentum:            + <isa> reward.reward_term {}   // -(p_y²+p_z²)/(m·v*)² (generalises bounce)
+        @centroidal_angular_momentum:    + <isa> reward.reward_term {}   // -‖CAM_xy‖²/(m·v*·z)² (balance certificate)
+        @energy_regulation:              + <isa> reward.reward_term {}   // -((H-H_ref)/(m·g·z))² (energy-shaping Lyap.)
+        @capture_point:                  + <isa> reward.reward_term {}   // -(ξ_lat/z)²         (DCM fall-predictor)
+
+        // ── pick-and-place terms (read the env's PickMetrics; 0 on a non-pick env) ──
+        // Dense approach: -‖tool - object‖ (the tool descends toward the object to grasp it).
+        @pick_approach:        + <isa> reward.reward_term {}
+        // Two-finger contact: +(left + right) ∈ {0,1,2} — encourages closing both fingers on the object.
+        @pick_contact:         + <isa> reward.reward_term {}
+        // Lift shaping: +min(lifted, lift_thresh) — rewards raising the object clear of the surface.
+        @pick_lift:            + <isa> reward.reward_term {}
+        // Transport: -‖object - target‖ once the object is off the surface (carry it to the place zone).
+        @pick_place_distance:  + <isa> reward.reward_term {}
+        // Sparse success: +weight when the object is lifted AND within the place radius of the target.
+        @pick_place_bonus:     + <isa> reward.reward_term {}
+        // Approach-collision penalty: -weight when the arm/gripper hits a surface while NOT over the object.
+        @pick_approach_penalty: + <isa> reward.reward_term {}
+        // Pre-grasp disturbance: -weight·‖object displacement‖ BEFORE the object is ever grasped (no nudging).
+        @pick_disturbance:      + <isa> reward.reward_term {}
+    }
+}

@@ -1,0 +1,27 @@
+// meta_controller.hymeko — declarative SCRIPTED-CONTROLLER vocabulary (FSM phases + parameter terms).
+//
+// Completes the substrate picture for the demonstrator side: meta_kinematics (robot), meta_env (scene),
+// meta_reward (reward), meta_strategy (RL algorithm) — and now meta_controller: a scripted controller as
+// data. A concrete controller (e.g. galambos_push.hymeko) declares its FSM as `fsm_phase` nodes whose
+// bodies bind a target LAW by name (`law swing_orbit;`) and outgoing TRANSITIONS by guard-event name
+// (`on v_broken to swing;`); Python only supplies the named guard/law behaviours
+// (hymeko_rl/control/controller_spec.py registries). Editing the phase graph or a gait knob is an edit to
+// the .hymeko, not the Python — same discipline as reward-in-hymeko.
+
+meta_controller {}
+
+controller {
+    // === Type roots ===
+    @param {}            // a field-carrying scalar-parameter term (geometry, gait, ...)
+    @phase {}            // one FSM phase: a target law + `on <event> to <phase>` transition arcs
+    @controller_spec {}  // the bundle: ordered phases (FIRST = initial) + parameter terms
+
+    params {
+        @geometry: + <isa> controller.param {}   // shape of the formation (angles, margins, tolerances)
+        @gait:     + <isa> controller.param {}   // motion knobs (press depth, arc speed, brake distance)
+    }
+
+    phases {
+        @fsm_phase: + <isa> controller.phase {}
+    }
+}

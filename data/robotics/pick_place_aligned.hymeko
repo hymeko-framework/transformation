@@ -1,0 +1,41 @@
+// pick_place_aligned.hymeko — SUCCESS-ALIGNED FANUC pick-and-place reward (2026-06-29).
+//
+// Fixes the PPO-farms-shaping collapse measured in reports/2026-06-29-rl-overnight.md: the procedural /
+// parity reward's per-step dense shaping (~1/step x 620 steps ~= 620 of farmable return) DWARFS the sparse
+// success signal (placed +20), so PPO maximises return by farming approach/contact proximity and NEVER needs
+// to complete the lift+place — task success collapses to ~0 while the scalar return climbs.
+//
+// The fix aligns return with success: the cumulative reward is positive ONLY by actually placing.
+//   - time_penalty -0.6/step makes "touch the object and stall" net NEGATIVE (contact 0.2x2=0.4 < 0.6) — the
+//     farmable local optimum is removed; standing still costs.
+//   - placed +30/step (per-step while `reached`) makes completing-and-holding the placement HUGELY positive,
+//     so max-return <=> succeed.
+//   - shaping kept small for guidance only (approach/contact reduced; lift+place gate as before).
+// Reward is the .hymeko (project rule): tune the weights here, not in code. Same term machinery + structure as
+// pick_place_task.hymeko (which stays parity-locked to the procedural reward); this is a separate profile.
+
+pick_place_aligned_description {
+    @"meta_reward.hymeko";
+    using reward.terms as rew;
+    using reward       as r;
+}
+
+pick_place_aligned: rew, r
+{
+    @approach:  rew.pick_approach {}          // descend toward the object (small guidance)
+    @contact:   rew.pick_contact {}           // close both fingers (small; offset by time)
+    @lift:      rew.pick_lift {}              // raise it clear of the surface
+    @place:     rew.pick_place_distance {}    // carry it to the target (gated on lifted)
+    @placed:    rew.pick_place_bonus {}       // DOMINANT sparse success (per-step while reached)
+    @noground:  rew.pick_approach_penalty {}  // don't crash a surface on approach
+    @nonudge:   rew.pick_disturbance {}       // don't disturb the object before grasping it
+    @time:      rew.time_penalty {}           // -0.6/step: kills the stall-and-farm local optimum
+
+    @pick_reward: r.reward_spec {
+        // VALIDATED weights (180it seed0: collapse fixed, lift 0.0->0.875, place 0.0->0.375). A place-distance
+        // boost to 3.0 was tried and REVERTED — a large -3*to_target while lifted-but-far makes the policy
+        // AVOID lifting (place dropped 0.375->0.125 same seed). The distance pull stays a gentle 1.0.
+        (+ approach 0.3, + contact 0.2, + lift 8.0, + place 1.0, + placed 30.0,
+         + noground 2.0, + nonudge 3.0, + time 0.6);
+    }
+}

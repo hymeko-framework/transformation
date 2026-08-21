@@ -1,0 +1,635 @@
+drchubo_description {
+    @"meta_kinematics.hymeko";
+    using kinematics.elements as el;
+    using kinematics.geometry as geo;
+    using kinematics.axes as ax;
+    using kinematics.rev_joint as rj;
+    using kinematics.conti_joint as cj;
+    using kinematics.prismatic_joint as pj;
+    using kinematics.fixed_joint as fj;
+}
+
+drchubo: el, geo, ax
+{
+    AXIS_M_Y: + <isa> ax.axis_definition { ax [0.0000, -1.0000, 0.0000]; }
+
+    Body_Torso: el.link {
+        mass 8.953516;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.001863, -0.000701, 0.144865];
+    }
+    Body_LSP: el.link {
+        mass 0.512815;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.012510, 0.068257, -0.000101];
+    }
+    Body_LSR: el.link {
+        mass 0.478101;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [-0.035399, -0.000442, -0.017763];
+    }
+    Body_LSY: el.link {
+        mass 1.352065;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.005963, -0.002232, -0.162010];
+    }
+    Body_LEP: el.link {
+        mass 0.267759;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [-0.025714, 0.000806, -0.041785];
+    }
+    Body_LWY: el.link {
+        mass 1.370722;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000040, 0.057738, -0.151719];
+    }
+    Body_LWP: el.link {
+        mass 0.294903;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [-0.000379, 0.010888, 0.017009];
+    }
+    Body_LWR: el.link {
+        mass 0.474007;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.005267, -0.001655, -0.047697];
+    }
+    Body_LF11: el.link {
+        mass 0.020964;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000004, -0.010365, -0.022357];
+    }
+    Body_LF12: el.link {
+        mass 0.012118;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000131, 0.000227, -0.013538];
+    }
+    Body_LF13: el.link {
+        mass 0.016344;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000169, 0.000357, -0.016317];
+    }
+    Body_TSY: el.link {
+        mass 3.858114;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [-0.016070, -0.002171, -0.032944];
+    }
+    Body_LHY: el.link {
+        mass 1.026654;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.037812, 0.000000, -0.116128];
+    }
+    Body_LHR: el.link {
+        mass 1.374734;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.004737, -0.004829, -0.032556];
+    }
+    Body_LHP: el.link {
+        mass 3.397088;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.013982, 0.011913, -0.190051];
+    }
+    Body_LKP: el.link {
+        mass 1.251331;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.016713, -0.004232, -0.163548];
+    }
+    Body_LAP: el.link {
+        mass 2.005972;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.014822, 0.010056, 0.009975];
+    }
+    Body_LAR: el.link {
+        mass 1.068154;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.016546, 0.002161, -0.095292];
+    }
+    Body_NKY: el.link {
+        mass 0.170508;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [-0.013234, -0.000265, 0.040969];
+    }
+    Body_NK1: el.link {
+        mass 0.657803;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [-0.000520, -0.112505, -0.000093];
+    }
+    Body_NK2: el.link {
+        mass 0.250303;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.006191, 0.000180, -0.009254];
+    }
+    Body_LF21: el.link {
+        mass 0.020964;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000004, -0.010365, -0.022357];
+    }
+    Body_LF22: el.link {
+        mass 0.012118;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000131, 0.000227, -0.013538];
+    }
+    Body_LF23: el.link {
+        mass 0.016344;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000169, 0.000357, -0.016317];
+    }
+    Body_LF31: el.link {
+        mass 0.020964;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000004, -0.010365, -0.022357];
+    }
+    Body_LF32: el.link {
+        mass 0.012118;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000131, 0.000227, -0.013538];
+    }
+    Body_LF33: el.link {
+        mass 0.016344;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000169, 0.000357, -0.016317];
+    }
+    Body_RSP: el.link {
+        mass 0.512815;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.012510, -0.068257, -0.000101];
+    }
+    Body_RSR: el.link {
+        mass 0.478101;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [-0.035399, 0.000442, -0.017763];
+    }
+    Body_RSY: el.link {
+        mass 1.352065;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.005963, 0.002232, -0.162010];
+    }
+    Body_REP: el.link {
+        mass 0.267759;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [-0.025714, -0.000806, -0.041785];
+    }
+    Body_RWY: el.link {
+        mass 1.370722;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000040, -0.057738, -0.151719];
+    }
+    Body_RWP: el.link {
+        mass 0.294903;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [-0.000379, -0.010888, 0.017009];
+    }
+    Body_RWR: el.link {
+        mass 0.474007;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.005267, 0.001655, -0.047697];
+    }
+    Body_RF11: el.link {
+        mass 0.020964;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000004, 0.010365, -0.022357];
+    }
+    Body_RF12: el.link {
+        mass 0.012118;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000131, -0.000227, -0.013538];
+    }
+    Body_RF13: el.link {
+        mass 0.016344;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000169, -0.000357, -0.016317];
+    }
+    Body_RHY: el.link {
+        mass 1.026654;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.037812, -0.000000, -0.116128];
+    }
+    Body_RHR: el.link {
+        mass 1.374734;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.004737, 0.004829, -0.032556];
+    }
+    Body_RHP: el.link {
+        mass 3.397088;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.013982, -0.011913, -0.190051];
+    }
+    Body_RKP: el.link {
+        mass 1.251331;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.016713, 0.004232, -0.163548];
+    }
+    Body_RAP: el.link {
+        mass 2.005972;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.014822, -0.010056, 0.009975];
+    }
+    Body_RAR: el.link {
+        mass 1.068154;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.016546, -0.002161, -0.095292];
+    }
+    Body_RF21: el.link {
+        mass 0.020964;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000004, 0.010365, -0.022357];
+    }
+    Body_RF22: el.link {
+        mass 0.012118;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000131, -0.000227, -0.013538];
+    }
+    Body_RF23: el.link {
+        mass 0.016344;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000169, -0.000357, -0.016317];
+    }
+    Body_RF31: el.link {
+        mass 0.020964;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000004, 0.010365, -0.022357];
+    }
+    Body_RF32: el.link {
+        mass 0.012118;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000131, -0.000227, -0.013538];
+    }
+    Body_RF33: el.link {
+        mass 0.016344;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000169, -0.000357, -0.016317];
+    }
+    Body_RF41: el.link {
+        mass 0.020964;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000004, 0.010365, -0.022357];
+    }
+    Body_RF42: el.link {
+        mass 0.012118;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000131, -0.000227, -0.013538];
+    }
+    Body_RF43: el.link {
+        mass 0.016344;
+        link_geometry: geo.box { dimension [0.0500, 0.0500, 0.0500]; }
+        visual    -> link_geometry;
+        collision -> link_geometry;
+        origin [0.000169, -0.000357, -0.016317];
+    }
+    @LSP: rj {
+        (+ Body_Torso [[0.001000, 0.130500, 0.206100], [-0.000000, 0.000000, -0.000000]],
+         - Body_LSP,
+         - ax.AXIS_Y);
+    }
+    @LSR: rj {
+        (+ Body_LSP [[0.033000, 0.099000, 0.000000], [0.000000, 0.000000, 0.000000]],
+         - Body_LSR,
+         - ax.AXIS_X);
+    }
+    @LSY: rj {
+        (+ Body_LSR [[-0.033000, 0.000000, -0.027000], [0.000000, 0.000000, 0.000000]],
+         - Body_LSY,
+         - ax.AXIS_Z);
+    }
+    @LEP: rj {
+        (+ Body_LSY [[0.030000, 0.000000, -0.273000], [0.000000, 0.000000, 0.000000]],
+         - Body_LEP,
+         - ax.AXIS_Y);
+    }
+    @LWY: rj {
+        (+ Body_LEP [[-0.030000, 0.000000, -0.052000], [0.000000, 0.000000, 0.000000]],
+         - Body_LWY,
+         - ax.AXIS_Z);
+    }
+    @LWP: rj {
+        (+ Body_LWY [[0.000000, 0.000000, -0.261800], [0.000000, 0.000000, 0.000000]],
+         - Body_LWP,
+         - ax.AXIS_Y);
+    }
+    @LWR: rj {
+        (+ Body_LWP [[0.000000, 0.000000, -0.027500], [0.000000, 0.000000, 1.570796]],
+         - Body_LWR,
+         - ax.AXIS_Z);
+    }
+    @LF11: rj {
+        (+ Body_LWR [[0.023000, -0.012000, -0.075500], [0.000000, 0.000000, 0.000000]],
+         - Body_LF11,
+         - ax.AXIS_Y);
+    }
+    @LF12: rj {
+        (+ Body_LF11 [[-0.002000, -0.010500, -0.042000], [0.000000, 0.000000, 0.000000]],
+         - Body_LF12,
+         - ax.AXIS_Y);
+    }
+    @LF13: rj {
+        (+ Body_LF12 [[-0.001400, 0.000000, -0.030000], [0.000000, 0.000000, 0.000000]],
+         - Body_LF13,
+         - ax.AXIS_Y);
+    }
+    @TSY: rj {
+        (+ Body_TSY [[0.000000, 0.000000, 0.000000], [0.000000, 0.000000, 0.000000]],
+         - Body_Torso,
+         - ax.AXIS_Z);
+    }
+    @LHY: rj {
+        (+ Body_TSY [[0.000000, 0.088500, -0.023000], [0.000000, 0.000000, 0.000000]],
+         - Body_LHY,
+         - ax.AXIS_Z);
+    }
+    @LHR: rj {
+        (+ Body_LHY [[0.000000, 0.000000, -0.141000], [0.000000, 0.000000, 0.000000]],
+         - Body_LHR,
+         - ax.AXIS_X);
+    }
+    @LHP: rj {
+        (+ Body_LHR [[0.000000, 0.000000, 0.000000], [0.000000, 0.000000, 0.000000]],
+         - Body_LHP,
+         - ax.AXIS_Y);
+    }
+    @LKP: rj {
+        (+ Body_LHP [[0.000000, 0.000000, -0.329900], [0.000000, 0.000000, 0.000000]],
+         - Body_LKP,
+         - ax.AXIS_Y);
+    }
+    @LAP: rj {
+        (+ Body_LKP [[0.000000, 0.000000, -0.330000], [0.000000, 0.000000, 0.000000]],
+         - Body_LAP,
+         - ax.AXIS_Y);
+    }
+    @LAR: rj {
+        (+ Body_LAP [[0.000000, 0.000000, 0.000000], [0.000000, 0.000000, 0.000000]],
+         - Body_LAR,
+         - ax.AXIS_X);
+    }
+    @NKY: rj {
+        (+ Body_Torso [[0.001000, 0.000000, 0.259800], [0.000000, 0.000000, 0.000000]],
+         - Body_NKY,
+         - ax.AXIS_Z);
+    }
+    @NK1: rj {
+        (+ Body_NKY [[0.000000, 0.000000, 0.029800], [-1.570796, 0.000000, 0.000000]],
+         - Body_NK1,
+         - ax.AXIS_Z);
+    }
+    @NK2: rj {
+        (+ Body_NK1 [[0.000000, -0.086000, 0.000000], [1.570796, 0.000000, -1.570796]],
+         - Body_NK2,
+         - ax.AXIS_Y);
+    }
+    @LF21: rj {
+        (+ Body_LWR [[0.023000, 0.033000, -0.075500], [0.000000, 0.000000, 0.000000]],
+         - Body_LF21,
+         - ax.AXIS_Y);
+    }
+    @LF22: rj {
+        (+ Body_LF21 [[-0.002000, -0.010500, -0.042000], [0.000000, 0.000000, 0.000000]],
+         - Body_LF22,
+         - ax.AXIS_Y);
+    }
+    @LF23: rj {
+        (+ Body_LF22 [[-0.001400, 0.000000, -0.030000], [0.000000, 0.000000, 0.000000]],
+         - Body_LF23,
+         - ax.AXIS_Y);
+    }
+    @LF31: rj {
+        (+ Body_LWR [[-0.023000, -0.010500, -0.075500], [0.000000, 0.000000, 3.141593]],
+         - Body_LF31,
+         - AXIS_M_Y);
+    }
+    @LF32: rj {
+        (+ Body_LF31 [[-0.002000, -0.010500, -0.042000], [0.000000, 0.000000, 0.000000]],
+         - Body_LF32,
+         - ax.AXIS_Z);
+    }
+    @LF33: rj {
+        (+ Body_LF32 [[-0.001400, 0.000000, -0.030000], [0.000000, 0.000000, 0.000000]],
+         - Body_LF33,
+         - AXIS_M_Y);
+    }
+    @RSP: rj {
+        (+ Body_Torso [[0.001000, -0.130500, 0.206100], [-0.000000, 0.000000, -0.000000]],
+         - Body_RSP,
+         - ax.AXIS_Y);
+    }
+    @RSR: rj {
+        (+ Body_RSP [[0.033000, -0.099000, 0.000000], [-0.000000, 0.000000, -0.000000]],
+         - Body_RSR,
+         - ax.AXIS_X);
+    }
+    @RSY: rj {
+        (+ Body_RSR [[-0.033000, -0.000000, -0.027000], [-0.000000, 0.000000, -0.000000]],
+         - Body_RSY,
+         - ax.AXIS_Z);
+    }
+    @REP: rj {
+        (+ Body_RSY [[0.030000, 0.000000, -0.273000], [-0.000000, 0.000000, -0.000000]],
+         - Body_REP,
+         - ax.AXIS_Y);
+    }
+    @RWY: rj {
+        (+ Body_REP [[-0.030000, 0.000000, -0.052000], [-0.000000, 0.000000, 0.000000]],
+         - Body_RWY,
+         - ax.AXIS_Z);
+    }
+    @RWP: rj {
+        (+ Body_RWY [[0.000000, -0.000000, -0.261800], [-0.000000, 0.000000, -0.000000]],
+         - Body_RWP,
+         - ax.AXIS_Y);
+    }
+    @RWR: rj {
+        (+ Body_RWP [[0.000000, -0.000000, -0.027500], [-0.000000, 0.000000, -1.570796]],
+         - Body_RWR,
+         - ax.AXIS_Z);
+    }
+    @RF11: rj {
+        (+ Body_RWR [[0.023000, 0.012000, -0.075500], [-0.000000, 0.000000, -0.000000]],
+         - Body_RF11,
+         - ax.AXIS_Y);
+    }
+    @RF12: rj {
+        (+ Body_RF11 [[-0.002000, 0.010500, -0.042000], [-0.000000, 0.000000, -0.000000]],
+         - Body_RF12,
+         - ax.AXIS_Y);
+    }
+    @RF13: rj {
+        (+ Body_RF12 [[-0.001400, -0.000000, -0.030000], [-0.000000, 0.000000, -0.000000]],
+         - Body_RF13,
+         - ax.AXIS_Y);
+    }
+    @RHY: rj {
+        (+ Body_TSY [[0.000000, -0.088500, -0.023000], [-0.000000, 0.000000, -0.000000]],
+         - Body_RHY,
+         - ax.AXIS_Z);
+    }
+    @RHR: rj {
+        (+ Body_RHY [[0.000000, -0.000000, -0.141000], [-0.000000, 0.000000, -0.000000]],
+         - Body_RHR,
+         - ax.AXIS_X);
+    }
+    @RHP: rj {
+        (+ Body_RHR [[0.000000, -0.000000, 0.000000], [-0.000000, 0.000000, -0.000000]],
+         - Body_RHP,
+         - ax.AXIS_Y);
+    }
+    @RKP: rj {
+        (+ Body_RHP [[0.000000, -0.000000, -0.329900], [-0.000000, 0.000000, -0.000000]],
+         - Body_RKP,
+         - ax.AXIS_Y);
+    }
+    @RAP: rj {
+        (+ Body_RKP [[0.000000, -0.000000, -0.330000], [-0.000000, 0.000000, -0.000000]],
+         - Body_RAP,
+         - ax.AXIS_Y);
+    }
+    @RAR: rj {
+        (+ Body_RAP [[0.000000, -0.000000, 0.000000], [-0.000000, 0.000000, -0.000000]],
+         - Body_RAR,
+         - ax.AXIS_X);
+    }
+    @RF21: rj {
+        (+ Body_RWR [[0.023000, -0.033000, -0.075500], [-0.000000, 0.000000, -0.000000]],
+         - Body_RF21,
+         - ax.AXIS_Y);
+    }
+    @RF22: rj {
+        (+ Body_RF21 [[-0.002000, 0.010500, -0.042000], [-0.000000, 0.000000, -0.000000]],
+         - Body_RF22,
+         - ax.AXIS_Y);
+    }
+    @RF23: rj {
+        (+ Body_RF22 [[-0.001400, -0.000000, -0.030000], [-0.000000, 0.000000, -0.000000]],
+         - Body_RF23,
+         - ax.AXIS_Y);
+    }
+    @RF31: rj {
+        (+ Body_RWR [[-0.023000, 0.010500, -0.075500], [-0.000000, 0.000000, -3.141593]],
+         - Body_RF31,
+         - AXIS_M_Y);
+    }
+    @RF32: rj {
+        (+ Body_RF31 [[-0.002000, 0.010500, -0.042000], [0.000000, 0.000000, 0.000000]],
+         - Body_RF32,
+         - AXIS_M_Y);
+    }
+    @RF33: rj {
+        (+ Body_RF32 [[-0.001400, -0.000000, -0.030000], [-0.000000, 0.000000, -0.000000]],
+         - Body_RF33,
+         - AXIS_M_Y);
+    }
+    @RF41: rj {
+        (+ Body_RWR [[-0.023000, 0.055500, -0.075500], [-0.000000, 0.000000, -3.141593]],
+         - Body_RF41,
+         - AXIS_M_Y);
+    }
+    @RF42: rj {
+        (+ Body_RF41 [[-0.002000, 0.010500, -0.042000], [-0.000000, 0.000000, -0.000000]],
+         - Body_RF42,
+         - AXIS_M_Y);
+    }
+    @RF43: rj {
+        (+ Body_RF42 [[-0.001400, -0.000000, -0.030000], [-0.000000, 0.000000, -0.000000]],
+         - Body_RF43,
+         - AXIS_M_Y);
+    }
+}

@@ -1,0 +1,51 @@
+// galambos_ab_deliver.hymeko — the push-controller-corpus TD3+BC refine campaign, declaratively (2026-07-05).
+//
+// Treatment arm trains on the ORACLE-CERTIFIED delivering reward (galambos_task_deliver.hymeko:
+// de-annuitized, terminal_deliver 30 — no per-step contact annuity to fight the push-teacher's BC anchor).
+// Eval is always the baseline env's dwell delivery (the true task), independent of the training reward.
+// The pre-queue oracle gate in the runner re-certifies whatever this file points at — the declaration
+// does not bypass the certificate.
+
+galambos_ab_deliver_description {
+    @"meta_experiment.hymeko";
+    using experiment.params as xp;
+    using experiment        as x;
+}
+
+galambos_ab_deliver: xp, x
+{
+    // Training budget (the 2026-07-04/05 campaign scale).
+    @budget: xp.budget {
+        difficulty 0.3;
+        total_steps 200000;
+        n_demos 200;
+        bc_epochs 200;
+        seeds [0, 1, 2];
+    }
+
+    // One treatment arm; no baseline re-run (the baseline's shape is known and cached — measured 2026-07-04
+    // A/B + the aborted 2026-07-05 run; re-running the reference every A/B is the pattern the
+    // baseline-once rule forbids).
+    @arms: xp.arms {
+        variant "coord";
+        treatment_name "deliver";
+        treatment_hymeko "data/robotics/galambos_task_deliver.hymeko";
+    }
+
+    // Off-policy trainer overrides (recipe lives in .hymeko, not code).
+    // critic_huber: the FRAMEWORK FIX (report 2026-07-05-qterm-collapse-rootcause) — Huber critic loss bounds
+    // the +30/18x-rms terminal-reward TD spike that MSE squares into a value-overshoot divergence (frozen-policy
+    // fitted-Q evaluation: true -24 -> -60; critic loss 90 -> <0.4). It is the right STABILITY default for this
+    // spiky-terminal reward. It does NOT by itself solve the delivery collapse: the critic GRADIENT is still
+    // misaligned with delivery (offline-RL extrapolation + dense-annuity-dominated return), so RL still degrades
+    // the clone. Closing that needs the reward-shape optimization (docs/plans/2026-07-04-reward-shape-optimization),
+    // gradient-free-on-delivery, or on-policy RL — see the report's ranked menu.
+    @offpolicy: xp.offpolicy {
+        critic_huber 1.0;
+        critic_lr 0.0003;
+    }
+
+    @experiment_spec: x.experiment_spec {
+        (+ budget, + arms, + offpolicy);
+    }
+}

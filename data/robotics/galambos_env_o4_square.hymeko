@@ -1,0 +1,27 @@
+// galambos_env_o4_square.hymeko — OBJ_O4-S: the SHAPE / orientation-dependent-contact ablation (R11.7A U6).
+//
+// Identical Galambos scene/task to galambos_env.hymeko; ONLY the manipulated object differs. O4-S is a square
+// flat prism with the SAME projected area as the reference disk (side = sqrt(pi)*0.02 = 0.035449, half-extent
+// 0.0177245) and the SAME thickness ⇒ same volume ⇒ same mass at the default density, friction unchanged.
+// This isolates SHAPE / orientation-dependent contact from size, mass, and friction.
+
+galambos_env_description {
+    @"meta_env.hymeko";
+    using env.params as p;
+    using env        as e;
+}
+
+galambos_env: p, e
+{
+    @zone:   p.target_zone { half 0.04; rx_lo -0.05; rx_hi 0.05; ry_lo 0.10; ry_hi 0.18; randomize 1.0; }
+    @spawn:  p.coin_spawn  { rx_lo -0.20; rx_hi 0.20; ry_lo 0.05; ry_hi 0.23; clearance 0.03; }
+    @bounds: p.workspace   { x_bound 0.40; y_min -0.08; y_max 0.45; }
+    @succ:   p.success     { steps 5.0; }
+
+    // O4-S: square prism, equal projected area to the disk (half-extents 0.0177245), density default ⇒ mass = O0.
+    @dsk:    p.disk        { shape "box"; family "prism_square"; radius 0.0177245; radius_y 0.0177245; half 0.02; damping 2.5; spin_damping 0.8; frictionloss 0.0; }
+
+    @env_spec: e.env_spec {
+        (+ zone, + spawn, + bounds, + succ, + dsk);
+    }
+}

@@ -1,0 +1,187 @@
+// Tiny dual-agent blocksworld as a HymeKo planning problem.
+//
+// Two robots (R_left, R_right), 3 blocks (A, B, C), 3 stacks
+// (S0, S1, S2). Goal: re-stack from the initial config
+//   S0: [A, B, C]  S1: []  S2: []
+// to
+//   S0: []  S1: []  S2: [C, B, A]   (full reversal)
+//
+// The non-trivial part: the optimal plan uses both robots in
+// parallel, with one `hand_to_other` coordination — the
+// dual-agent primitive that classical PDDL handles via auxiliary
+// state variables and that SpherePlanner (see
+// `docs/notes/2026-05-16-hypergraph-planning.md`) would handle
+// as a native N-ary hyperedge.
+//
+// Status as of 2026-05-16: PARSES + validates against the
+// `meta_task` vocabulary shipped tonight. Does NOT yet solve —
+// solving is the SpherePlanner research target.
+//
+// Hyperedge sign convention used here (consistent with
+// meta_task):
+//   + arc → asserted / required / required-after
+//   - arc → denied   / removed  / forbidden
+//
+// A precondition hyperedge `(+ action, - holding_b)` reads:
+//   "action requires NOT holding_b at apply time".
+// An effect hyperedge `(+ action, + holding_b)` reads:
+//   "after action, holding_b is asserted true".
+
+dual_agent_blocksworld {
+  @"../meta_task.hymeko";
+  @"../meta_kinematics.hymeko";
+  using task.actions       as a;
+  using task.composites    as c;
+  using task.conditions    as cond;
+  using task.coordination  as coord;
+  using task.scene         as scn;
+  using kinematics.elements as el;
+}
+
+problem: a, c, cond, coord, scn, el
+{
+    // ─── World objects ─────────────────────────────────────────
+    // Three blocks. Each "is" both a block-thing and a frame in
+    // 3-space; for planning the frame is just the symbolic
+    // location attached to the block.
+    @block_A: scn.scene_object { (+ A_frame); mass_kg 0.1; }
+    @block_B: scn.scene_object { (+ B_frame); mass_kg 0.1; }
+    @block_C: scn.scene_object { (+ C_frame); mass_kg 0.1; }
+    A_frame: el.frame {}
+    B_frame: el.frame {}
+    C_frame: el.frame {}
+
+    // Three stacks (locations).
+    S0: el.frame {}
+    S1: el.frame {}
+    S2: el.frame {}
+
+    // Two robots (the "agents" in the planning sense).
+    R_left:  el.frame {}
+    R_right: el.frame {}
+
+    // ─── State predicates ──────────────────────────────────────
+    // Each predicate is itself a hyperedge — sign labels carry
+    // the truth value. The PLANNER reads the union of all
+    // predicate hyperedges as "current state" and updates them
+    // per applied action's effect.
+    //
+    // Initial state: S0 holds the stack [A bottom, B mid, C top];
+    // both robots are idle.
+    @on_AB_S0: cond.at_pose { (+ block_A, - S0); }   // A on S0 bottom
+    @on_BA: cond.at_pose { (+ block_B, - block_A); } // B on A
+    @on_CB: cond.at_pose { (+ block_C, - block_B); } // C on B (top of stack)
+    @clear_C_initial: cond.at_pose { (+ block_C); }  // clear means "nothing on top"
+    @clear_S1_initial: cond.at_pose { (+ S1); }
+    @clear_S2_initial: cond.at_pose { (+ S2); }
+    @free_R_left_initial:  cond.holding { (+ R_left); }   // not holding any block
+    @free_R_right_initial: cond.holding { (+ R_right); }  // not holding any block
+
+    // Goal state (what we want true at the end): S2 holds the
+    // reversed stack [C bottom, B mid, A top]; both robots free
+    // again.
+    @goal_on_CS2:    cond.at_pose { (+ block_C, - S2); }
+    @goal_on_BC:     cond.at_pose { (+ block_B, - block_C); }
+    @goal_on_AB_S2:  cond.at_pose { (+ block_A, - block_B); }
+    @goal_clear_A:   cond.at_pose { (+ block_A); }
+    @goal_clear_S0:  cond.at_pose { (+ S0); }
+    @goal_clear_S1:  cond.at_pose { (+ S1); }
+    @goal_free_left:  cond.holding { (+ R_left); }
+    @goal_free_right: cond.holding { (+ R_right); }
+
+    // ─── Action schemata (one instantiation per (agent, block, src, dst)) ─
+    // For brevity we declare ONE concrete instantiation of each
+    // schema (the parametric N-instance expansion would be done
+    // by a future `transforms/blocksworld/` template). The four
+    // schemas are:
+    //   pick(R, X, src)         — R picks X off src
+    //   place(R, X, dst)        — R places X on dst
+    //   stack(R, X, Y)          — R places X on Y
+    //   hand_to_other(R1, R2, X) — R1 passes X to R2 (the coordination one)
+
+    // pick R_left C off block_B  (in the initial state)
+    @pick_left_C: a.grip_close { (+ R_left, - block_C); }
+    // place R_left C on S1
+    @place_left_C_on_S1: a.grip_open { (+ R_left); }
+
+    // pick R_left B off A
+    @pick_left_B: a.grip_close { (+ R_left, - block_B); }
+    // place R_left B on S2
+    @place_left_B_on_S2: a.grip_open { (+ R_left); }
+
+    // pick R_right C off S1  (during reversal)
+    @pick_right_C: a.grip_close { (+ R_right, - block_C); }
+    // stack R_right C on S2 (will be base of reversed stack)
+    @stack_right_C_on_S2: a.grip_open { (+ R_right); }
+
+    // The coordination primitive: R_left passes block A to R_right
+    // mid-reversal (avoids a re-stack onto S1 + re-pickup; the
+    // PARALLEL plan that this enables is the one classical
+    // planners struggle to find without explicit coordination
+    // hints).
+    @handover_A: coord.handover { (+ R_left, - R_right, + block_A); }
+
+    // ─── Initial state bundle ──────────────────────────────────
+    // A single composite-style hyperedge whose arcs enumerate
+    // the predicates that hold initially. The planner reads
+    // this as the start state of search.
+    @initial_state: c.sequence {
+        (+ on_AB_S0,
+         + on_BA,
+         + on_CB,
+         + clear_C_initial,
+         + clear_S1_initial,
+         + clear_S2_initial,
+         + free_R_left_initial,
+         + free_R_right_initial);
+    }
+
+    // ─── Goal state bundle ─────────────────────────────────────
+    // Same pattern; the planner reads this as the target.
+    @goal_state: c.sequence {
+        (+ goal_on_CS2,
+         + goal_on_BC,
+         + goal_on_AB_S2,
+         + goal_clear_A,
+         + goal_clear_S0,
+         + goal_clear_S1,
+         + goal_free_left,
+         + goal_free_right);
+    }
+
+    // ─── Domain bundle ─────────────────────────────────────────
+    // The set of available actions for the planner to choose
+    // from. SpherePlanner would compute Forman κ + Hodge Δ_1
+    // over this set and use them as expansion heuristics.
+    @domain: c.fallback {
+        (+ pick_left_C,
+         + place_left_C_on_S1,
+         + pick_left_B,
+         + place_left_B_on_S2,
+         + pick_right_C,
+         + stack_right_C_on_S2,
+         + handover_A);
+    }
+
+    // ─── Planning problem ──────────────────────────────────────
+    // Bundle of (domain, initial_state, goal_state, agents).
+    // A SpherePlanner emit template would read this entry point
+    // to produce a per-domain plan.
+    @planning_problem: c.entry {
+        (+ domain, + initial_state, + goal_state,
+         - R_left, - R_right);
+    }
+}
+
+// =====================================================================
+// Validation footer:
+//
+//   $ target/release/hymeko validate \
+//       data/robotics/planning_examples/dual_agent_blocksworld_2x3.hymeko
+//   → "✅ ... is valid"
+//
+// Inspection: 6 frames + 3 scene_object blocks (the world); 16
+// state-predicate hyperedges (8 initial + 8 goal); 7 action
+// instantiations; 3 bundle composites; 1 entry. The IR is the
+// queryable artefact even before SpherePlanner exists.
+// =====================================================================

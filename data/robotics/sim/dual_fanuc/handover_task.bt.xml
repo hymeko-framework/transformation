@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4">
+  <BehaviorTree ID="HandoverTask">
+    <!--agents: fanuc_left, fanuc_right  (multi-arm cell from dual_fanuc/world.sdf)-->
+    <Sequence name="pick_handover_place">
+      <Action ID="MoveTo" name="move_left_to_input" actor="fanuc_left" target="input_pickup" />
+      <Action ID="GripClose" name="grip_left_close" actor="fanuc_left" target="part" />
+      <Parallel success_count="2" failure_count="1" name="phase2_parallel">
+        <Action ID="MoveTo" name="move_left_to_handover" actor="fanuc_left" target="handover_pose_left" />
+        <Action ID="MoveTo" name="move_right_to_handover" actor="fanuc_right" target="handover_pose_right" />
+      </Parallel>
+      <Sequence name="do_handover">
+        <Action ID="GripClose" actor="fanuc_right" object="part" name="do_handover_close_right" />
+        <SyncPoint name="do_handover_grasp_sync" />
+        <Action ID="GripOpen" actor="fanuc_left" name="do_handover_open_left" />
+      </Sequence>
+      <Action ID="MoveTo" name="move_right_to_output" actor="fanuc_right" target="output_place" />
+      <Action ID="GripOpen" name="grip_right_open" actor="fanuc_right" />
+      <Parallel success_count="2" failure_count="1" name="phase5_parallel">
+        <Action ID="MoveTo" name="move_left_home" actor="fanuc_left" target="home_pose_left" />
+        <Action ID="MoveTo" name="move_right_home" actor="fanuc_right" target="home_pose_right" />
+      </Parallel>
+    </Sequence>
+  </BehaviorTree>
+</root>
