@@ -5,7 +5,7 @@
 //! `docs/plans/06_wasm_editor/step1_ir_design.md` § "Risks".
 //!
 //! Also verifies the reverse direction: an arena IR produced by the full
-//! `ModuleStore` pipeline (loading `data/robotics/mini_arm.hymeko`) can
+//! `ModuleStore` pipeline (loading `data/robotics/robots/mini_arm.hymeko`) can
 //! be projected into an editor IR, then projected back, yielding a new
 //! arena IR with the same node/edge counts.
 
@@ -199,7 +199,7 @@ fn mini_arm_compile_ir_projects_into_editor_and_back() {
     // bridge should still produce an editor IR that preserves at least
     // the robot's visible nodes and the spin_joint edge.
     let (store, compiled) =
-        load_and_lower("../data/robotics/mini_arm.hymeko").expect("compile");
+        load_and_lower("../data/robotics/robots/mini_arm.hymeko").expect("compile");
     let editor = from_compiler_ir(&compiled.ir, &store.it);
 
     let names: BTreeSet<&str> = editor
@@ -221,7 +221,7 @@ fn mini_arm_compile_ir_projects_into_editor_and_back() {
 #[test]
 fn arena_editor_arena_roundtrip_preserves_node_and_edge_counts() {
     let (store, compiled) =
-        load_and_lower("../data/robotics/mini_arm.hymeko").expect("compile");
+        load_and_lower("../data/robotics/robots/mini_arm.hymeko").expect("compile");
     let n_nodes = compiled.ir.nodes.len();
     let n_edges = compiled.ir.edges.len();
 

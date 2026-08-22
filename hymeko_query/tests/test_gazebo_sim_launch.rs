@@ -1,7 +1,7 @@
 //! End-to-end Gazebo launch bundle test.
 //!
 //! Generates the minimum set of files needed to launch
-//! `data/robotics/anthropomorphic_arm.hymeko` in the **new Gazebo** (`gz
+//! `data/robotics/robots/anthropomorphic_arm.hymeko` in the **new Gazebo** (`gz
 //! sim`, a.k.a. Ignition / Gazebo Harmonic / Ionic — not the classic
 //! `gazebo-classic` stack):
 //!
@@ -40,7 +40,7 @@ mod test_gazebo_sim_launch {
 
     use crate::test_helpers::{load_and_lower, log_test_footer, log_test_header};
 
-    const MOVEO: &str = "../data/robotics/anthropomorphic_arm.hymeko";
+    const MOVEO: &str = "../data/robotics/robots/anthropomorphic_arm.hymeko";
     const ROBOT_NAME: &str = "moveo";
     const WORLD_NAME: &str = "empty";
 
@@ -87,7 +87,7 @@ old `gazebo-classic`).
 
 - `{urdf_file}`  — URDF robot description produced by
   `hymeko_formats::urdf::generate_urdf` from
-  `data/robotics/anthropomorphic_arm.hymeko`.
+  `data/robotics/robots/anthropomorphic_arm.hymeko`.
 - `{world_file}`  — Minimal SDF 1.8 world with a ground plane and the
   standard `gz-sim-physics-system` / `-user-commands-system` /
   `-scene-broadcaster-system` plugin triple.

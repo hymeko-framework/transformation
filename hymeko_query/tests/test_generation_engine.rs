@@ -9,8 +9,8 @@ mod test_generation_engine {
     // ============================================================
     // Test fixtures
     // ============================================================
-    const DIFF_ROBOT: &str = "../data/robotics/robot_4wh.hymeko";
-    const MOVEO_ARM: &str = "../data/robotics/anthropomorphic_arm.hymeko";
+    const DIFF_ROBOT: &str = "../data/robotics/robots/robot_4wh.hymeko";
+    const MOVEO_ARM: &str = "../data/robotics/robots/anthropomorphic_arm.hymeko";
 
     /// Helper: extract names from Vec<QueryMatch>
     fn names(matches: &[QueryMatch]) -> Vec<&str> {

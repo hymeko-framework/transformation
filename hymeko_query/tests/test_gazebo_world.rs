@@ -21,8 +21,8 @@ mod test_gazebo_world {
 
     use crate::test_helpers::load_and_lower;
 
-    const MOVEO: &str = "../data/robotics/anthropomorphic_arm.hymeko";
-    const DIFF_ROBOT: &str = "../data/robotics/robot_4wh.hymeko";
+    const MOVEO: &str = "../data/robotics/robots/anthropomorphic_arm.hymeko";
+    const DIFF_ROBOT: &str = "../data/robotics/robots/robot_4wh.hymeko";
 
     // ---- plugin extractor ---------------------------------------------------
 

@@ -6,7 +6,7 @@ mod test_query_robot {
     use hymeko_query::engine::QueryEngine;
     use hymeko_query::{Predicate, ValuePredicate};
 
-    const ROBOT: &str = "../data/robotics/robot_4wh.hymeko";
+    const ROBOT: &str = "../data/robotics/robots/robot_4wh.hymeko";
 
     /// Helper: extract names from Vec<QueryMatch>
     fn names(matches: &[QueryMatch]) -> Vec<&str> {

@@ -16,8 +16,8 @@ mod test_template_driven {
 
     use crate::test_helpers::load_and_lower;
 
-    const MOVEO: &str = "../data/robotics/anthropomorphic_arm.hymeko";
-    const MINI_ARM: &str = "../data/robotics/mini_arm.hymeko";
+    const MOVEO: &str = "../data/robotics/robots/anthropomorphic_arm.hymeko";
+    const MINI_ARM: &str = "../data/robotics/robots/mini_arm.hymeko";
 
     /// `<workspace_root>/transforms/` — one level up from the crate
     /// manifest (`hymeko_query/`).

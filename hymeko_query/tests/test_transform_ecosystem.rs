@@ -4,10 +4,10 @@ mod test_transform_ecosystem {
     use hymeko_query::kinematics::kinematic::*;
     use hymeko_query::transforms::ModelView;
 
-    const MOVEO_ARM: &str = "../data/robotics/anthropomorphic_arm.hymeko";
-    const MOVEO_ARM_USING: &str = "../data/robotics/anthropomorphic_arm_using.hymeko";
-    const DIFF_ROBOT: &str = "../data/robotics/robot_4wh.hymeko";
-    const DIFF_ROBOT_USING: &str = "../data/robotics/robot_4wh_using.hymeko";
+    const MOVEO_ARM: &str = "../data/robotics/robots/anthropomorphic_arm.hymeko";
+    const MOVEO_ARM_USING: &str = "../data/robotics/robots/anthropomorphic_arm_using.hymeko";
+    const DIFF_ROBOT: &str = "../data/robotics/robots/robot_4wh.hymeko";
+    const DIFF_ROBOT_USING: &str = "../data/robotics/robots/robot_4wh_using.hymeko";
 
     // ============================================================
     // Registry tests

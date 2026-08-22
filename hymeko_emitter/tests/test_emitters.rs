@@ -1,5 +1,5 @@
 //! Integration tests for the four M2T emitters driven by a real
-//! `.hymeko` fixture (`data/robotics/mini_arm.hymeko`). Loads it through
+//! `.hymeko` fixture (`data/robotics/robots/mini_arm.hymeko`). Loads it through
 //! the full `ModuleStore` pipeline, then asserts structural invariants on
 //! each emitter's output.
 
@@ -36,7 +36,7 @@ fn load_and_lower(
     Ok((store, compiled))
 }
 
-const MINI_ARM: &str = "../data/robotics/mini_arm.hymeko";
+const MINI_ARM: &str = "../data/robotics/robots/mini_arm.hymeko";
 
 #[test]
 fn emit_hymeko_produces_non_empty_bracketed_output() {

@@ -33,13 +33,13 @@ mod test_prop_witnesses {
     const ALIAS_PAIRS: &[(&str, &str, &str)] = &[
         // (baseline,                                        alias-variant,                                              robot_name)
         (
-            "../data/robotics/anthropomorphic_arm.hymeko",
-            "../data/robotics/anthropomorphic_arm_using.hymeko",
+            "../data/robotics/robots/anthropomorphic_arm.hymeko",
+            "../data/robotics/robots/anthropomorphic_arm_using.hymeko",
             "moveo",
         ),
         (
-            "../data/robotics/robot_4wh.hymeko",
-            "../data/robotics/robot_4wh_using.hymeko",
+            "../data/robotics/robots/robot_4wh.hymeko",
+            "../data/robotics/robots/robot_4wh_using.hymeko",
             "diff_robot",
         ),
     ];
@@ -135,9 +135,9 @@ mod test_prop_witnesses {
             // structures. If this ever fired, hash_doc would be
             // collapsing distinct IRs to the same digest.
             let pairs = [
-                "../data/robotics/anthropomorphic_arm.hymeko",
-                "../data/robotics/robot_4wh.hymeko",
-                "../data/robotics/mini_arm.hymeko",
+                "../data/robotics/robots/anthropomorphic_arm.hymeko",
+                "../data/robotics/robots/robot_4wh.hymeko",
+                "../data/robotics/robots/mini_arm.hymeko",
             ];
             let digests: Vec<_> = pairs
                 .iter()
@@ -194,7 +194,7 @@ mod test_prop_witnesses {
 
         #[test]
         fn six_emitters_share_one_compiled_ir() {
-            let path = "../data/robotics/anthropomorphic_arm.hymeko";
+            let path = "../data/robotics/robots/anthropomorphic_arm.hymeko";
             let (store, c) = load_and_lower(path).unwrap();
 
             // Two routes for URDF emission: direct after compile, and

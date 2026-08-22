@@ -1,4 +1,4 @@
-//! Dedicated generation suite for `data/robotics/anthropomorphic_arm.hymeko`.
+//! Dedicated generation suite for `data/robotics/robots/anthropomorphic_arm.hymeko`.
 //!
 //! Where `test_generation_engine.rs` spreads moveo coverage across
 //! kinematic-extraction / URDF / SDF sections, this file is organised
@@ -31,7 +31,7 @@ mod test_anthropomorphic_generation {
 
     use crate::test_helpers::{load_and_lower, log_test_footer, log_test_header};
 
-    const MOVEO: &str = "../data/robotics/anthropomorphic_arm.hymeko";
+    const MOVEO: &str = "../data/robotics/robots/anthropomorphic_arm.hymeko";
     const ROBOT_NAME: &str = "moveo";
 
     /// Links the kinematic extractor should produce. `world` is declared

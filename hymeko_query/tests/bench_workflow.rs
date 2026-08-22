@@ -62,27 +62,27 @@ mod bench_workflow {
     const FIXTURES: &[Fixture] = &[
         Fixture {
             label: "mini_arm",
-            path: "../data/robotics/mini_arm.hymeko",
+            path: "../data/robotics/robots/mini_arm.hymeko",
             robot_name: "mini_arm",
         },
         Fixture {
             label: "anthropomorphic_arm",
-            path: "../data/robotics/anthropomorphic_arm.hymeko",
+            path: "../data/robotics/robots/anthropomorphic_arm.hymeko",
             robot_name: "moveo",
         },
         Fixture {
             label: "anthropomorphic_using",
-            path: "../data/robotics/anthropomorphic_arm_using.hymeko",
+            path: "../data/robotics/robots/anthropomorphic_arm_using.hymeko",
             robot_name: "moveo",
         },
         Fixture {
             label: "robot_4wh",
-            path: "../data/robotics/robot_4wh.hymeko",
+            path: "../data/robotics/robots/robot_4wh.hymeko",
             robot_name: "diff_robot",
         },
         Fixture {
             label: "robot_4wh_using",
-            path: "../data/robotics/robot_4wh_using.hymeko",
+            path: "../data/robotics/robots/robot_4wh_using.hymeko",
             robot_name: "diff_robot",
         },
     ];

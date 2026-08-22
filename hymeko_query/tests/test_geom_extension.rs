@@ -8,9 +8,9 @@ mod test_geom_extension {
         extract_kinematic_model, CollisionMask, GeometryShape, KinematicModel,
     };
 
-    const GEOM_EXT: &str = "../data/robotics/test_geom_ext.hymeko";
-    const GEOM_UNKNOWN: &str = "../data/robotics/test_geom_unknown.hymeko";
-    const GALAMBOS: &str = "../data/robotics/galambos_planar.hymeko";
+    const GEOM_EXT: &str = "../data/robotics/test_fixtures/test_geom_ext.hymeko";
+    const GEOM_UNKNOWN: &str = "../data/robotics/test_fixtures/test_geom_unknown.hymeko";
+    const GALAMBOS: &str = "../data/robotics/galambos/galambos_planar.hymeko";
 
     fn model(path: &str, name: &str) -> KinematicModel {
         let (store, compiled) = load_and_lower(path).unwrap();

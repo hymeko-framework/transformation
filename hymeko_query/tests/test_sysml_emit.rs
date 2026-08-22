@@ -9,7 +9,7 @@ mod test_sysml_emit {
 
     use crate::test_helpers::load_and_lower;
 
-    const MINI_ARM: &str = "../data/robotics/mini_arm.hymeko";
+    const MINI_ARM: &str = "../data/robotics/robots/mini_arm.hymeko";
     const WAM: &str = "../data/robotics_imported/wam/wam.hymeko";
 
     fn render_sysml(src: &str, name: &str) -> String {
