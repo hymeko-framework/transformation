@@ -3,7 +3,7 @@
 // Each link defines its geometry ONCE and references it for both visual and
 // collision; the kinematics vocabulary is imported once and aliased.
 arm_reuse_description {
-    @"meta_kinematics.hymeko";
+    @"constants/meta_kinematics.hymeko";
     using kinematics.elements as el;
     using kinematics.geometry as geo;
     using kinematics.axes as ax;
