@@ -43,8 +43,8 @@ mod bench_workflow {
     use hymeko_formats::sdf::generate_sdf;
     use hymeko_formats::urdf::generate_urdf;
     use hymeko_query::engine::QueryEngine;
-    use hymeko_query::kinematics::kinematic::extract_kinematic_model;
-    use hymeko_query::transforms::{
+    use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
+    use hymeko_geometry::transforms::{
         DomainTransform, ModelView, TransformConfig, TransformRegistry,
     };
 

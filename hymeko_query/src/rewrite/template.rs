@@ -273,7 +273,7 @@ fn decl_inherits_from<R: NameResolver>(
     if max_depth == 0 || did.is_none() {
         return false;
     }
-    let decl = &ir.decl_nodes[did.0];
+    let decl = &ir.decl_nodes[did.raw()];
 
     // Direct-name match on the decl itself.
     if resolver.resolve(decl.name) == base_name {
@@ -282,13 +282,13 @@ fn decl_inherits_from<R: NameResolver>(
 
     // Pull bases list from NodeRec or EdgeRec.
     let bases: Vec<hymeko::common::ids::DeclId> = if let Some(nid) = ir.as_node(did) {
-        ir.nodes[nid.0]
+        ir.nodes[nid.raw()]
             .bases
             .iter()
             .map(|b| b.target())
             .collect()
     } else if let Some(eid) = ir.as_edge(did) {
-        ir.edges[eid.0]
+        ir.edges[eid.raw()]
             .bases
             .iter()
             .map(|b| b.target())
@@ -325,7 +325,7 @@ fn resolve_expr<R: NameResolver>(expr: &str, ctx: &RenderContext<R>) -> String {
             hymeko::ir::ir::DeclKind::HyperArc => "arc".into(),
         },
         "depth" => m.depth.to_string(),
-        "id" => m.id.0.to_string(),
+        "id" => m.id.raw().to_string(),
 
         _ if expr.starts_with("field:") => {
             let field_path = &expr["field:".len()..];

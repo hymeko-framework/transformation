@@ -464,9 +464,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
+name = "hymeko_clifford"
+version = "0.1.0"
+
+[[package]]
 name = "hymeko_core"
 version = "0.1.0"
-source = "git+ssh://git@amaterasu.local:2222/hymeko/core.git?branch=main#15223bcd762806b69909ea73f7526586c2d2ded6"
+source = "git+ssh://git@amaterasu.local:2222/hymeko/core.git?branch=main#bbe7f635e3c67f82807df44fa0dba9c59f4b9a46"
 dependencies = [
  "blake3",
  "nalgebra",
@@ -495,9 +499,21 @@ name = "hymeko_formats"
 version = "0.1.0"
 dependencies = [
  "hymeko_core",
+ "hymeko_geometry",
  "hymeko_query",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "hymeko_geometry"
+version = "0.1.0"
+dependencies = [
+ "hymeko_clifford",
+ "hymeko_core",
+ "hymeko_query",
+ "log",
+ "parser",
 ]
 
 [[package]]
@@ -507,6 +523,7 @@ dependencies = [
  "env_logger",
  "hymeko_core",
  "hymeko_formats",
+ "hymeko_geometry",
  "log",
  "parser",
 ]
@@ -796,7 +813,7 @@ dependencies = [
 [[package]]
 name = "parser"
 version = "0.1.0"
-source = "git+ssh://git@amaterasu.local:2222/hymeko/parser.git?branch=master#e28a205147c48273980e63aa3338ca286974a6ed"
+source = "git+ssh://git@amaterasu.local:2222/hymeko/parser.git?branch=master#284c490d68232973a006bcba974279fed6f89ce8"
 dependencies = [
  "lalrpop",
  "lalrpop-util",

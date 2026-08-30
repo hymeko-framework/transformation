@@ -4,7 +4,7 @@
 //!
 //! These tests lock the *current, pre-migration* behaviour of the emitter crate
 //! against the `15223bc` canonical-IR accessor API, so the later mechanical
-//! migration of raw `ir.<arena>[id.0]` reads to accessors is provably
+//! migration of raw `ir.<arena>[id.raw()]` reads to accessors is provably
 //! behaviour-preserving. Nothing here changes production source.
 //!
 //! Four kinds of oracle:
@@ -147,7 +147,7 @@ fn accessor_equivalence_holds_for_every_decl_on_a_real_ir() {
     );
 
     for (did, decl) in ir.decls() {
-        // kind_of == raw decl_nodes[did.0].kind
+        // kind_of == raw decl_nodes[did.raw()].kind
         assert_eq!(
             ir.kind_of(did),
             Some(decl.kind),
@@ -155,7 +155,7 @@ fn accessor_equivalence_holds_for_every_decl_on_a_real_ir() {
         );
 
         // parent_of == raw parent (None when NONE)
-        let raw_parent = ir.decl_nodes[did.0].parent;
+        let raw_parent = ir.decl_nodes[did.raw()].parent;
         let expect_parent = raw_parent.is_some().then_some(raw_parent);
         assert_eq!(
             ir.parent_of(did),
@@ -165,14 +165,14 @@ fn accessor_equivalence_holds_for_every_decl_on_a_real_ir() {
 
         match decl.kind {
             DeclKind::Node => {
-                let nid = ir.decl_to_node[did.0].expect("node mapping present");
+                let nid = ir.decl_to_node[did.raw()].expect("node mapping present");
                 let (a_nid, a_rec) = ir.node_for_decl(did).expect("node_for_decl present");
                 assert_eq!(a_nid, nid, "node id @ {did:?}");
                 assert_eq!(a_rec.decl, did, "node back-link @ {did:?}");
                 assert_eq!(ir.as_node(did), Some(nid), "as_node @ {did:?}");
             }
             DeclKind::Edge => {
-                let eid = ir.decl_to_edge[did.0].expect("edge mapping present");
+                let eid = ir.decl_to_edge[did.raw()].expect("edge mapping present");
                 let (a_eid, a_rec) = ir.edge_for_decl(did).expect("edge_for_decl present");
                 assert_eq!(a_eid, eid, "edge id @ {did:?}");
                 assert_eq!(a_rec.decl, did, "edge back-link @ {did:?}");
@@ -205,12 +205,12 @@ fn node_for_decl_rejects_a_corrupted_backlink_where_raw_would_mislead() {
 
     // Inject a fault: point the record's back-link at a *different* decl.
     let wrong_did = DeclId::new(ir.decl_nodes.len() + 999);
-    ir.nodes[nid.0].decl = wrong_did;
+    ir.nodes[nid.raw()].decl = wrong_did;
 
     // Raw projection is now a silently-wrong answer: the mapping still resolves,
     // the record is still there — it just describes the wrong declaration.
     assert!(
-        ir.decl_to_node[node_did.0].is_some(),
+        ir.decl_to_node[node_did.raw()].is_some(),
         "raw mapping still present"
     );
 
@@ -418,7 +418,7 @@ fn edge_signatures(ir: &Ir, it: &Interner) -> Vec<Vec<(i8, String)>> {
                 if tgt.is_none() {
                     continue;
                 }
-                let name = it.resolve(ir.decl_nodes[tgt.0].name).to_string();
+                let name = it.resolve(ir.decl_nodes[tgt.raw()].name).to_string();
                 sig.push((r.sign(), name));
             }
         }

@@ -36,8 +36,6 @@ pub mod interpret;
 pub mod rewrite;
 
 pub mod traits;
-pub mod kinematics;
-pub mod transforms;
 
 // Re-exports for convenience
 pub use predicate::{NamedQuery, Predicate, ValuePredicate};

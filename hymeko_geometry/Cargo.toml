@@ -1,0 +1,31 @@
+[package]
+name = "hymeko_geometry"
+version = "0.1.0"
+edition = "2024"
+description = "Geometric and kinematic reading of the HyMeKo IR: shapes, links, joints, and forward kinematics"
+license = "MIT OR Apache-2.0"
+
+[lib]
+name = "hymeko_geometry"
+crate-type = ["rlib"]
+
+# The layering this crate exists to restore:
+#
+#   hymeko_core      the IR
+#   hymeko_query     pattern matching ON the IR — generic, domain-free (its stated charter)
+#   hymeko_geometry  the GEOMETRIC reading of the IR — shapes, links, joints, poses  ← here
+#   hymeko_formats   emitters that write that reading out (URDF, SDF, MJCF, …)
+#
+# `kinematics` and `transforms` used to live inside `hymeko_query`, which describes itself as a
+# pattern-matching query engine; a robot's links and joints are not pattern matching. The query core
+# never referenced them, so the split is clean and one-directional.
+[dependencies]
+hymeko_core = { workspace = true }
+hymeko_query = { path = "../hymeko_query" }
+# SE(n) comes from the Tensor pillar's geometric algebra. NOTE: a PATH dependency only until the
+# `hymeko/tensor` repo is pushed with `hymeko_clifford::algebra::Se`; flip it to a git line then.
+hymeko_clifford = { workspace = true }
+log = { workspace = true }
+
+[dev-dependencies]
+parser = { workspace = true }

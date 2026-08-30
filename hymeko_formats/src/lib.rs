@@ -10,8 +10,8 @@
 //! downstream consumers can assemble a ready-to-use registry in one
 //! call.
 //!
-//! [`DomainTransform`]: hymeko_query::transforms::DomainTransform
-//! [`TransformRegistry`]: hymeko_query::transforms::TransformRegistry
+//! [`DomainTransform`]: hymeko_geometry::transforms::DomainTransform
+//! [`TransformRegistry`]: hymeko_geometry::transforms::TransformRegistry
 
 #![allow(
     clippy::collapsible_if,
@@ -36,12 +36,12 @@ pub use transforms::{
     SysmlTransform, TorchDataflowTransform, UrdfTransform,
 };
 
-use hymeko_query::transforms::TransformRegistry;
+use hymeko_geometry::transforms::TransformRegistry;
 
 /// Register the built-in transforms into an existing registry.
 ///
 /// This is the single point that binds format names to concrete
-/// implementations. `hymeko_query::transforms::TransformRegistry::new()`
+/// implementations. `hymeko_geometry::transforms::TransformRegistry::new()`
 /// starts empty; call this (or [`default_registry`]) to wire up the
 /// standard set.
 pub fn register_defaults(reg: &mut TransformRegistry) {

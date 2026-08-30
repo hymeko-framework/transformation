@@ -26,7 +26,7 @@ use hymeko::ir::ir::{ArcRec, DeclKind, Ir, SignedRefR, ValueR};
 use hymeko::resolution::interner::Interner;
 
 fn decl_name<'a>(ir: &'a Ir, it: &'a Interner, did: DeclId) -> &'a str {
-    it.resolve(ir.decl_nodes[did.0].name)
+    it.resolve(ir.decl_nodes[did.raw()].name)
 }
 
 fn sign_value(r: &SignedRefR) -> &'static str {
@@ -62,10 +62,10 @@ fn sysml_literal(ir: &Ir, it: &Interner, v: &ValueR) -> String {
 fn emit_node_attributes(ir: &Ir, it: &Interner, did: DeclId, depth: usize, out: &mut String) {
     let pad = "    ".repeat(depth);
     for child in ir.children(did) {
-        if ir.decl_nodes[child.0].kind == DeclKind::HyperArc {
+        if ir.decl_nodes[child.raw()].kind == DeclKind::HyperArc {
             continue;
         }
-        let anno = &ir.decl_nodes[child.0].anno;
+        let anno = &ir.decl_nodes[child.raw()].anno;
         if let Some(v) = &anno.value {
             let child_name = decl_name(ir, it, child);
             let _ = writeln!(
@@ -134,7 +134,7 @@ fn emit_connection_defs(ir: &Ir, interner: &Interner, out: &mut String) {
     for edge in &ir.edges {
         let name = decl_name(ir, interner, edge.decl);
         for (arc_idx, &arc_id) in edge.arcs.iter().enumerate() {
-            let arc = &ir.arcs[arc_id.0];
+            let arc = &ir.arcs[arc_id.raw()];
             emit_arc(name, arc_idx, arc, ir, interner, out);
         }
     }

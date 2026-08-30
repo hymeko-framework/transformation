@@ -20,9 +20,9 @@ mod test_anthropomorphic_generation {
     use hymeko_formats::sdf::generate_sdf;
     use hymeko_formats::urdf::generate_urdf;
     use hymeko_query::engine::QueryEngine;
-    use hymeko_query::kinematics::joints::{JointInfo, JointType};
-    use hymeko_query::kinematics::kinematic::*;
-    use hymeko_query::transforms::{
+    use hymeko_geometry::kinematics::joints::{JointInfo, JointType};
+    use hymeko_geometry::kinematics::kinematic::*;
+    use hymeko_geometry::transforms::{
         DomainTransform, ModelView, TransformConfig, TransformRegistry,
     };
     use hymeko_query::{Predicate, ValuePredicate};
@@ -145,7 +145,7 @@ mod test_anthropomorphic_generation {
     ///   - `<inertial>` lacked the required `pos` attribute (load error).
     #[test]
     fn mjcf_emit_is_loadable_and_articulable_b004_b005() {
-        use hymeko_query::transforms::{ModelView, TransformConfig};
+        use hymeko_geometry::transforms::{ModelView, TransformConfig};
 
         let reg = hymeko_formats::default_registry();
         let t = reg.get("mjcf").expect("mjcf transform must be registered");

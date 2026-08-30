@@ -10,7 +10,7 @@
 //! Everything downstream (`DomainTransform::emit`, `ModelView`) is type-erased.
 
 use hymeko::ir::ir::Ir;
-use crate::traits::NameResolver;
+use hymeko_query::traits::NameResolver;
 use crate::transforms::model_view::{extract, ModelKind};
 use crate::transforms::{
     TransformConfig, TransformRegistry, Diagnostic,

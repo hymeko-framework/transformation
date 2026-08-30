@@ -24,7 +24,7 @@ const INDENT: &str = "    ";
 
 /// Resolve a `DeclId` to its textual name via the interner.
 fn decl_name<'a>(ir: &'a Ir, it: &'a Interner, did: DeclId) -> &'a str {
-    it.resolve(ir.decl_nodes[did.0].name)
+    it.resolve(ir.decl_nodes[did.raw()].name)
 }
 
 /// Render a `ValueR` as literal text. Strings are double-quoted;
@@ -74,7 +74,7 @@ fn emit_signed_ref(ir: &Ir, it: &Interner, r: &SignedRefR) -> String {
 }
 
 fn emit_tags(ir: &Ir, it: &Interner, did: DeclId) -> String {
-    let tags = &ir.decl_nodes[did.0].anno.tags;
+    let tags = &ir.decl_nodes[did.raw()].anno.tags;
     if tags.is_empty() {
         return String::new();
     }
@@ -91,11 +91,11 @@ fn emit_bases(ir: &Ir, it: &Interner, bases: &[SignedRefR]) -> String {
 }
 
 fn has_child_decls(ir: &Ir, did: DeclId) -> bool {
-    ir.decl_nodes[did.0].first_child.is_some()
+    ir.decl_nodes[did.raw()].first_child.is_some()
 }
 
 fn emit_decl(ir: &Ir, it: &Interner, did: DeclId, depth: usize, out: &mut String) {
-    let decl = &ir.decl_nodes[did.0];
+    let decl = &ir.decl_nodes[did.raw()];
     let name = it.resolve(decl.name);
     let pad = INDENT.repeat(depth);
 
@@ -108,7 +108,7 @@ fn emit_decl(ir: &Ir, it: &Interner, did: DeclId, depth: usize, out: &mut String
             // decl-tree top level should not occur after lowering — if
             // they do, emit them as a fallback tuple so nothing is lost.
             if let Some(aid) = ir.as_arc(did) {
-                let refs: Vec<String> = ir.arcs[aid.0]
+                let refs: Vec<String> = ir.arcs[aid.raw()]
                     .refs
                     .iter()
                     .map(|r| emit_signed_ref(ir, it, r))
@@ -130,10 +130,10 @@ fn emit_node(
 ) {
     let bases = ir
         .as_node(did)
-        .map(|nid| emit_bases(ir, it, &ir.nodes[nid.0].bases))
+        .map(|nid| emit_bases(ir, it, &ir.nodes[nid.raw()].bases))
         .unwrap_or_default();
     let tags = emit_tags(ir, it, did);
-    let inline_value = ir.decl_nodes[did.0].anno.value.as_ref();
+    let inline_value = ir.decl_nodes[did.raw()].anno.value.as_ref();
     let has_children = has_child_decls(ir, did);
 
     // Shape the declaration:
@@ -174,7 +174,7 @@ fn emit_edge(
 ) {
     let bases = ir
         .as_edge(did)
-        .map(|eid| emit_bases(ir, it, &ir.edges[eid.0].bases))
+        .map(|eid| emit_bases(ir, it, &ir.edges[eid.raw()].bases))
         .unwrap_or_default();
     let tags = emit_tags(ir, it, did);
 
@@ -183,8 +183,8 @@ fn emit_edge(
     // Emit the edge's arcs as `(+ a, - b, ~ c);` tuples.
     if let Some(eid) = ir.as_edge(did) {
         let arc_pad = INDENT.repeat(depth + 1);
-        for &aid in &ir.edges[eid.0].arcs {
-            let refs: Vec<String> = ir.arcs[aid.0]
+        for &aid in &ir.edges[eid.raw()].arcs {
+            let refs: Vec<String> = ir.arcs[aid.raw()]
                 .refs
                 .iter()
                 .map(|r| emit_signed_ref(ir, it, r))
@@ -196,7 +196,7 @@ fn emit_edge(
     // Also emit any child decls nested under this edge (e.g. `@control: …`,
     // `limit -> joint0_limit;`, controller parameters).
     for child in ir.children(did) {
-        if ir.decl_nodes[child.0].kind == DeclKind::HyperArc {
+        if ir.decl_nodes[child.raw()].kind == DeclKind::HyperArc {
             // Skip — already emitted via the arcs table above.
             continue;
         }

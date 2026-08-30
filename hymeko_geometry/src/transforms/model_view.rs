@@ -14,8 +14,8 @@
 //! ```
 
 use hymeko::ir::ir::Ir;
-use crate::engine::QueryEngine;
-use crate::traits::NameResolver;
+use hymeko_query::engine::QueryEngine;
+use hymeko_query::traits::NameResolver;
 use crate::kinematics::kinematic::{self, KinematicModel};
 
 // ─── Model kinds ──────────────────────────────────────────────────────────

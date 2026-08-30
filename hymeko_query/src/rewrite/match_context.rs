@@ -96,7 +96,7 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
         let target_name = segments[0];
         let rest = &segments[1..];
         for child in self.ir.decl_children(parent) {
-            let child_name = self.resolver.resolve(self.ir.decl_nodes[child.0].name);
+            let child_name = self.resolver.resolve(self.ir.decl_nodes[child.raw()].name);
             if child_name == target_name {
                 return self.resolve_decl_at(child, rest);
             }
@@ -115,7 +115,7 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
 
         // Search children for a matching name
         for child in self.ir.decl_children(parent) {
-            let child_name = self.resolver.resolve(self.ir.decl_nodes[child.0].name);
+            let child_name = self.resolver.resolve(self.ir.decl_nodes[child.raw()].name);
             if child_name == target_name {
                 if rest.is_empty() {
                     return self.decl_value(child);
@@ -128,15 +128,15 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
         // Try following references: if there's a child that's a reference
         // to a node named `target_name`, follow it
         for child in self.ir.decl_children(parent) {
-            let decl = &self.ir.decl_nodes[child.0];
+            let decl = &self.ir.decl_nodes[child.raw()];
             if decl.kind == DeclKind::Edge {
                 if let Some(eid) = self.ir.as_edge(child) {
-                    let edge = &self.ir.edges[eid.0];
+                    let edge = &self.ir.edges[eid.raw()];
                     for base in &edge.bases {
                         let target = base.target();
                         if !target.is_none() {
                             let target_name_resolved = self.resolver.resolve(
-                                self.ir.decl_nodes[target.0].name
+                                self.ir.decl_nodes[target.raw()].name
                             );
                             if target_name_resolved == target_name {
                                 if rest.is_empty() {
@@ -159,7 +159,7 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
         if did.is_none() {
             return FieldValue::Missing;
         }
-        let decl = &self.ir.decl_nodes[did.0];
+        let decl = &self.ir.decl_nodes[did.raw()];
 
         // Check annotation value first
         if let Some(ref val) = decl.anno.value {
@@ -176,7 +176,7 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
         }
         if child_count == 1 {
             if let Some(c) = single_child {
-                let c_decl = &self.ir.decl_nodes[c.0];
+                let c_decl = &self.ir.decl_nodes[c.raw()];
                 if let Some(ref val) = c_decl.anno.value {
                     return self.value_r_to_field(val);
                 }
@@ -198,7 +198,7 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
                 if did.is_none() {
                     FieldValue::Missing
                 } else {
-                    let name = self.resolver.resolve(self.ir.decl_nodes[did.0].name);
+                    let name = self.resolver.resolve(self.ir.decl_nodes[did.raw()].name);
                     FieldValue::Str(name.to_string())
                 }
             }
@@ -209,7 +209,7 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
     pub fn children_fields(&self) -> Vec<(String, FieldValue)> {
         let mut result = Vec::new();
         for child in self.ir.decl_children(self.match_result.id) {
-            let name = self.resolver.resolve(self.ir.decl_nodes[child.0].name).to_string();
+            let name = self.resolver.resolve(self.ir.decl_nodes[child.raw()].name).to_string();
             let value = self.decl_value(child);
             result.push((name, value));
         }

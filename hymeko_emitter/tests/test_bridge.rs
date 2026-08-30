@@ -278,11 +278,11 @@ fn incident_vertices_that_are_edges_in_arena_are_filtered_on_reverse() {
 
     let node_did = push(&mut ir, fresh(DeclKind::Node, node_sym));
     ir.nodes.push(NodeRec::new(node_did, Vec::new()));
-    ir.decl_to_node[node_did.0] = Some(NodeId::new(0));
+    ir.decl_to_node[node_did.raw()] = Some(NodeId::new(0));
 
     let edge1_did = push(&mut ir, fresh(DeclKind::Edge, edge1_sym));
     ir.edges.push(EdgeRec::new(edge1_did, Vec::new()));
-    ir.decl_to_edge[edge1_did.0] = Some(EdgeId::new(0));
+    ir.decl_to_edge[edge1_did.raw()] = Some(EdgeId::new(0));
 
     let edge2_did = push(&mut ir, fresh(DeclKind::Edge, edge2_sym));
     let mut e2 = EdgeRec::new(edge2_did, Vec::new());
@@ -300,10 +300,10 @@ fn incident_vertices_that_are_edges_in_arena_are_filtered_on_reverse() {
         refs: vec![SignedRefR::Plus(atom(node_did)), SignedRefR::Plus(atom(edge1_did))],
     });
     let arc_id = HyperArcId::new(0);
-    ir.decl_to_arc[arc_did.0] = Some(arc_id);
+    ir.decl_to_arc[arc_did.raw()] = Some(arc_id);
     e2.arcs.push(arc_id);
     ir.edges.push(e2);
-    ir.decl_to_edge[edge2_did.0] = Some(EdgeId::new(1));
+    ir.decl_to_edge[edge2_did.raw()] = Some(EdgeId::new(1));
 
     let editor = from_compiler_ir(&ir, &interner);
     // Two edges on the arena side; each projects into the editor.

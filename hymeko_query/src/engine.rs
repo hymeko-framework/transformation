@@ -91,7 +91,7 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
     /// Check if a DeclId matches a predicate.
     fn matches(&self, did: DeclId, pred: &Predicate, depth: usize) -> bool {
         if did.is_none() { return false; }
-        let decl = &self.ir.decl_nodes[did.0];
+        let decl = &self.ir.decl_nodes[did.raw()];
 
         match pred {
             Predicate::Any => true,
@@ -120,7 +120,7 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
 
             Predicate::ChildValue(name, vp) => {
                 self.ir.decl_children(did).any(|c| {
-                    let cn = &self.ir.decl_nodes[c.0];
+                    let cn = &self.ir.decl_nodes[c.raw()];
                     self.resolver.resolve(cn.name) == name.as_str()
                         && self.match_value(c, vp)
                 })
@@ -145,10 +145,10 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
     fn check_inheritance(&self, did: DeclId, target_base: &str, max_depth: usize) -> bool {
         if max_depth == 0 { return false; }
 
-        let decl = &self.ir.decl_nodes[did.0];
+        let decl = &self.ir.decl_nodes[did.raw()];
         let bases = match decl.kind {
-            DeclKind::Node => self.ir.as_node(did).map(|nid| &self.ir.nodes[nid.0].bases),
-            DeclKind::Edge => self.ir.as_edge(did).map(|eid| &self.ir.edges[eid.0].bases),
+            DeclKind::Node => self.ir.as_node(did).map(|nid| &self.ir.nodes[nid.raw()].bases),
+            DeclKind::Edge => self.ir.as_edge(did).map(|eid| &self.ir.edges[eid.raw()].bases),
             DeclKind::HyperArc => None,
         };
 
@@ -156,7 +156,7 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
             for b in bases {
                 let target_did = b.target();
                 if !target_did.is_none() {
-                    let bn = self.resolver.resolve(self.ir.decl_nodes[target_did.0].name);
+                    let bn = self.resolver.resolve(self.ir.decl_nodes[target_did.raw()].name);
                     if bn == target_base {
                         return true;
                     }
@@ -172,10 +172,10 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
     /// Check signed arc references for an edge declaration.
     fn match_signed_ref(&self, did: DeclId, sign: i8, inner: &Predicate) -> bool {
         let Some(eid) = self.ir.as_edge(did) else { return false; };
-        let edge = &self.ir.edges[eid.0];
+        let edge = &self.ir.edges[eid.raw()];
 
         for &aid in &edge.arcs {
-            let arc = &self.ir.arcs[aid.0];
+            let arc = &self.ir.arcs[aid.raw()];
             for r in &arc.refs {
                 if (sign == 0 || r.sign() == sign) && self.matches(r.target(), inner, 0) {
                     return true;
@@ -186,7 +186,7 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
     }
 
     fn match_value(&self, did: DeclId, vp: &ValuePredicate) -> bool {
-        let decl = &self.ir.decl_nodes[did.0];
+        let decl = &self.ir.decl_nodes[did.raw()];
         match &decl.anno.value {
             Some(ValueR::Num(n)) => vp.matches_num(*n),
             Some(ValueR::Str(s)) => vp.matches_str(self.resolver.resolve(*s)),
@@ -196,18 +196,18 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
 
     /// Build a QueryMatch with arc bindings for domain transforms.
     fn build_match(&self, did: DeclId) -> QueryMatch {
-        let decl = &self.ir.decl_nodes[did.0];
+        let decl = &self.ir.decl_nodes[did.raw()];
         let mut bindings = Vec::new();
 
         // If it's an edge, capture arc bindings
         if let Some(eid) = self.ir.as_edge(did) {
-            let edge = &self.ir.edges[eid.0];
+            let edge = &self.ir.edges[eid.raw()];
             for &aid in &edge.arcs {
-                let arc = &self.ir.arcs[aid.0];
+                let arc = &self.ir.arcs[aid.raw()];
                 for r in &arc.refs {
                     let atom = r.atom();
                     let target_name = if !atom.target.is_none() {
-                        self.resolver.resolve(self.ir.decl_nodes[atom.target.0].name).to_string()
+                        self.resolver.resolve(self.ir.decl_nodes[atom.target.raw()].name).to_string()
                     } else {
                         String::new()
                     };

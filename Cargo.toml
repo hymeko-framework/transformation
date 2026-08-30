@@ -1,14 +1,18 @@
 # hymeko/transformation — the HyMeKo IR→output (transformation) layer.
 #   hymeko_emitter : editor IR + M2T emitters (.hymeko, SysML v2, Rust stubs, Lean 4)
 #   hymeko_query   : pattern-matching query engine over the hypergraph IR
+#   hymeko_geometry: the geometric/kinematic reading of the IR — shapes, links, joints, forward kinematics
 #   hymeko_formats : built-in format emitters (URDF/SDF/MJCF/DOT/Mermaid/Gazebo) — query plugin
 # `core` and `parser` are external repos, pulled as git dependencies.
 [workspace]
 resolver = "2"
-members = ["hymeko_emitter", "hymeko_query", "hymeko_formats"]
+members = ["hymeko_emitter", "hymeko_query", "hymeko_geometry", "hymeko_formats"]
 
 [workspace.dependencies]
 hymeko_core = { git = "ssh://git@amaterasu.local:2222/hymeko/core.git", branch = "main" }
 parser = { git = "ssh://git@amaterasu.local:2222/hymeko/parser.git", branch = "master" }
+# The Tensor pillar's geometric algebra — SE(n) rigid motions live there, not here.
+# NOTE: path only until `hymeko/tensor` is pushed with `hymeko_clifford::algebra::Se`.
+hymeko_clifford = { path = "../tensor/hymeko_clifford" }
 serde = "1.0.228"
 log = "0.4.29"

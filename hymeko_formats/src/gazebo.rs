@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 use hymeko::ir::ir::Ir;
 
 use hymeko_query::traits::NameResolver;
-use hymeko_query::transforms::TransformConfig;
+use hymeko_geometry::transforms::TransformConfig;
 
 /// Resolve the workspace-level `transforms/` directory. This uses
 /// `CARGO_MANIFEST_DIR`, which resolves at compile time to

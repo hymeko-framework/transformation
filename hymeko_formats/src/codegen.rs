@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use hymeko::ir::ir::Ir;
 
 use hymeko_query::NameResolver;
-use hymeko_query::transforms::TransformConfig;
+use hymeko_geometry::transforms::TransformConfig;
 
 #[derive(Debug, Clone, Copy)]
 pub enum OutputFormat {

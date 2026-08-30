@@ -200,7 +200,7 @@ impl TransformRegistry {
     /// Returns `None` when the transform has no registered template
     /// directory. Returns `Some(Err)` on I/O / parse failure so callers
     /// can surface the error.
-    pub fn render_from_templates<R: crate::traits::NameResolver>(
+    pub fn render_from_templates<R: hymeko_query::traits::NameResolver>(
         &self,
         name: &str,
         ir: &hymeko::ir::ir::Ir,
@@ -216,21 +216,21 @@ impl TransformRegistry {
 }
 
 /// Load `queries.hymeko` + `template.<ext>` from `dir`, build a
-/// [`crate::rewrite::template::TransformSpec`], and hand off to
-/// [`crate::rewrite::template::execute_transform`].
+/// [`hymeko_query::rewrite::template::TransformSpec`], and hand off to
+/// [`hymeko_query::rewrite::template::execute_transform`].
 ///
 /// Extension matching is done by scanning the directory for a single
 /// file whose name starts with `"template."` — this keeps the helper
 /// ignorant of per-format quirks like `template.urdf.xml` vs
 /// `template.world.sdf` vs `template.mmd`.
-fn render_via_template<R: crate::traits::NameResolver>(
+fn render_via_template<R: hymeko_query::traits::NameResolver>(
     ir: &hymeko::ir::ir::Ir,
     resolver: &R,
     name: &str,
     dir: &Path,
     config: &TransformConfig,
 ) -> Result<String, String> {
-    use crate::rewrite::template::{execute_transform, TransformSpec};
+    use hymeko_query::rewrite::template::{execute_transform, TransformSpec};
 
     let query_path = dir.join("queries.hymeko");
     let query_source = std::fs::read_to_string(&query_path)

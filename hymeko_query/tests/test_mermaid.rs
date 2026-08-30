@@ -5,8 +5,8 @@
 #[cfg(test)]
 mod test_mermaid {
     use hymeko_query::engine::QueryEngine;
-    use hymeko_query::kinematics::kinematic::extract_kinematic_model;
-    use hymeko_query::transforms::{
+    use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
+    use hymeko_geometry::transforms::{
         DomainTransform, ModelView, TransformConfig, TransformRegistry,
     };
 

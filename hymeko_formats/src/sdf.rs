@@ -3,8 +3,8 @@
 
 use hymeko::ir::ir::Ir;
 use hymeko_query::QueryEngine;
-use hymeko_query::kinematics::joints::JointType;
-use hymeko_query::kinematics::kinematic::{extract_kinematic_model, GeometryInfo, GeometryShape, KinematicModel};
+use hymeko_geometry::kinematics::joints::JointType;
+use hymeko_geometry::kinematics::kinematic::{extract_kinematic_model, GeometryInfo, GeometryShape, KinematicModel};
 use hymeko_query::traits::NameResolver;
 
 /// Generate SDF XML string from a compiled IR.

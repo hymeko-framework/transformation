@@ -1,0 +1,32 @@
+// A two-link planar arm, self-contained: it declares the kinematics vocabulary it needs and then
+// one mechanism using it. Fixture for the end-to-end test — HyMeKo source through compilation and
+// extraction to link poses — so the authoring pattern documented for model authors is the pattern
+// that is actually exercised.
+two_link_arm {}
+
+elements {
+    meta_element {}
+    link: + <isa> meta_element {}
+    @joint {}
+}
+
+axes {
+    axis_definition {}
+    AXIS_Z: + <isa> axis_definition { ax [0.0, 0.0, 1.0]; }
+}
+
+@rev_joint: + <isa> elements.joint {}
+
+robot: elements, axes {
+    base:  elements.link { mass 2.0; }
+    upper: elements.link { mass 1.0; }
+    tool:  elements.link { mass 0.2; }
+
+    // (+ parent [[xyz], [rpy-degrees]], - child, - axis)
+    @j1: rev_joint {
+        (+ base  [[1.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - upper, - axes.AXIS_Z);
+    }
+    @j2: rev_joint {
+        (+ upper [[1.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - tool,  - axes.AXIS_Z);
+    }
+}

@@ -4,7 +4,7 @@
 mod test_geom_extension {
     use crate::test_helpers::load_and_lower;
     use hymeko_query::engine::QueryEngine;
-    use hymeko_query::kinematics::kinematic::{
+    use hymeko_geometry::kinematics::kinematic::{
         extract_kinematic_model, CollisionMask, GeometryShape, KinematicModel,
     };
 
