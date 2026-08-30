@@ -1,0 +1,79 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{amsmath,booktabs,longtable,hyperref}
+\usepackage{tikz}\usetikzlibrary{arrows.meta,positioning,fit,backgrounds}
+\title{Transformation M2b pre-migration audit \& test oracles (no source migration)}
+\author{APPROVED-TRANSFORMATION-TEST-EDIT: unified-ir-m2b-audit-oracles}
+\date{Created-at: 2026-08-30 03:22 CEST}
+\begin{document}\maketitle
+
+\section*{Scope}
+Audit-and-oracle phase over the three transformation consumer crates
+(\texttt{hymeko\_emitter}, \texttt{hymeko\_query}, \texttt{hymeko\_formats}) at the
+\texttt{15223bc} core pin. \textbf{No production source is migrated.} Deliverables
+are tests, docs, a std-only benchmark probe, and a report --- everything that
+makes the later M2b source migration a mechanical, oracle-checked edit. Test-edit
+authorisation: production \texttt{src} stays byte-identical.
+
+\section{Findings to establish (each backed by a test or an artifact)}
+\begin{longtable}{p{3.2cm}p{10.5cm}}
+\toprule
+Consumer inventory & 149 raw arena-index sites (emitter 24 / query 111 / formats
+14) classified per arena; 33 accessor sites already present (mid-migration).
+Committed as \texttt{docs/transformation-ir-consumer-inventory.md}, regenerable.\
+Writer-list proof & Refute ``bridge is the only file that writes IR'': four files
+construct/mutate \texttt{Ir} --- \texttt{bridge.rs} (the \emph{only production}
+writer) plus \texttt{entropy.rs}, \texttt{rewrite/regen.rs},
+\texttt{rewrite/split.rs} \emph{in their \texttt{\#[cfg(test)]} modules only}.
+split \emph{proposes} (\texttt{\&Ir}$\to$\texttt{SplitProposal}), regen emits
+\emph{source text} (\texttt{\&Ir}$\to$\texttt{\&mut String}), entropy computes a
+\emph{scalar}. Proven by \texttt{\#[cfg(test)]} line boundaries + a test.\
+Duplication audit & \texttt{push\_decl}/\texttt{push\_node}/\texttt{push\_edge}
+copy-pasted across the four writer sites --- a 4-way duplication of canonical IR
+construction (parallel \texttt{decl\_nodes}+\texttt{decl\_to\_*} discipline,
+arc-backlink maintenance). The argument for one core-side construction seam.\
+Construction-seam doc & \texttt{docs/unified-ir-construction-seam.md}: the single
+invariant-preserving core seam all four writers should call; no consumer-side
+builder, no second mutation vocabulary.\
+Editor-IR/bridge audit & \texttt{\#[ignore]} counterexamples (defects, not PASS
+tests): non-atomic \texttt{IRDelta::Batch}; lossy round-trip (parent/level/
+attributes/position/patch\_id/weight); dropped edge-to-edge refs; multi-arc
+flattening.\
+Wire/DTO audit & \texttt{ArcDto.target\_id: usize} and \texttt{NodeDto.id: usize}
+expose raw \texttt{DeclId.0}; frozen JSON fixture locks the wire shape.
+\textbf{No schema-version field added.}\
+Characterization & Golden capture of the four emitters + snapshot + DOT at
+\texttt{15223bc}, so the source migration must reproduce byte-for-byte.\
+Fault-injection & Mutants of the oracle helpers, each caught by a named test.\
+Coverage & \texttt{cargo-llvm-cov}, workspace, same denominator before/after.\
+Bench probe & std-only \texttt{bridge}/\texttt{snapshot} probe (median/IQR), FNV
+fingerprint, no dependency.\
+\bottomrule
+\end{longtable}
+
+\section{Affected files (all additive; production \texttt{src} untouched)}
+\texttt{hymeko\_emitter/tests/migration\_oracles.rs};
+\texttt{hymeko\_formats/tests/wire\_dto\_oracle.rs};
+\texttt{hymeko\_formats/tests/data/*.json} (frozen fixture);
+\texttt{hymeko\_emitter/examples/ir\_seam\_bench.rs};
+\texttt{docs/transformation-ir-consumer-inventory.md};
+\texttt{docs/unified-ir-construction-seam.md};
+\texttt{docs/plans/2026-08-30-transformation-m2b-audit-oracles/*};
+\texttt{reports/2026-08-30-transformation-unified-ir-pre-migration.md}.
+
+\section{CORE.YAML / prohibitions}
+No \texttt{CORE.YAML} item. No production source migration. No new dependency. No
+schema-version change. No stable/generational ID. No transaction API. No editor-IR
+feature growth. \texttt{\#[ignore]} defect tests are counterexamples, never counted
+as PASS.
+
+\section{Test strategy \& acceptance}
+All existing 277 tests stay green; new characterization/writer-list/wire tests
+PASS; defect counterexamples are \texttt{\#[ignore]} with a documented ``un-ignore
+when fixed'' note. Coverage reported with the same denominator. The report
+enumerates every new test and confirms it ran.
+
+\section{Rollback}
+All additive; \texttt{git checkout} the new files. No production behaviour to
+revert.
+\end{document}

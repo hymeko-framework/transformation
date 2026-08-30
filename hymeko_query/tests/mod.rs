@@ -24,6 +24,7 @@ mod test_generation_engine;
 mod test_geom_extension;
 mod test_helpers;
 mod test_imported_real;
+mod test_ir_migration_oracle;
 mod test_mermaid;
 mod test_prop_witnesses;
 mod test_split;

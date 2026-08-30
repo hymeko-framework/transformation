@@ -1,0 +1,15 @@
+% M2b audit: one canonical IR, one production writer, N readers (dependency-only view).
+\begin{tikzpicture}[>=Stealth, node distance=8mm and 18mm,
+  b/.style={draw, rounded corners, align=center, font=\small, minimum height=7mm},
+  w/.style={b, fill=red!8}, r/.style={b, fill=green!8}, c/.style={b, fill=blue!8}]
+  \node[c] (ir) {canonical \texttt{hymeko\_core::ir::Ir}\(arena; sole source of truth)};
+  \node[w, above left=of ir] (bridge) {\textbf{bridge.rs}\\texttt{to\_compiler\_ir}\(only production writer)};
+  \node[w, above right=of ir] (testw) {test writers\entropy/regen/split\\texttt{\#[cfg(test)]} only};
+  \node[r, below left=of ir] (emit) {emitters (read)\hymeko/sysml/rust/lean};
+  \node[r, below=of ir] (query) {query (read)\propose/emit-source/metric};
+  \node[r, below right=of ir] (fmt) {formats (read)\snapshot/DOT/urdf/sdf};
+  \draw[->] (bridge) -- (ir);
+  \draw[->, dashed] (testw) -- (ir);
+  \draw[->] (ir) -- (emit); \draw[->] (ir) -- (query); \draw[->] (ir) -- (fmt);
+  \node[draw, dotted, fit=(bridge)(testw), inner sep=3mm, label=above:{4-way duplicated push\_decl/node/edge $\Rightarrow$ one core seam}] {};
+\end{tikzpicture}

@@ -1,0 +1,11 @@
+%% M2b audit oracle establishment (transformation)
+flowchart TD
+    A[core pin 15223bc, 277 tests green] --> B[consumer inventory: 149 raw sites]
+    B --> C[writer-list proof: bridge sole prod writer; 3 test-only writers]
+    C --> D[duplication: push_decl/node/edge x4 -> construction-seam doc]
+    D --> E[bridge counterexamples #ignore: batch/roundtrip/e2e-ref/multi-arc]
+    E --> F[wire DTO frozen JSON fixture: target_id usize = DeclId.0]
+    F --> G[characterization goldens: emitters + snapshot + DOT]
+    G --> H[fault injection: helper mutants each caught]
+    H --> I[coverage same denominator + std-only bench probe]
+    I --> J[commit test-ir: establish transformation migration oracles]
