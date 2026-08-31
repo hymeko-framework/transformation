@@ -90,6 +90,8 @@ pub struct AbaScratch {
     /// Articulated inertia and bias force, per link.
     ia: Vec<ArticulatedInertia>,
     pa: Vec<Wrench>,
+    /// The force transmitted through each link's inbound joint. Used by inverse dynamics only.
+    f: Vec<Wrench>,
     /// Per joint: `I^A S`, the scalar `S^T I^A S`, and `tau - S^T p^A`.
     u: Vec<Wrench>,
     d: Vec<f64>,
@@ -178,6 +180,7 @@ impl AbaPlan {
             c: vec![Twist::ZERO; links],
             ia: vec![ArticulatedInertia::ZERO; links],
             pa: vec![Wrench::ZERO; links],
+            f: vec![Wrench::ZERO; links],
             u: vec![Wrench::ZERO; joints],
             d: vec![0.0; joints],
             tau_bias: vec![0.0; joints],
@@ -319,6 +322,110 @@ impl AbaPlan {
                     qdd[ji] = 0.0;
                     s.a[i] = here;
                 }
+            }
+        }
+    }
+}
+
+impl AbaPlan {
+    /// Solve `tau = M(q) qdd + C(q, qd) qd + g(q)` — the other direction.
+    ///
+    /// Given a motion, what has to be applied to produce it. This is what a controller needs and
+    /// what [`Self::accelerations`] cannot answer: forward dynamics says where a robot goes, inverse
+    /// dynamics says what to do to send it somewhere.
+    ///
+    /// The recursive Newton-Euler algorithm, and it is **the same two sweeps** the forward solver
+    /// already makes, minus the third. Velocities and accelerations propagate down the tree; the
+    /// force each body needs is `I a + v x* (I v)`; those forces sum back up, and each joint's
+    /// torque is its share along its own axis. `O(n)`, no allocation.
+    ///
+    /// Three uses it makes possible immediately:
+    ///
+    /// * **Gravity compensation** — `inverse_dynamics(q, 0, 0)` is exactly the torque that holds a
+    ///   mechanism where it is. Without it an arm sags and a controller spends its whole budget
+    ///   fighting a force it could have known in closed form.
+    /// * **Computed torque** — `inverse_dynamics(q, qd, qdd_wanted)` plus a small feedback term
+    ///   follows a trajectory instead of chasing it.
+    /// * **The mass matrix**, for anything that genuinely wants one: column `k` is
+    ///   `inverse_dynamics(q, 0, e_k)` with gravity off. Still `n` calls, but exact, and with no
+    ///   finite differences anywhere.
+    ///
+    /// # Panics
+    /// If any slice is shorter than [`Self::slots`].
+    #[allow(clippy::too_many_arguments)]
+    pub fn inverse_dynamics(
+        &self,
+        model: &KinematicModel,
+        q: &[f64],
+        qd: &[f64],
+        qdd: &[f64],
+        gravity: [f64; 3],
+        s: &mut AbaScratch,
+        tau: &mut [f64],
+    ) {
+        let n = self.subspace.len();
+        assert!(q.len() >= n, "q must cover every joint");
+        assert!(qd.len() >= n, "qd must cover every joint");
+        assert!(qdd.len() >= n, "qdd must cover every joint");
+        assert!(tau.len() >= n, "tau must cover every joint");
+
+        let base_a = Twist {
+            w: [0.0; 3],
+            v: [-gravity[0], -gravity[1], -gravity[2]],
+        };
+        // --- sweep one, root to leaves: velocities, accelerations, and the force each body needs ---
+        for &i in &self.plan.order {
+            match self.plan.parent[i] {
+                None => {
+                    s.x[i] = Se3::identity();
+                    s.v[i] = Twist::ZERO;
+                    s.a[i] = base_a;
+                }
+                Some((ji, p)) => {
+                    let joint = &model.joints[ji];
+                    let x = joint_origin_se3(joint).compose(&joint_motion_se3(joint, q[ji]));
+                    let (vp, ap) = if p == usize::MAX {
+                        (Twist::ZERO, base_a)
+                    } else {
+                        (s.v[p], s.a[p])
+                    };
+                    let v_here = vp.to_child(&x);
+                    let a_here = ap.to_child(&x);
+                    match self.subspace[ji] {
+                        Some(sub) => {
+                            let vj = sub.scale(qd[ji]);
+                            s.v[i] = v_here.add(&vj);
+                            // `v x vJ` is the velocity-product term; `S qdd` is the motion asked for
+                            s.a[i] = a_here.add(&sub.scale(qdd[ji])).add(&s.v[i].cross_motion(&vj));
+                        }
+                        None => {
+                            s.v[i] = v_here;
+                            s.a[i] = a_here;
+                        }
+                    }
+                    s.x[i] = x;
+                }
+            }
+            s.f[i] = self.inertia[i]
+                .apply(&s.a[i])
+                .add(&s.v[i].cross_force(&self.inertia[i].apply(&s.v[i])));
+        }
+
+        // --- sweep two, leaves to root: the forces sum up, each joint takes its share ---
+        for idx in (0..self.plan.order.len()).rev() {
+            let i = self.plan.order[idx];
+            let Some((ji, p)) = self.plan.parent[i] else {
+                continue;
+            };
+            tau[ji] = match self.subspace[ji] {
+                // A fixed joint has no axis to take a share along; whatever it carries goes to the
+                // parent whole, and its reported torque is zero rather than undefined.
+                Some(sub) => sub.dot(&s.f[i]),
+                None => 0.0,
+            };
+            if p != usize::MAX {
+                let up = s.f[i].to_parent(&s.x[i]);
+                s.f[p] = s.f[p].add(&up);
             }
         }
     }

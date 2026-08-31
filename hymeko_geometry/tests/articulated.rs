@@ -543,3 +543,168 @@ fn the_dynamics_plan_poses_the_mechanism_the_same_way_the_kinematics_does() {
         }
     }
 }
+
+// --- the other direction -------------------------------------------------------------------------
+
+#[test]
+fn inverse_dynamics_undoes_forward_dynamics_exactly() {
+    // THE test for the pair. Ask what torque produces a chosen acceleration, apply it, and the
+    // mechanism must accelerate exactly as chosen. The two solvers share the spatial algebra but
+    // not a line of their own logic — one sweeps three times and downdates rank-one, the other
+    // sweeps twice and sums forces — so a sign error in either has nowhere to cancel.
+    //
+    // Run at a non-zero velocity, because at rest the velocity-product terms vanish from both and
+    // the test would be checking half of each.
+    let mut rng = Rng(0x1D);
+    let mut checked = 0;
+    for m in [
+        Some(pendulum(0.8, 1.4)),
+        Some(double_pendulum(0.5, 2.0, 0.4, 1.0)),
+        Some(branched()),
+        robot("arm_gripper.hymeko", "robot"),
+        robot("humanoid.hymeko", "humanoid"),
+        robot("quadruped.hymeko", "quadruped"),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let aba = AbaPlan::new(&m).expect("the topology resolves");
+        let n = aba.slots();
+        let slots = movable_slots(&m);
+        let mut scratch = aba.scratch();
+        let mut tau = vec![0.0; n];
+        let mut back = vec![0.0; n];
+
+        for _ in 0..6 {
+            let q: Vec<f64> = (0..n).map(|_| rng.signed() * 1.5).collect();
+            let qd: Vec<f64> = (0..n).map(|_| rng.signed() * 3.0).collect();
+            let mut qdd = vec![0.0; n];
+            for &s in &slots {
+                qdd[s] = rng.signed() * 5.0;
+            }
+
+            aba.inverse_dynamics(&m, &q, &qd, &qdd, GRAV, &mut scratch, &mut tau);
+            aba.accelerations(&m, &q, &qd, &tau, GRAV, &mut scratch, &mut back);
+
+            let scale = qdd.iter().fold(1.0f64, |a, v| a.max(v.abs()));
+            for &s in &slots {
+                assert!(
+                    (back[s] - qdd[s]).abs() < 1e-7 * scale,
+                    "{}: slot {s}: asked for {} and got {} back",
+                    m.name,
+                    qdd[s],
+                    back[s]
+                );
+            }
+            checked += 1;
+        }
+    }
+    assert!(checked >= 18, "only {checked} configurations were checked");
+}
+
+#[test]
+fn the_gravity_compensation_torque_holds_a_mechanism_still() {
+    // `inverse_dynamics(q, 0, 0)` is the torque that exactly cancels gravity. Apply it and nothing
+    // must move — which is the whole point of computing it, and the first thing any arm controller
+    // wants.
+    let mut rng = Rng(606);
+    for m in [
+        Some(branched()),
+        robot("arm_gripper.hymeko", "robot"),
+        robot("humanoid.hymeko", "humanoid"),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let aba = AbaPlan::new(&m).expect("the topology resolves");
+        let n = aba.slots();
+        let mut scratch = aba.scratch();
+        let zero = vec![0.0; n];
+        let mut tau = vec![0.0; n];
+        let mut qdd = vec![0.0; n];
+
+        for _ in 0..5 {
+            let q: Vec<f64> = (0..n).map(|_| rng.signed() * 1.5).collect();
+
+            // how hard it would fall if nothing held it
+            aba.accelerations(&m, &q, &zero, &zero, GRAV, &mut scratch, &mut qdd);
+            let falling = qdd.iter().fold(0.0f64, |a, v| a.max(v.abs()));
+            assert!(falling > 0.5, "{}: the fixture must actually sag", m.name);
+
+            aba.inverse_dynamics(&m, &q, &zero, &zero, GRAV, &mut scratch, &mut tau);
+            aba.accelerations(&m, &q, &zero, &tau, GRAV, &mut scratch, &mut qdd);
+            let held = qdd.iter().fold(0.0f64, |a, v| a.max(v.abs()));
+            assert!(
+                held < 1e-9 * falling.max(1.0),
+                "{}: held still to only {held:e} rad/s^2 while it would have fallen at {falling:e}",
+                m.name
+            );
+        }
+    }
+}
+
+#[test]
+fn a_pendulums_holding_torque_is_the_one_statics_gives() {
+    // `tau = m l^2 theta_ddot + m g l sin theta`, straight out of the same Lagrangian the forward
+    // test used, and reached here from the opposite end.
+    for (l, m) in [(1.0, 1.0), (0.37, 4.2)] {
+        let model = pendulum(l, m);
+        let aba = AbaPlan::new(&model).expect("the topology resolves");
+        let mut scratch = aba.scratch();
+        let mut tau = vec![0.0; 1];
+        for step in -20..=20 {
+            let theta = step as f64 * 0.15;
+            for &acc in &[0.0, 2.5, -7.0] {
+                aba.inverse_dynamics(&model, &[theta], &[0.0], &[acc], GRAV, &mut scratch, &mut tau);
+                let want = m * l * l * acc + m * G * l * theta.sin();
+                assert!(
+                    (tau[0] - want).abs() < 1e-10 * (1.0 + want.abs()),
+                    "l={l} m={m} theta={theta} qdd={acc}: {} against {want}",
+                    tau[0]
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn the_mass_matrix_from_torques_inverts_the_one_from_accelerations() {
+    // Column `k` of `M` is `inverse_dynamics(q, 0, e_k)` with gravity off; column `k` of `M^-1` is
+    // `accelerations(q, 0, e_k)` the same way. Their product is the identity — and neither was ever
+    // assembled from a finite difference. This is also the honest way to get `M` for anything that
+    // genuinely needs one, at `n` exact sweeps rather than a numerical Jacobian.
+    let mut rng = Rng(4242);
+    for m in [double_pendulum(0.5, 2.0, 0.4, 1.0), branched()] {
+        let aba = AbaPlan::new(&m).expect("the topology resolves");
+        let n = aba.slots();
+        let slots = movable_slots(&m);
+        let d = slots.len();
+        let mut scratch = aba.scratch();
+        let q: Vec<f64> = (0..n).map(|_| rng.signed() * 1.4).collect();
+
+        let mut mass = vec![vec![0.0; d]; d];
+        let mut unit = vec![0.0; n];
+        let mut out = vec![0.0; n];
+        for (col, &s) in slots.iter().enumerate() {
+            unit[s] = 1.0;
+            aba.inverse_dynamics(&m, &q, &vec![0.0; n], &unit, [0.0; 3], &mut scratch, &mut out);
+            unit[s] = 0.0;
+            for (row, &r) in slots.iter().enumerate() {
+                mass[row][col] = out[r];
+            }
+        }
+        let minv = inverse_mass_matrix(&m, &aba, &q, &slots);
+
+        for (i, row) in mass.iter().enumerate().take(d) {
+            for j in 0..d {
+                let got: f64 = (0..d).map(|k| row[k] * minv[k][j]).sum();
+                let want = if i == j { 1.0 } else { 0.0 };
+                assert!(
+                    (got - want).abs() < 1e-9,
+                    "{}: (M M^-1)[{i}][{j}] = {got}, not {want}",
+                    m.name
+                );
+            }
+        }
+    }
+}

@@ -3,6 +3,7 @@
 //! Two ways of answering the same question, on the same model at the same pose:
 //!
 //!   A  articulated-body       — three sweeps of the tree, `O(n)`
+//!   A' inverse dynamics       — the same sweeps minus the third: what torque produces a motion
 //!   B  explicit mass matrix   — a finite-difference Jacobian per coordinate (`2n+1` kinematics
 //!                               passes), `M = sum_i m_i J_i^T J_i` assembled, then a dense solve
 //!
@@ -69,6 +70,18 @@ fn main() {
     }
     let a_us = t0.elapsed().as_secs_f64() * 1e6 / reps as f64;
 
+    // --- A': inverse dynamics, the same sweeps minus the third ---------------------------------
+    let mut tau_out = vec![0.0; n];
+    for _ in 0..200 {
+        aba.inverse_dynamics(&model, &q, &qd, &qdd, gravity, &mut scratch, &mut tau_out);
+    }
+    let t0 = Instant::now();
+    for _ in 0..reps {
+        aba.inverse_dynamics(&model, &q, &qd, &qdd, gravity, &mut scratch, &mut tau_out);
+        std::hint::black_box(&tau_out);
+    }
+    let i_us = t0.elapsed().as_secs_f64() * 1e6 / reps as f64;
+
     // --- B: explicit mass matrix ---------------------------------------------------------------
     let slots: Vec<usize> = model
         .joints
@@ -88,7 +101,7 @@ fn main() {
     let b_us = t0.elapsed().as_secs_f64() * 1e6 / reps_b as f64;
 
     println!(
-        "  {root:<12} dof={dof:<3} articulated {a_us:>8.2} us   mass-matrix {b_us:>9.2} us   {:>6.1}x",
+        "  {root:<12} dof={dof:<3} forward {a_us:>7.2} us   inverse {i_us:>7.2} us            mass-matrix {b_us:>9.2} us   {:>6.1}x",
         b_us / a_us
     );
 }
