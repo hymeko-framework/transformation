@@ -26,7 +26,7 @@
 
 use std::collections::HashMap;
 
-use hymeko_clifford::Se;
+use hymeko_clifford::{Se, Se3};
 
 use hymeko::common::ids::DeclId;
 
@@ -289,6 +289,24 @@ fn trace_cycle(start: &str, parent_joint: &HashMap<&str, &JointInfo>) -> Vec<Str
 
 // ─── The prepared plan ──────────────────────────────────────────────────────────────────────────
 
+/// The joint's motion at `value`, on the stack — the fixed-size mirror of [`joint_motion`].
+pub fn joint_motion_se3(joint: &JointInfo, value: f64) -> Se3 {
+    let axis = joint.axis.unwrap_or([1.0, 0.0, 0.0]);
+    match joint.joint_type {
+        JointType::Fixed => Se3::identity(),
+        JointType::Revolute | JointType::Continuous => Se3::axis_angle(axis, value),
+        JointType::Prismatic => Se3::axis_translation(axis, value),
+    }
+}
+
+/// The joint's fixed origin, on the stack — the fixed-size mirror of [`joint_origin`].
+pub fn joint_origin_se3(joint: &JointInfo) -> Se3 {
+    Se3::rpy_xyz(
+        joint.origin_rpy_rad().unwrap_or([0.0; 3]),
+        joint.origin_xyz.unwrap_or([0.0; 3]),
+    )
+}
+
 /// The topology, resolved once.
 ///
 /// [`forward_kinematics`] answers a single question completely, and pays for that on every call: it
@@ -475,6 +493,39 @@ impl FkPlan {
     /// `q` is indexed by joint, `out` by link. Both are the caller's, and both are reused across
     /// calls — which is the whole point: this function performs no allocation.
     ///
+    /// The same walk over the stack-allocated [`Se3`].
+    ///
+    /// Bit-identical to [`Self::resolve`] — `SeFixed` mirrors `Se`'s arithmetic exactly, and
+    /// `hymeko_clifford`'s `tests/se_fixed.rs` is what says so — and allocation-free, which
+    /// [`Self::resolve`] cannot be while a rigid motion is two `Vec`s.
+    ///
+    /// # Panics
+    /// If `q` is shorter than the joint count or `out` shorter than the link count.
+    pub fn resolve_se3(&self, model: &KinematicModel, q: &[f64], out: &mut [Se3]) {
+        assert!(q.len() >= self.joint_slot.len(), "q must cover every joint");
+        assert!(out.len() >= self.parent.len(), "out must cover every link");
+        for &i in &self.order {
+            match self.parent[i] {
+                None => out[i] = Se3::identity(),
+                Some((ji, p)) => {
+                    let j = &model.joints[ji];
+                    out[i] = if p == usize::MAX {
+                        joint_origin_se3(j).compose(&joint_motion_se3(j, q[ji]))
+                    } else {
+                        out[p]
+                            .compose(&joint_origin_se3(j))
+                            .compose(&joint_motion_se3(j, q[ji]))
+                    };
+                }
+            }
+        }
+    }
+
+    /// A stack-allocated pose buffer sized for [`Self::resolve_se3`].
+    pub fn identity_poses_se3(&self) -> Vec<Se3> {
+        vec![Se3::identity(); self.parent.len()]
+    }
+
     /// # Panics
     /// If `q` is shorter than the joint count or `out` shorter than the link count.
     pub fn resolve(&self, model: &KinematicModel, q: &[f64], out: &mut [Se]) {

@@ -94,6 +94,12 @@ fn main() {
         std::hint::black_box(&pp);
     });
     let _ = d;
+    let mut pp3 = plan.identity_poses_se3();
+    let e = time("E  FkPlan::resolve_se3 (stack)", &mut || {
+        plan.resolve_se3(&model, &flat, &mut pp3);
+        std::hint::black_box(&pp3);
+    });
+    let _ = e;
     let c = time("C  Se arithmetic only", &mut || {
         let mut acc = Se::identity(3);
         for &i in &order {

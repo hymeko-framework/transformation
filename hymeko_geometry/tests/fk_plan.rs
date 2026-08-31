@@ -1,10 +1,8 @@
 //! The prepared plan: same answers, no per-call bookkeeping, and the topology taken from the arena.
 //!
-//! Three claims, and the middle one is the reason this file exists. A performance fix that is only
-//! pinned by a timing measurement is not pinned at all — it passes on a fast machine having proved
-//! nothing, and it stops being true the first time somebody adds a `clone()` to a hot path without
-//! noticing. So the "no allocation" claim is measured with a counting allocator, which fails the
-//! same way on every machine.
+//! The allocation claims live next door in `fk_allocation.rs`, in their own binary: a counting
+//! global allocator sees every thread, and the tests in one binary run in parallel, so a counter
+//! switched on here would also record what these tests are doing.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::collections::HashMap;
@@ -17,44 +15,6 @@ use hymeko::util::real_parser::RealParser;
 use hymeko_geometry::forward::{forward_kinematics, FkPlan, JointValues};
 use hymeko_geometry::kinematics::kinematic::{extract_kinematic_model, KinematicModel};
 use hymeko_query::QueryEngine;
-
-// ─── a global allocator that can be asked how many times it was called ──────────────────────────
-
-static ALLOCATIONS: AtomicUsize = AtomicUsize::new(0);
-static COUNTING: AtomicUsize = AtomicUsize::new(0);
-
-struct Counting;
-
-unsafe impl GlobalAlloc for Counting {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        if COUNTING.load(Ordering::Relaxed) != 0 {
-            ALLOCATIONS.fetch_add(1, Ordering::Relaxed);
-        }
-        unsafe { System.alloc(layout) }
-    }
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        unsafe { System.dealloc(ptr, layout) }
-    }
-    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        if COUNTING.load(Ordering::Relaxed) != 0 {
-            ALLOCATIONS.fetch_add(1, Ordering::Relaxed);
-        }
-        unsafe { System.realloc(ptr, layout, new_size) }
-    }
-}
-
-#[global_allocator]
-static ALLOC: Counting = Counting;
-
-/// Run `f` and report how many allocations it made.
-fn allocations_during(mut f: impl FnMut()) -> usize {
-    f(); // warm anything lazy, so the count is the steady state and not the first call
-    ALLOCATIONS.store(0, Ordering::Relaxed);
-    COUNTING.store(1, Ordering::Relaxed);
-    f();
-    COUNTING.store(0, Ordering::Relaxed);
-    ALLOCATIONS.load(Ordering::Relaxed)
-}
 
 // ─── models ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -138,50 +98,6 @@ fn the_plan_reproduces_the_shipped_solver_exactly() {
 
 // ─── and no bookkeeping ─────────────────────────────────────────────────────────────────────────
 
-#[test]
-fn resolving_a_pose_through_the_plan_allocates_nothing_for_bookkeeping() {
-    // The claim is not "fewer allocations". Every allocation left is an `Se` — two per rigid motion,
-    // four motions per link — and there must be no others: no hash map, no string, no vector of
-    // names. So the budget is stated in Se's, and anything above it is bookkeeping that crept back.
-    let model = robot("quadruped.hymeko", "quadruped").unwrap_or_else(fixture);
-    let (named, flat, plan) = pose(&model);
-    let mut poses = plan.identity_poses();
-
-    let planned = allocations_during(|| plan.resolve(&model, &flat, &mut poses));
-    let shipped = allocations_during(|| {
-        std::hint::black_box(forward_kinematics(&model, &named).unwrap());
-    });
-
-    // The budget is MEASURED, not guessed: run the same compositions with no plan at all and see
-    // what the Se arithmetic costs on its own. A hand-written constant would only have recorded
-    // what `Multivector` happened to allocate on the day it was written — the first attempt here
-    // guessed eight allocations per link and the real figure is over sixty, because every
-    // multivector product allocates its own result.
-    let arithmetic = allocations_during(|| {
-        let mut acc = hymeko_clifford::Se::identity(3);
-        for j in &model.joints {
-            acc = acc
-                .compose(&hymeko_geometry::forward::joint_origin(j))
-                .compose(&hymeko_geometry::forward::joint_motion(j, 0.3));
-        }
-        std::hint::black_box(&acc);
-    });
-    // The floor is MEASURED, not guessed. A hand-written constant would record what `Multivector`
-    // happened to allocate on the day it was written, and would have to be edited — silently — the
-    // first time `Se` changes. Measured on a 33-link quadruped: planned 1214, arithmetic floor
-    // 1223, shipped 1365. The plan sits AT the floor (below it, in fact, because it composes over
-    // 32 links and a root identity where the reference chains 33 joints), and the shipped solver
-    // carries 151 allocations nothing about the geometry requires.
-    assert!(
-        planned <= arithmetic + 2 * model.links.len(),
-        "a planned resolve of {} links allocated {planned}, above the {arithmetic} the same          compositions cost with no plan at all — bookkeeping has crept back in",
-        model.links.len()
-    );
-    assert!(
-        planned < shipped,
-        "the plan must allocate strictly less than the shipped solver: {planned} against {shipped}"
-    );
-}
 
 // ─── the topology comes from the arena ──────────────────────────────────────────────────────────
 
@@ -256,3 +172,47 @@ fn a_plan_reports_the_same_structural_failures() {
     two.joints.clear();
     assert!(matches!(FkPlan::new(&two), Err(FkError::MultipleRoots(_))));
 }
+
+// ─── the stack-allocated walk ───────────────────────────────────────────────────────────────────
+
+#[test]
+fn the_se3_walk_is_bit_identical_to_the_heap_one() {
+    // `SeFixed` mirrors `Se`'s arithmetic exactly — same bounds, same skip-if-zero guards, same
+    // accumulation order — so this must be equality and not a tolerance. Anything less would mean
+    // the fast path is a different function, and a caller holding a recorded pose would watch it
+    // move for a reason no tolerance-based test could name.
+    let mut checked = 0;
+    for model in [
+        Some(fixture()),
+        robot("arm_gripper.hymeko", "robot"),
+        robot("humanoid.hymeko", "humanoid"),
+        robot("quadruped.hymeko", "quadruped"),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let (_, flat, plan) = pose(&model);
+        let mut heap = plan.identity_poses();
+        let mut stack = plan.identity_poses_se3();
+        plan.resolve(&model, &flat, &mut heap);
+        plan.resolve_se3(&model, &flat, &mut stack);
+
+        for (i, l) in model.links.iter().enumerate() {
+            assert_eq!(
+                stack[i].translation.as_slice(),
+                heap[i].translation.as_slice(),
+                "{}: translation differs",
+                l.name
+            );
+            assert_eq!(
+                stack[i].rotor.as_slice(),
+                heap[i].rotor.components.as_slice(),
+                "{}: rotor differs",
+                l.name
+            );
+        }
+        checked += 1;
+    }
+    assert!(checked >= 1);
+}
+
