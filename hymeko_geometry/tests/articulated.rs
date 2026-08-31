@@ -668,6 +668,9 @@ fn a_pendulums_holding_torque_is_the_one_statics_gives() {
 }
 
 #[test]
+// A matrix product walks one operand by column, which no iterator over rows expresses; the lint is
+// right about loops that index a row and wrong about this one.
+#[allow(clippy::needless_range_loop)]
 fn the_mass_matrix_from_torques_inverts_the_one_from_accelerations() {
     // Column `k` of `M` is `inverse_dynamics(q, 0, e_k)` with gravity off; column `k` of `M^-1` is
     // `accelerations(q, 0, e_k)` the same way. Their product is the identity — and neither was ever
