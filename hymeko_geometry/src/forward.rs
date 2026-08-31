@@ -184,16 +184,32 @@ pub fn forward_kinematics(model: &KinematicModel, q: &JointValues) -> Result<Lin
     }
 
     let declared: HashMap<&str, ()> = model.links.iter().map(|l| (l.name.as_str(), ())).collect();
+    let frames: HashMap<&str, ()> = model.frames.iter().map(|f| (f.as_str(), ())).collect();
+
+    // A link is a root two ways: nothing brings it in at all, or what brings it in is joined to a
+    // FRAME rather than to another link. The second is how every floating base in the robotics
+    // library is written — `world --@base--> torso` — and reading it as anything else made the
+    // whole mechanism look like a loop: no link was parentless, so the walk concluded it must have
+    // closed on itself and reported a cycle between `torso` and a `world` that is not a body at all.
+    let anchor: HashMap<&str, &JointInfo> = model
+        .joints
+        .iter()
+        .filter(|j| frames.contains_key(j.parent_link.as_str()))
+        .map(|j| (j.child_link.as_str(), j))
+        .collect();
     let mut roots: Vec<String> = model
         .links
         .iter()
-        .filter(|l| !parent_joint.contains_key(l.name.as_str()))
+        .filter(|l| {
+            !parent_joint.contains_key(l.name.as_str()) || anchor.contains_key(l.name.as_str())
+        })
         .map(|l| l.name.clone())
         .collect();
     roots.sort();
     let root = match roots.len() {
         0 => {
-            // Every link has a parent, so following them must close a loop; name it.
+            // Every link has a parent and none of them is anchored, so following them must close a
+            // loop; name it.
             let start = model.links[0].name.as_str();
             return Err(FkError::Cycle(trace_cycle(start, &parent_joint)));
         }
@@ -203,8 +219,18 @@ pub fn forward_kinematics(model: &KinematicModel, q: &JointValues) -> Result<Lin
 
     // pose(link) = pose(parent) ∘ origin ∘ motion, memoised. Resolving upwards means each link is
     // visited once and no evaluation order has to be established in advance.
+    //
+    // The root sits at its anchoring joint's own origin and motion, not at the identity: that joint
+    // is what states the standing height of a floating base, and dropping it would put every model
+    // in the library on the floor plane it is meant to stand above.
     let mut poses: HashMap<String, Se> = HashMap::new();
-    poses.insert(root.clone(), Se::identity(3));
+    poses.insert(
+        root.clone(),
+        match anchor.get(root.as_str()) {
+            Some(j) => joint_origin(j).compose(&joint_motion(j, q.get(&j.name).copied().unwrap_or(0.0))),
+            None => Se::identity(3),
+        },
+    );
     for link in &model.links {
         let mut chain: Vec<&str> = Vec::new();
         let mut cursor: &str = link.name.as_str();
@@ -218,6 +244,8 @@ pub fn forward_kinematics(model: &KinematicModel, q: &JointValues) -> Result<Lin
             chain.push(cursor);
             let j = parent_joint[cursor];
             if !declared.contains_key(j.parent_link.as_str()) {
+                // A frame parent is an anchor, and an anchored link is already a root with a pose,
+                // so the walk can only reach here on a parent that is neither link nor frame.
                 return Err(FkError::UnknownLink {
                     joint: j.name.clone(),
                     link: j.parent_link.clone(),
@@ -319,6 +347,7 @@ mod tests {
                     Some([0.0, 0.0, 1.0]),
                 ),
             ],
+            frames: Vec::new(),
         }
     }
 
@@ -394,6 +423,7 @@ mod tests {
                 joint("jl", "base", "left", JointType::Fixed, Some([0.0, 1.0, 0.0]), None),
                 joint("jr", "base", "right", JointType::Fixed, Some([0.0, -1.0, 0.0]), None),
             ],
+            frames: Vec::new(),
         };
         let poses = forward_kinematics(&m, &JointValues::new()).unwrap();
         assert!(close(&poses.get("left").unwrap().translation, [0.0, 1.0, 0.0]));
@@ -456,6 +486,7 @@ mod tests {
             name: "empty".into(),
             links: vec![],
             joints: vec![],
+            frames: Vec::new(),
         };
         assert!(matches!(
             forward_kinematics(&m, &JointValues::new()),
@@ -469,9 +500,64 @@ mod tests {
             name: "one".into(),
             links: vec![link("base")],
             joints: vec![],
+            frames: Vec::new(),
         };
         let poses = forward_kinematics(&m, &JointValues::new()).unwrap();
         assert_eq!(poses.root, "base");
         assert_eq!(*poses.get("base").unwrap(), Se::identity(3));
+    }
+
+    /// A floating base: `world` is a FRAME, not a link, and `@base` hangs the mechanism from it.
+    ///
+    /// This is how every model in the robotics library anchors, and reading it wrong is not a near
+    /// miss: no link is parentless, so the root search finds none, concludes the chain must have
+    /// closed on itself, and reports a cycle between the first link and a `world` that is not a body
+    /// at all. Every robot then collapses to the identity — a heap of parts at the origin.
+    #[test]
+    fn a_joint_to_a_frame_anchors_the_root() {
+        let mut m = two_link_arm();
+        m.frames = vec!["world".into()];
+        m.joints.insert(
+            0,
+            joint(
+                "anchor",
+                "world",
+                "base",
+                JointType::Fixed,
+                Some([0.0, 0.0, 0.25]),
+                None,
+            ),
+        );
+
+        let poses = forward_kinematics(&m, &JointValues::new()).expect("a frame anchor is a root");
+        assert_eq!(poses.root, "base");
+        // and the anchoring joint's own origin is kept: it is what states the standing height of a
+        // floating base, and dropping it would put every model in the library on the floor
+        let base = poses.get("base").unwrap();
+        assert!((base.translation[2] - 0.25).abs() < 1e-12, "{:?}", base.translation);
+        // the rest of the chain rides on it
+        let tool = poses.get("tool").unwrap();
+        assert!((tool.translation[2] - 0.25).abs() < 1e-12, "{:?}", tool.translation);
+        assert!((tool.translation[0] - 2.0).abs() < 1e-12, "{:?}", tool.translation);
+    }
+
+    /// A parent that is neither a link nor a declared frame is still a mistake, not an anchor.
+    #[test]
+    fn a_joint_to_nothing_is_not_an_anchor() {
+        let mut m = two_link_arm();
+        m.joints.push(joint(
+            "dangling",
+            "nowhere",
+            "base",
+            JointType::Fixed,
+            None,
+            None,
+        ));
+        // `base` is now claimed by a joint whose parent does not exist and is not a frame, so it is
+        // not a root — and nothing else is either.
+        assert!(matches!(
+            forward_kinematics(&m, &JointValues::new()),
+            Err(FkError::UnknownLink { .. }) | Err(FkError::Cycle(_))
+        ));
     }
 }

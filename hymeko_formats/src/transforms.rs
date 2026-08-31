@@ -992,6 +992,7 @@ mod mjcf_emit_tests {
             name: "deep".to_string(),
             links,
             joints,
+            frames: Vec::new(),
         }
     }
 

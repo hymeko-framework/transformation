@@ -59,6 +59,14 @@ pub struct KinematicModel {
     pub name: String,
     pub links: Vec<LinkInfo>,
     pub joints: Vec<JointInfo>,
+    /// Declared `frame` elements, by name.
+    ///
+    /// A frame is not a body: it carries no mass and no geometry, and nothing about it is posed. It
+    /// exists to be joined TO — `world` is the frame a floating base hangs from — so a joint whose
+    /// parent is a frame anchors its child to something outside the mechanism rather than to
+    /// another part of it. Kinematics has to be able to tell that apart from a joint that names a
+    /// link which does not exist, and the only place that distinction is available is here.
+    pub frames: Vec<String>,
 }
 
 /// Extract a complete kinematic model from the IR.
@@ -89,6 +97,12 @@ pub fn extract_kinematic_model<R: NameResolver>(
             color,
         }
     }).collect();
+
+    let frames: Vec<String> = engine
+        .query(&Predicate::node().and(Predicate::inherits("frame")))
+        .iter()
+        .map(|m| m.name.clone())
+        .collect();
 
     // Query joints by type
     let mut joints = Vec::new();
@@ -162,6 +176,7 @@ pub fn extract_kinematic_model<R: NameResolver>(
         name: robot_name.to_string(),
         links,
         joints,
+        frames,
     }
 }
 
