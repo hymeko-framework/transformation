@@ -498,6 +498,7 @@ dependencies = [
 name = "hymeko_formats"
 version = "0.1.0"
 dependencies = [
+ "hymeko_clifford",
  "hymeko_core",
  "hymeko_geometry",
  "hymeko_query",
