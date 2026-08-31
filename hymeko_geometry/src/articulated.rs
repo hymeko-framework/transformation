@@ -48,15 +48,47 @@ use crate::forward::{joint_motion_se3, joint_origin_se3, FkError, FkPlan};
 use crate::kinematics::joints::JointType;
 use crate::kinematics::kinematic::KinematicModel;
 
-/// Floor on a joint's articulated inertia, in kg m^2.
+/// How small `d = S^T I^A S` may be, RELATIVE to the articulated inertia it came from, before the
+/// joint is treated as having no inertia about its own axis at all.
 ///
-/// `d = S^T I^A S` is how much inertia the joint actually has to push against. It is zero for a
-/// genuinely indeterminate joint — a point mass sitting exactly on its own rotation axis has no
-/// inertia about that axis — and the acceleration is then undefined rather than large. This floor
-/// is the exact analogue of the ridge term an explicit mass matrix needs on the same configuration,
-/// and it is far below any real link's contribution: a 1 kg mass 1 mm off the axis already gives
-/// 1e-6.
-const INERTIA_FLOOR: f64 = 1e-12;
+/// `d` is a difference of terms of size `|I^A|`, so its rounding error is about `eps |I^A|`. Below
+/// a few thousand times that, its value carries no information — and it can perfectly well come out
+/// NEGATIVE, because a positive semi-definite matrix that has been through a dozen congruences and
+/// downdates is only semi-definite to within rounding.
+///
+/// # Why this is relative, and why an absolute floor was a bug
+///
+/// This started as `d.max(1e-12)`, by analogy with the ridge an explicit mass matrix needs on the
+/// same configuration. The analogy is wrong, and a structural fuzz found it: clamping turns a
+/// negative `d` into a small POSITIVE one, so `1/d` comes out at `1e12` with the wrong sign, and
+/// the rank-one downdate `I^A - U U^T/d` then ADDS an enormous term instead of subtracting a
+/// negligible one. On a long chain that compounds once per level. The measured cascade, on a
+/// twenty-two-link chain with masses spanning `1e-6` to `1e3` kg, was
+/// `|I^A|` = 3.9e-8, then 1.6e3, 1.3e4, 3.4e18, 7.5e46, 7.1e105, and infinity — one level at a
+/// time. `hymeko_geometry/tests/articulated.rs::a_chain_of_wildly_mismatched_masses_stays_finite`
+/// holds the exact mechanism a structural fuzz found it on.
+///
+/// A relative threshold cannot do that: below it the downdate is skipped entirely, which is also
+/// the correct limit. For a positive semi-definite `I^A`, `S^T I^A S = 0` implies `I^A S = 0`, so
+/// `U` is zero and the rank-one term it would remove is zero. Nothing is subtracted because there
+/// was nothing there — whether the subtree is massless, or merely carries all its mass on the one
+/// axis this joint turns about.
+const INERTIA_RELATIVE_FLOOR: f64 = 1e-12;
+
+/// The absolute backstop, for a subtree with no inertia at all, where the relative threshold is
+/// zero and every comparison against it would pass.
+const INERTIA_ABSOLUTE_FLOOR: f64 = 1e-30;
+
+/// The scale an articulated inertia's own entries are judged against: the traces of its two
+/// symmetric blocks.
+///
+/// Six loads rather than a pass over all twenty-seven entries, which measured at a fifth of the
+/// whole sweep when it was written the obvious way. It is a valid magnitude because both blocks are
+/// positive semi-definite, so their diagonals are non-negative and their traces bound them.
+#[inline]
+fn scale_of(ia: &ArticulatedInertia) -> f64 {
+    ia.aa[0] + ia.aa[4] + ia.aa[8] + ia.ll[0] + ia.ll[4] + ia.ll[8]
+}
 
 /// A mechanism prepared for forward dynamics.
 ///
@@ -279,18 +311,34 @@ impl AbaPlan {
             let (up, pp) = match self.subspace[ji] {
                 Some(sub) => {
                     let u = s.ia[i].apply(&sub);
-                    let d = (sub.dot(&u)).max(INERTIA_FLOOR);
-                    let bias = tau[ji] - sub.dot(&s.pa[i]);
-                    s.u[ji] = u;
-                    s.d[ji] = d;
-                    s.tau_bias[ji] = bias;
+                    let d = sub.dot(&u);
+                    let floor = (INERTIA_RELATIVE_FLOOR * scale_of(&s.ia[i]))
+                        .max(INERTIA_ABSOLUTE_FLOOR);
+                    if d <= floor {
+                        // Nothing below this joint resists it. `d` is zero to within its own
+                        // rounding — or negative, which means the same thing and says only that the
+                        // accumulated inertia has drifted off positive semi-definite. Either way
+                        // `U` is zero to the same accuracy, so the rank-one term is zero and the
+                        // joint passes its subtree to the parent unchanged. Dividing by the floor
+                        // instead would amplify the rounding by `1/floor` at every level; see
+                        // `INERTIA_RELATIVE_FLOOR`.
+                        s.u[ji] = Wrench::ZERO;
+                        s.d[ji] = 0.0; // the sentinel sweep three reads
+                        s.tau_bias[ji] = 0.0;
+                        (s.ia[i], s.pa[i])
+                    } else {
+                        let bias = tau[ji] - sub.dot(&s.pa[i]);
+                        s.u[ji] = u;
+                        s.d[ji] = d;
+                        s.tau_bias[ji] = bias;
 
-                    // Rank one: the joint is free in exactly one direction, so exactly one
-                    // direction of the subtree's stiffness is removed. This is the step that makes
-                    // the whole recursion linear rather than cubic.
-                    let ia = s.ia[i].downdate(&u, 1.0 / d);
-                    let pa = s.pa[i].add(&ia.apply(&s.c[i])).add(&u.scale(bias / d));
-                    (ia, pa)
+                        // Rank one: the joint is free in exactly one direction, so exactly one
+                        // direction of the subtree's stiffness is removed. This is the step that
+                        // makes the whole recursion linear rather than cubic.
+                        let ia = s.ia[i].downdate(&u, 1.0 / d);
+                        let pa = s.pa[i].add(&ia.apply(&s.c[i])).add(&u.scale(bias / d));
+                        (ia, pa)
+                    }
                 }
                 // A fixed joint is a weld: nothing gives way, so nothing is removed.
                 None => (s.ia[i], s.pa[i]),
@@ -313,6 +361,13 @@ impl AbaPlan {
             let ap = if p == usize::MAX { base_a } else { s.a[p] };
             let here = ap.to_child(&x).add(&s.c[i]);
             match self.subspace[ji] {
+                // `d == 0` is the sentinel from sweep two: a joint with no inertia about its own
+                // axis. Its acceleration is not determined by anything — no inertia, and no torque
+                // that could act on one — so it is zero, and the body simply follows its parent.
+                Some(_) if s.d[ji] == 0.0 => {
+                    qdd[ji] = 0.0;
+                    s.a[i] = here;
+                }
                 Some(sub) => {
                     let acc = (s.tau_bias[ji] - here.dot(&s.u[ji])) / s.d[ji];
                     qdd[ji] = acc;
