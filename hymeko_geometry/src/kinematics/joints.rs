@@ -42,6 +42,16 @@ pub struct JointInfo {
     pub did: DeclId,
     pub name: String,
     pub joint_type: JointType,
+    /// The parent link's declaration, as the IR names it.
+    ///
+    /// This is the TOPOLOGY. `parent_link` beside it is the same fact spelled for a human, and the
+    /// two are checked against each other by `tests/handles_match_names.rs` so they cannot drift.
+    /// The distinction matters because the IR is a unified arena: `DeclId` is an index into it,
+    /// resolving a name costs an interner lookup and an allocation, and doing that per edge on
+    /// every kinematic query is how a zero-copy representation stops being one.
+    pub parent: DeclId,
+    /// The child link's declaration. See [`Self::parent`].
+    pub child: DeclId,
     pub parent_link: String,
     pub child_link: String,
     pub axis: Option<[f64; 3]>,

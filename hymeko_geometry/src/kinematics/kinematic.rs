@@ -122,6 +122,11 @@ pub fn extract_kinematic_model<R: NameResolver>(
             // Read directly from bindings — no re-query needed
             let mut parent_link = String::from("unknown");
             let mut child_link = String::from("unknown");
+            // The arc binding already carries `target: DeclId` — the arena handle — and its own
+            // doc says domain transforms read it directly, zero re-traversal. Taking the name and
+            // dropping the handle is the copy this pair exists to stop.
+            let mut parent = DeclId::NONE;
+            let mut child = DeclId::NONE;
             let mut axis: Option<[f64; 3]> = None;
             let mut origin_xyz: Option<[f64; 3]> = None;
             let mut origin_rpy: Option<[f64; 3]> = None;
@@ -133,6 +138,7 @@ pub fn extract_kinematic_model<R: NameResolver>(
 
                 if b.sign == 1 && is_link {
                     // Parent link (+ sign, inherits from link)
+                    parent = b.target;
                     parent_link = b.target_name.clone();
 
                     // Extract origin from weight annotations on this binding
@@ -146,6 +152,7 @@ pub fn extract_kinematic_model<R: NameResolver>(
                     }
                 } else if b.sign == -1 && is_link {
                     // Child link (- sign, inherits from link)
+                    child = b.target;
                     child_link = b.target_name.clone();
                 } else if b.sign == -1 && is_axis {
                     // Axis (- sign, inherits from axis_definition)
@@ -162,6 +169,8 @@ pub fn extract_kinematic_model<R: NameResolver>(
                 did: m.id,
                 name: m.name.clone(),
                 joint_type: *jtype,
+                parent,
+                child,
                 parent_link,
                 child_link,
                 axis,

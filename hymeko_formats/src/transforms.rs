@@ -978,6 +978,8 @@ mod mjcf_emit_tests {
         for i in 0..(n - 1) {
             joints.push(JointInfo {
                 did: DeclId::new(1000 + i),
+                parent: DeclId::NONE,
+                child: DeclId::NONE,
                 name: format!("j{i}"),
                 joint_type: JointType::Fixed,
                 parent_link: format!("L{i}"),
@@ -1032,6 +1034,8 @@ mod mjcf_emit_tests {
             0,
             JointInfo {
                 did: DeclId::new(2000),
+                parent: DeclId::NONE,
+                child: DeclId::NONE,
                 name: "fix_world".to_string(),
                 joint_type: JointType::Fixed,
                 parent_link: "world".to_string(),

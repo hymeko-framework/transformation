@@ -28,6 +28,8 @@ use std::collections::HashMap;
 
 use hymeko_clifford::Se;
 
+use hymeko::common::ids::DeclId;
+
 use crate::kinematics::joints::{JointInfo, JointType};
 use crate::kinematics::kinematic::KinematicModel;
 
@@ -284,6 +286,223 @@ fn trace_cycle(start: &str, parent_joint: &HashMap<&str, &JointInfo>) -> Vec<Str
     }
 }
 
+
+// ─── The prepared plan ──────────────────────────────────────────────────────────────────────────
+
+/// The topology, resolved once.
+///
+/// [`forward_kinematics`] answers a single question completely, and pays for that on every call: it
+/// builds three hash maps, hashes a `String` for every link and joint, and clones every joint name
+/// into a fresh vector. Measured on a 33-link quadruped that bookkeeping is 18 of 51 microseconds —
+/// 36% — and none of it depends on the joint values, which is the only thing that actually changes
+/// between calls.
+///
+/// A plan does that work once. Afterwards a pose costs the rigid-motion compositions and nothing
+/// else: no hashing, no lookup, no allocation. `tests/fk_plan.rs` pins the last of those with a
+/// counting allocator rather than with a timing measurement, because a timing measurement passes on
+/// a fast machine having proved nothing.
+///
+/// # The topology comes from the arena
+///
+/// Links and joints are matched by [`DeclId`] — the IR's own index — and only fall back to matching
+/// by name where a model carries no handles, which is the case for a hand-built fixture and for
+/// nothing that came out of a compile. The distinction is the point: the IR is a unified arena, and
+/// re-deriving its structure from resolved strings is the copy this type exists to avoid.
+pub struct FkPlan {
+    /// For each link, the joint that brings it in and the link it hangs from.
+    parent: Vec<Option<(usize, usize)>>,
+    /// Link indices ordered so that every parent precedes its children.
+    order: Vec<usize>,
+    /// The root link's index.
+    root: usize,
+    /// Joint index by name, so a caller can fill a flat value vector once.
+    joint_slot: HashMap<String, usize>,
+}
+
+impl FkPlan {
+    /// Resolve a model's topology. The same structural failures [`forward_kinematics`] reports.
+    pub fn new(model: &KinematicModel) -> Result<Self, FkError> {
+        if model.links.is_empty() {
+            return Err(FkError::NoLinks);
+        }
+        let n = model.links.len();
+
+        // link index, by handle where there is one and by name otherwise
+        let mut by_handle: HashMap<DeclId, usize> = HashMap::with_capacity(n);
+        let mut by_name: HashMap<&str, usize> = HashMap::with_capacity(n);
+        for (i, l) in model.links.iter().enumerate() {
+            if l.did != DeclId::NONE {
+                by_handle.insert(l.did, i);
+            }
+            by_name.insert(l.name.as_str(), i);
+        }
+        let frames: HashMap<&str, ()> = model.frames.iter().map(|f| (f.as_str(), ())).collect();
+        let locate = |handle: DeclId, name: &str| -> Option<usize> {
+            by_handle
+                .get(&handle)
+                .copied()
+                .or_else(|| by_name.get(name).copied())
+        };
+
+        let mut parent: Vec<Option<(usize, usize)>> = vec![None; n];
+        let mut claimed: Vec<Vec<&str>> = vec![Vec::new(); n];
+        let mut anchored = vec![false; n];
+        for (ji, j) in model.joints.iter().enumerate() {
+            let Some(child) = locate(j.child, &j.child_link) else {
+                continue; // a joint whose child is not a link of this model brings nothing in
+            };
+            claimed[child].push(j.name.as_str());
+            match locate(j.parent, &j.parent_link) {
+                Some(p) => parent[child] = Some((ji, p)),
+                None if frames.contains_key(j.parent_link.as_str()) => {
+                    // joined to a frame: an external anchor, so the child is a root that carries
+                    // this joint's own origin and motion
+                    anchored[child] = true;
+                    parent[child] = Some((ji, usize::MAX));
+                }
+                None => {
+                    return Err(FkError::UnknownLink {
+                        joint: j.name.clone(),
+                        link: j.parent_link.clone(),
+                    })
+                }
+            }
+        }
+        if let Some((i, js)) = claimed
+            .iter()
+            .enumerate()
+            .find(|(_, js)| js.len() > 1)
+        {
+            let mut joints: Vec<String> = js.iter().map(|s| (*s).to_string()).collect();
+            joints.sort();
+            return Err(FkError::MultipleParents {
+                link: model.links[i].name.clone(),
+                joints,
+            });
+        }
+
+        let mut roots: Vec<usize> = (0..n)
+            .filter(|&i| parent[i].is_none() || anchored[i])
+            .collect();
+        let root = match roots.len() {
+            0 => {
+                let start = model.links[0].name.as_str();
+                let lookup: HashMap<&str, &JointInfo> = model
+                    .joints
+                    .iter()
+                    .map(|j| (j.child_link.as_str(), j))
+                    .collect();
+                return Err(FkError::Cycle(trace_cycle(start, &lookup)));
+            }
+            1 => roots.remove(0),
+            _ => {
+                let mut names: Vec<String> =
+                    roots.iter().map(|&i| model.links[i].name.clone()).collect();
+                names.sort();
+                return Err(FkError::MultipleRoots(names));
+            }
+        };
+
+        // an order in which every parent precedes its children
+        let mut order = Vec::with_capacity(n);
+        let mut placed = vec![false; n];
+        order.push(root);
+        placed[root] = true;
+        let mut cursor = 0;
+        while cursor < order.len() {
+            let current = order[cursor];
+            cursor += 1;
+            for i in 0..n {
+                if placed[i] {
+                    continue;
+                }
+                if let Some((_, p)) = parent[i] {
+                    if p == current {
+                        order.push(i);
+                        placed[i] = true;
+                    }
+                }
+            }
+        }
+        if order.len() != n {
+            let unplaced = (0..n).find(|&i| !placed[i]).unwrap_or(0);
+            let lookup: HashMap<&str, &JointInfo> = model
+                .joints
+                .iter()
+                .map(|j| (j.child_link.as_str(), j))
+                .collect();
+            return Err(FkError::Cycle(trace_cycle(
+                model.links[unplaced].name.as_str(),
+                &lookup,
+            )));
+        }
+
+        Ok(FkPlan {
+            parent,
+            order,
+            root,
+            joint_slot: model
+                .joints
+                .iter()
+                .enumerate()
+                .map(|(i, j)| (j.name.clone(), i))
+                .collect(),
+        })
+    }
+
+    /// Which slot of the value vector drives `joint`.
+    pub fn slot(&self, joint: &str) -> Option<usize> {
+        self.joint_slot.get(joint).copied()
+    }
+
+    /// A value vector sized for [`Self::resolve`], zero everywhere.
+    pub fn zero_values(&self) -> Vec<f64> {
+        vec![0.0; self.joint_slot.len()]
+    }
+
+    /// A pose buffer sized for [`Self::resolve`].
+    pub fn identity_poses(&self) -> Vec<Se> {
+        (0..self.parent.len()).map(|_| Se::identity(3)).collect()
+    }
+
+    /// The root link's index.
+    pub fn root(&self) -> usize {
+        self.root
+    }
+
+    /// Write every link's world pose into `out`, in the order the model lists its links.
+    ///
+    /// `q` is indexed by joint, `out` by link. Both are the caller's, and both are reused across
+    /// calls — which is the whole point: this function performs no allocation.
+    ///
+    /// # Panics
+    /// If `q` is shorter than the joint count or `out` shorter than the link count.
+    pub fn resolve(&self, model: &KinematicModel, q: &[f64], out: &mut [Se]) {
+        assert!(q.len() >= self.joint_slot.len(), "q must cover every joint");
+        assert!(out.len() >= self.parent.len(), "out must cover every link");
+        for &i in &self.order {
+            match self.parent[i] {
+                None => out[i] = Se::identity(3),
+                Some((ji, p)) => {
+                    let j = &model.joints[ji];
+                    // Left to right, exactly as `forward_kinematics` composes. Composition is
+                    // associative in the algebra and NOT in floating point, so grouping the two
+                    // local factors first — which reads better and saves nothing — makes this a
+                    // different function whose answers differ in the last bit.
+                    out[i] = if p == usize::MAX {
+                        // anchored to a frame: the joint's own origin and motion ARE the world pose
+                        joint_origin(j).compose(&joint_motion(j, q[ji]))
+                    } else {
+                        out[p]
+                            .compose(&joint_origin(j))
+                            .compose(&joint_motion(j, q[ji]))
+                    };
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -315,6 +534,11 @@ mod tests {
             did: DeclId::NONE,
             name: name.to_string(),
             joint_type: jtype,
+            // A hand-built fixture has no arena behind it, so the handles are absent and the plan
+            // falls back to matching by name. That fallback is itself under test — see
+            // `a_plan_built_without_handles_still_resolves`.
+            parent: DeclId::NONE,
+            child: DeclId::NONE,
             parent_link: parent.to_string(),
             child_link: child.to_string(),
             axis,

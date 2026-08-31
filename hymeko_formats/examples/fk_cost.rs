@@ -5,7 +5,7 @@
 //!   B  topology prepared once            — flat index arrays, same Se arithmetic
 //!   C  arithmetic only                   — the Se compositions B does, and nothing else
 use hymeko_clifford::Se;
-use hymeko_geometry::forward::{forward_kinematics, joint_motion, joint_origin, JointValues};
+use hymeko_geometry::forward::{forward_kinematics, joint_motion, joint_origin, FkPlan, JointValues};
 use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
 use hymeko_query::QueryEngine;
 
@@ -85,6 +85,15 @@ fn main() {
         }
         std::hint::black_box(&poses);
     });
+    let plan = FkPlan::new(&model).expect("plan");
+    let mut pp = plan.identity_poses();
+    let mut flat = plan.zero_values();
+    for j in &model.joints { flat[plan.slot(&j.name).unwrap()] = q[&j.name]; }
+    let d = time("D  FkPlan::resolve", &mut || {
+        plan.resolve(&model, &flat, &mut pp);
+        std::hint::black_box(&pp);
+    });
+    let _ = d;
     let c = time("C  Se arithmetic only", &mut || {
         let mut acc = Se::identity(3);
         for &i in &order {
