@@ -326,11 +326,12 @@ pub fn joint_origin_se3(joint: &JointInfo) -> Se3 {
 /// by name where a model carries no handles, which is the case for a hand-built fixture and for
 /// nothing that came out of a compile. The distinction is the point: the IR is a unified arena, and
 /// re-deriving its structure from resolved strings is the copy this type exists to avoid.
+#[derive(Debug, Clone)]
 pub struct FkPlan {
     /// For each link, the joint that brings it in and the link it hangs from.
-    parent: Vec<Option<(usize, usize)>>,
+    pub(crate) parent: Vec<Option<(usize, usize)>>,
     /// Link indices ordered so that every parent precedes its children.
-    order: Vec<usize>,
+    pub(crate) order: Vec<usize>,
     /// The root link's index.
     root: usize,
     /// Joint index by name, so a caller can fill a flat value vector once.

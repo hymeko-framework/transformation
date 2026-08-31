@@ -4,10 +4,8 @@
 //! global allocator sees every thread, and the tests in one binary run in parallel, so a counter
 //! switched on here would also record what these tests are doing.
 
-use std::alloc::{GlobalAlloc, Layout, System};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 use hymeko::module_store::module_store::ModuleStore;
 use hymeko::module_store::source_provider::StdFsProvider;
