@@ -121,7 +121,8 @@ impl Engine {
         );
         let mut velocity: Vec<f64> = (0..n).map(|k| self.qd[k] + h * self.free[k]).collect();
 
-        // the extra edges
+        // the extra edges. `accelerations` above left the factorisation in the scratch, which is
+        // what the constraint solve needs and what it must not recompute.
         self.plan.resolve_se3(&self.model, &self.q, &mut self.poses);
         place(&self.colliders, &self.poses, &mut self.placed);
         ground_contacts(
@@ -133,8 +134,6 @@ impl Engine {
         );
         ground_constraints(
             &self.aba,
-            &self.model,
-            &self.q,
             &self.poses,
             &self.colliders,
             &self.contacts,
@@ -146,8 +145,6 @@ impl Engine {
         );
         self.solver.solve(
             &self.aba,
-            &self.model,
-            &self.q,
             &self.constraints,
             &self.parameters,
             &mut self.scratch,

@@ -38,7 +38,6 @@ use hymeko_clifford::Se3;
 
 use crate::articulated::{AbaPlan, AbaScratch};
 use crate::collide::{Collider, Placement};
-use crate::kinematics::kinematic::KinematicModel;
 
 /// One scalar constraint on the mechanism.
 #[derive(Debug, Clone)]
@@ -177,17 +176,24 @@ impl ConstraintSolver {
     /// leaves corrected. Returns the number of constraints that ended up carrying load, which is a
     /// cheaper thing to watch than the impulses themselves.
     ///
+    /// # The scratch must already be factorised at this `q`
+    ///
+    /// Either [`AbaPlan::factorise`] or [`AbaPlan::accelerations`] establishes that, and a physics
+    /// step has already called the second one to get the free velocity — the articulated inertias,
+    /// `U` and `d` it leaves behind are exactly what this needs. Refactorising here would be a
+    /// second full inertia sweep per step for nothing.
+    ///
+    /// [`AbaPlan::inverse_dynamics`] does NOT establish it: it never forms an articulated inertia.
+    ///
+    /// Neither the model nor `q` appears here, for the same reason they no longer appear on
+    /// [`AbaPlan::constraint_force`]: this walks a prepared scratch, and taking them would suggest
+    /// otherwise.
+    ///
     /// # Panics
     /// If any constraint's force vector is shorter than the plan's slot count.
-    // The mechanism, its configuration, the constraints, the tuning, the scratch and the state are
-    // six separate things with six separate lifetimes; bundling them would hide that the caller owns
-    // and reuses each one, which is what keeps a step free of allocation.
-    #[allow(clippy::too_many_arguments)]
     pub fn solve(
         &mut self,
         aba: &AbaPlan,
-        model: &KinematicModel,
-        q: &[f64],
         constraints: &[Constraint],
         parameters: &ContactParameters,
         scratch: &mut AbaScratch,
@@ -213,10 +219,10 @@ impl ConstraintSolver {
         // One column of `M^-1 J^T` per constraint: what the mechanism does when the ONLY torque is
         // the one that constraint exerts. Gravity off and velocity zero, because this is the
         // mechanism's response to a unit impulse and nothing else.
-        // The inertia part of that is the same for every column, so it is done ONCE. Calling the
-        // full solve per constraint recomputes a congruence per link per column, which on a
-        // nineteen-contact quadruped was three quarters of the whole constraint phase.
-        aba.factorise(model, q, scratch);
+        // The factorisation is the caller's, and it is ALREADY THERE: a step computes the free
+        // acceleration first, and `accelerations` leaves exactly the same articulated inertias, `U`
+        // and `d` in the scratch that `factorise` would. Redoing it here was a second full inertia
+        // sweep per step, comparable in cost to the dynamics itself.
         for (k, constraint) in constraints.iter().enumerate() {
             assert!(constraint.force.len() >= n, "constraint {k} is too short");
             aba.solve_factorised(&constraint.force, scratch, &mut self.scratch);
@@ -287,6 +293,10 @@ impl ConstraintSolver {
 ///
 /// `velocity` is the mechanism's current joint velocities, which the restitution term needs.
 ///
+/// **The scratch must already hold this configuration's local transforms**, from
+/// [`AbaPlan::prepare_transforms`], [`AbaPlan::factorise`] or [`AbaPlan::accelerations`]. A step has
+/// already called the last of those; rebuilding them here is a forward-kinematics pass for nothing.
+///
 /// The bias is where a penetration that has already happened gets worked off and where bounce
 /// enters. Both are velocities: a step of `h` removes `beta/h` of the penetration beyond the slop,
 /// so the correction is a rate rather than a jump.
@@ -296,8 +306,6 @@ impl ConstraintSolver {
 #[allow(clippy::too_many_arguments)]
 pub fn ground_constraints(
     aba: &AbaPlan,
-    model: &KinematicModel,
-    q: &[f64],
     poses: &[Se3],
     colliders: &[Collider],
     contacts: &[GroundContact],
@@ -309,9 +317,6 @@ pub fn ground_constraints(
 ) {
     out.clear();
     let n = aba.slots();
-    // Once for the whole contact set: the local transforms are a property of the configuration, not
-    // of which foot is being asked about.
-    aba.prepare_transforms(model, q, scratch);
     for contact in contacts {
         let mut force = vec![0.0; n];
         aba.constraint_force(

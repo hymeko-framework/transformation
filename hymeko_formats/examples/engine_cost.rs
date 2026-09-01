@@ -87,16 +87,19 @@ fn main() {
     let constrain_us = if c == 0 {
         0.0
     } else {
+        // A step calls `accelerations` first for the free velocity, and that leaves the
+        // factorisation and the local transforms the constraint phase needs. Establishing it ONCE
+        // here rather than inside the loop is what keeps this measuring the constraint phase and
+        // not the tree phase over again.
+        aba.accelerations(&model, &q, &qd, &tau, GRAVITY, &mut scratch, &mut free);
         time(20_000, || {
             ground_constraints(
-                &aba, &model, &q, &poses, &colliders, &contacts, &qd, &parameters, h, &mut scratch,
+                &aba, &poses, &colliders, &contacts, &qd, &parameters, h, &mut scratch,
                 &mut constraints,
             );
             velocity.copy_from_slice(&qd);
             solver.solve(
                 &aba,
-                &model,
-                &q,
                 &constraints,
                 &parameters,
                 &mut scratch,

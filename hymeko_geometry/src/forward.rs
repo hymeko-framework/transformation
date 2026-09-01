@@ -336,6 +336,16 @@ pub struct FkPlan {
     root: usize,
     /// Joint index by name, so a caller can fill a flat value vector once.
     joint_slot: HashMap<String, usize>,
+    /// Each joint's fixed origin transform, built once.
+    ///
+    /// [`joint_origin_se3`] is three `sin_cos` calls, three axis normalisations and two rotor
+    /// products — and it does not depend on the joint values at all. Rebuilding it per link per pass
+    /// was the largest cost left in a pose walk once the blade products were tabulated: measured at
+    /// about half of `resolve_se3`.
+    ///
+    /// Bit-identical by construction, which the plan's contract requires: the same function on the
+    /// same joint, evaluated once instead of many times.
+    origin: Vec<Se3>,
 }
 
 impl FkPlan {
@@ -466,6 +476,7 @@ impl FkPlan {
                 .enumerate()
                 .map(|(i, j)| (j.name.clone(), i))
                 .collect(),
+            origin: model.joints.iter().map(joint_origin_se3).collect(),
         })
     }
 
@@ -511,10 +522,10 @@ impl FkPlan {
                 Some((ji, p)) => {
                     let j = &model.joints[ji];
                     out[i] = if p == usize::MAX {
-                        joint_origin_se3(j).compose(&joint_motion_se3(j, q[ji]))
+                        self.origin[ji].compose(&joint_motion_se3(j, q[ji]))
                     } else {
                         out[p]
-                            .compose(&joint_origin_se3(j))
+                            .compose(&self.origin[ji])
                             .compose(&joint_motion_se3(j, q[ji]))
                     };
                 }
