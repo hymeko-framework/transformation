@@ -112,6 +112,21 @@ pub struct AbaPlan {
     inertia: Vec<SpatialInertia>,
     /// Number of joints that actually move.
     movable: usize,
+    /// Added to each joint's own inertia `d` before the recursion divides by it.
+    ///
+    /// Physically this is a rotor's inertia, reflected through a gearbox and seen at the joint —
+    /// which is real, often dominant on a geared actuator, and absent from the link geometry that
+    /// would otherwise be the only source of `d`.
+    ///
+    /// It is also where **implicit damping** enters, and that is not a trick. Solving
+    /// `M dqdot = h (f - C qdot)` explicitly is stable only while `h < 2 d / c`, and on a real arm
+    /// `d` spans nearly five orders of magnitude between the shoulder and a fingertip, so no single
+    /// step suits both ends: measured, a 240 Hz step with 0.15 damping sent two of three robots to
+    /// NaN within five steps. Taking the damping at the NEW velocity instead gives
+    /// `(M + h C) dqdot = h (f - C qdot)`, and `M + h C` differs from `M` by a joint-space diagonal
+    /// — which in this recursion is exactly `d + h c`. Unconditionally stable, and it costs an
+    /// addition.
+    armature: Vec<f64>,
 }
 
 /// Working memory for one call to [`AbaPlan::accelerations`].
@@ -185,12 +200,39 @@ impl AbaPlan {
             .collect();
 
         let movable = subspace.iter().filter(|s| s.is_some()).count();
+        let armature = vec![0.0; subspace.len()];
         Ok(Self {
             plan,
             subspace,
             inertia,
             movable,
+            armature,
         })
+    }
+
+    /// Set the per-joint inertia added to `d`. See [`Self::armature`].
+    ///
+    /// For implicit joint damping, pass `step * damping` for each joint. For a geared actuator, pass
+    /// the reflected rotor inertia; for both, their sum.
+    ///
+    /// # Panics
+    /// If `armature` does not cover every joint, or if any entry is negative — a negative one would
+    /// subtract inertia the mechanism has, and past a point invert the sign of an acceleration.
+    pub fn set_armature(&mut self, armature: &[f64]) {
+        assert!(
+            armature.len() >= self.subspace.len(),
+            "armature must cover every joint"
+        );
+        assert!(
+            armature.iter().all(|&a| a >= 0.0),
+            "a negative armature removes inertia the mechanism has"
+        );
+        self.armature.copy_from_slice(&armature[..self.subspace.len()]);
+    }
+
+    /// The per-joint inertia currently added to `d`.
+    pub fn armature(&self) -> &[f64] {
+        &self.armature
     }
 
     /// How many links the mechanism has.
@@ -346,7 +388,7 @@ impl AbaPlan {
             let (up, pp) = match self.subspace[ji] {
                 Some(sub) => {
                     let u = s.ia[i].apply(&sub);
-                    let d = sub.dot(&u);
+                    let d = sub.dot(&u) + self.armature[ji];
                     let floor = (INERTIA_RELATIVE_FLOOR * scale_of(&s.ia[i]))
                         .max(INERTIA_ABSOLUTE_FLOOR);
                     if d <= floor {
@@ -510,7 +552,11 @@ impl AbaPlan {
             tau[ji] = match self.subspace[ji] {
                 // A fixed joint has no axis to take a share along; whatever it carries goes to the
                 // parent whole, and its reported torque is zero rather than undefined.
-                Some(sub) => sub.dot(&s.f[i]),
+                //
+                // The armature resists an acceleration like any other inertia, so it appears here
+                // for the same reason it appears in `d`: the two directions have to agree, or the
+                // round trip between them stops closing.
+                Some(sub) => sub.dot(&s.f[i]) + self.armature[ji] * qdd[ji],
                 None => 0.0,
             };
             if p != usize::MAX {
@@ -570,7 +616,7 @@ impl AbaPlan {
             let up = match self.subspace[ji] {
                 Some(sub) => {
                     let u = s.ia[i].apply(&sub);
-                    let d = sub.dot(&u);
+                    let d = sub.dot(&u) + self.armature[ji];
                     let floor =
                         (INERTIA_RELATIVE_FLOOR * scale_of(&s.ia[i])).max(INERTIA_ABSOLUTE_FLOOR);
                     if d <= floor {
