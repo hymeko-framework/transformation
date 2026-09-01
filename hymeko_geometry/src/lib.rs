@@ -29,11 +29,16 @@
 #![allow(missing_docs)] // inherited from the moved modules; tightened per-module as they are revisited
 
 pub mod articulated;
+pub mod collide;
 pub mod forward;
 pub mod kinematics;
 pub mod transforms;
 
 pub use articulated::{AbaPlan, AbaScratch};
+pub use collide::{
+    colliders_of, intersects, intersects_at, place, BroadPhase, Collider, Contact, Convex,
+    Placement,
+};
 pub use forward::{forward_kinematics, FkError, LinkPoses};
 pub use kinematics::joints::{JointInfo, JointLimits, JointType};
 pub use kinematics::kinematic::{
