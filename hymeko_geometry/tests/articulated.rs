@@ -899,3 +899,211 @@ fn a_joint_with_no_inertia_about_its_own_axis_is_simply_free() {
         "and no torque is needed to accelerate something with no inertia"
     );
 }
+
+// --- the constraint Jacobian ----------------------------------------------------------------------
+
+#[test]
+fn a_force_at_a_point_produces_the_torques_virtual_work_demands() {
+    // `tau_k = f . dp/dq_k`, and `dp/dq_k` is differentiated numerically through forward kinematics
+    // alone. That is the definition of a generalised force, reached without a spatial vector, and it
+    // is the identity the whole constraint machinery rests on: a contact force enters the dynamics
+    // through this and nothing else.
+    let mut rng = Rng(0x5EA1);
+    let mut checked = 0;
+    for m in [
+        Some(double_pendulum(0.5, 2.0, 0.4, 1.0)),
+        Some(branched()),
+        robot("arm_gripper.hymeko", "robot"),
+        robot("quadruped.hymeko", "quadruped"),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let aba = AbaPlan::new(&m).expect("the topology resolves");
+        let plan = FkPlan::new(&m).expect("the topology resolves");
+        let n = aba.slots();
+        let mut scratch = aba.scratch();
+        let mut tau = vec![0.0; n];
+        let mut poses = plan.identity_poses_se3();
+
+        for round in 0..4 {
+            let q: Vec<f64> = (0..n).map(|_| rng.signed() * 1.5).collect();
+            plan.resolve_se3(&m, &q, &mut poses);
+
+            // a point rigidly attached to some link, and a direction to push it in
+            let body = (round * 3 + 1) % m.links.len();
+            let local = [rng.signed() * 0.2, rng.signed() * 0.2, rng.signed() * 0.2];
+            let w = poses[body].apply(&local);
+            let point = [w[0], w[1], w[2]];
+            let mut dir = [rng.signed(), rng.signed(), rng.signed()];
+            let len = (dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2]).sqrt();
+            for c in dir.iter_mut() {
+                *c /= len;
+            }
+
+            aba.prepare_transforms(&m, &q, &mut scratch);
+            aba.constraint_force(&poses, body, point, dir, &mut scratch, &mut tau);
+
+            // dp/dq_k by central differences, where p is the SAME material point on the body
+            let h = 1e-6;
+            let mut probe = q.clone();
+            let mut moved = plan.identity_poses_se3();
+            for k in 0..n {
+                let original = probe[k];
+                probe[k] = original + h;
+                plan.resolve_se3(&m, &probe, &mut moved);
+                let up = moved[body].apply(&local);
+                probe[k] = original - h;
+                plan.resolve_se3(&m, &probe, &mut moved);
+                let down = moved[body].apply(&local);
+                probe[k] = original;
+
+                let want = (0..3)
+                    .map(|a| dir[a] * (up[a] - down[a]) / (2.0 * h))
+                    .sum::<f64>();
+                assert!(
+                    (tau[k] - want).abs() < 1e-5 * (1.0 + want.abs()),
+                    "{}: round {round}, body {body}, joint {k}: {} against {want}",
+                    m.name,
+                    tau[k]
+                );
+            }
+            checked += 1;
+        }
+    }
+    assert!(checked >= 12, "only {checked} configurations were checked");
+}
+
+/// How many joints lie between a link and the root.
+fn joints_to_root(model: &KinematicModel, link: &str) -> usize {
+    let mut name = link.to_string();
+    let mut d = 0;
+    while let Some(j) = model.joints.iter().find(|j| j.child_link == name) {
+        d += 1;
+        name = j.parent_link.clone();
+        if d > model.links.len() {
+            break;
+        }
+    }
+    d
+}
+
+#[test]
+fn a_contact_reaches_only_the_joints_between_it_and_the_root() {
+    // The structural claim, and the reason this is a sweep rather than a Jacobian: a force on one
+    // foot of a quadruped must produce ZERO torque on the other three legs. Not a small torque —
+    // exactly zero, because those joints are not on the path.
+    let Some(m) = robot("quadruped.hymeko", "quadruped") else {
+        return;
+    };
+    let aba = AbaPlan::new(&m).expect("the topology resolves");
+    let plan = FkPlan::new(&m).expect("the topology resolves");
+    let n = aba.slots();
+    let mut scratch = aba.scratch();
+    let mut tau = vec![0.0; n];
+    let mut poses = plan.identity_poses_se3();
+    let q = vec![0.3; n];
+    plan.resolve_se3(&m, &q, &mut poses);
+
+    // The DEEPEST leaf, which on a quadruped is a foot.
+    //
+    // Not the first leaf found: on this model that is `mid_body`, welded to the torso, whose only
+    // movable ancestor is a vertical-axis joint at the base. A vertical force through a point
+    // produces no torque about a vertical axis — correct, and useless as a test of reach. Depth is
+    // what makes the chain long enough for the claim to mean anything.
+    let leaf = (0..m.links.len())
+        .filter(|&i| {
+            let name = m.links[i].name.as_str();
+            m.joints.iter().any(|j| j.child_link == name)
+                && m.joints.iter().all(|j| j.parent_link != name)
+        })
+        .max_by_key(|&i| joints_to_root(&m, &m.links[i].name))
+        .expect("some link is a leaf");
+    let reach = joints_to_root(&m, &m.links[leaf].name);
+    assert!(
+        reach >= 3,
+        "the deepest leaf is only {reach} joints from the root"
+    );
+
+    let w = poses[leaf].apply(&[0.0, 0.0, -0.05]);
+    aba.prepare_transforms(&m, &q, &mut scratch);
+    aba.constraint_force(
+        &poses,
+        leaf,
+        [w[0], w[1], w[2]],
+        // a direction off every axis, so a single unlucky alignment cannot make the answer zero
+        [0.4082482904638631, 0.4082482904638631, 0.8164965809277261],
+        &mut scratch,
+        &mut tau,
+    );
+
+    let touched = tau.iter().filter(|t| **t != 0.0).count();
+    assert!(
+        touched > 0,
+        "a force on link {leaf} produced no torque anywhere"
+    );
+    assert!(
+        touched < n / 2,
+        "a force on one leaf reached {touched} of {n} joints; it should reach only its own chain"
+    );
+}
+
+#[test]
+fn the_factorised_solve_gives_what_the_full_one_does() {
+    // `factorise` stops the articulated recursion after the two sweeps that depend only on the
+    // configuration, and `solve_factorised` finishes it per right-hand side. That is a refactor of
+    // the hot path of the constraint solver, and the physics tests above would not catch a subtle
+    // error in it — they exercise `accelerations`, which is the other path.
+    //
+    // So: the same torques, at rest, with gravity off, through both routes.
+    let mut rng = Rng(0xFAC7);
+    let mut checked = 0;
+    for m in [
+        Some(pendulum(0.8, 1.4)),
+        Some(double_pendulum(0.5, 2.0, 0.4, 1.0)),
+        Some(branched()),
+        Some(fuzz_42278()),
+        robot("arm_gripper.hymeko", "robot"),
+        robot("humanoid.hymeko", "humanoid"),
+        robot("quadruped.hymeko", "quadruped"),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let aba = AbaPlan::new(&m).expect("the topology resolves");
+        let n = aba.slots();
+        let mut scratch = aba.scratch();
+        let quiet = vec![0.0; n];
+        let mut full = vec![0.0; n];
+        let mut fast = vec![0.0; n];
+
+        for _ in 0..5 {
+            let q: Vec<f64> = (0..n).map(|_| rng.signed() * 1.5).collect();
+            aba.factorise(&m, &q, &mut scratch);
+
+            // several right-hand sides against ONE factorisation, which is the whole point
+            for _ in 0..4 {
+                let tau: Vec<f64> = (0..n).map(|_| rng.signed() * 3.0).collect();
+                aba.solve_factorised(&tau, &mut scratch, &mut fast);
+                // the full route needs its own scratch state, so it goes second
+                aba.accelerations(&m, &q, &quiet, &tau, [0.0; 3], &mut scratch, &mut full);
+
+                let scale = full.iter().fold(1.0f64, |a, v| a.max(v.abs()));
+                for k in 0..n {
+                    assert!(
+                        (fast[k] - full[k]).abs() < 1e-10 * scale,
+                        "{}: slot {k}: factorised {} against full {}",
+                        m.name,
+                        fast[k],
+                        full[k]
+                    );
+                }
+                // and the factorisation survives being read again after the full solve clobbered
+                // the scratch's bias fields
+                aba.factorise(&m, &q, &mut scratch);
+                checked += 1;
+            }
+        }
+    }
+    assert!(checked >= 60, "only {checked} solves were compared");
+}

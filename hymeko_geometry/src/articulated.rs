@@ -493,6 +493,230 @@ impl AbaPlan {
     }
 }
 
+impl AbaPlan {
+    /// Everything about the mechanism's inertia at one configuration that does not depend on what is
+    /// applied to it: the local transforms, the articulated inertias, and each joint's `U` and `d`.
+    ///
+    /// # Why this is split out
+    ///
+    /// Building a constraint problem needs `M^-1 J_k^T` for every constraint `k`, and calling
+    /// [`Self::accelerations`] once per constraint recomputes all of that every time. With the
+    /// velocity and gravity at zero — which is what a mobility column is — the first two sweeps
+    /// depend on `q` alone, and only the third depends on the right-hand side.
+    ///
+    /// The first two sweeps are also where the cost is: a congruence on a general symmetric spatial
+    /// inertia is a few hundred multiplies per link, while a wrench or a twist moving between frames
+    /// is a couple of dozen. So a mechanism with nineteen contacts was doing the expensive part
+    /// nineteen times to get nineteen cheap answers.
+    ///
+    /// **No mass matrix is formed here.** This is the articulated-body recursion stopped halfway,
+    /// which is a different thing: what is kept is one rank-one-downdated inertia per link, not an
+    /// `n` by `n` matrix, and there is no factorisation to be conditioned badly.
+    ///
+    /// Pair with [`Self::solve_factorised`]. Any call to [`Self::accelerations`] or
+    /// [`Self::inverse_dynamics`] on the same scratch invalidates it.
+    pub fn factorise(&self, model: &KinematicModel, q: &[f64], s: &mut AbaScratch) {
+        let n = self.subspace.len();
+        assert!(q.len() >= n, "q must cover every joint");
+
+        for &i in &self.plan.order {
+            s.x[i] = match self.plan.parent[i] {
+                None => Se3::identity(),
+                Some((ji, _)) => {
+                    let joint = &model.joints[ji];
+                    joint_origin_se3(joint).compose(&joint_motion_se3(joint, q[ji]))
+                }
+            };
+            // At rest there is no velocity product and no bias force; both sweeps below start clean.
+            s.v[i] = Twist::ZERO;
+            s.c[i] = Twist::ZERO;
+            s.ia[i] = self.inertia[i].articulated();
+            s.pa[i] = Wrench::ZERO;
+        }
+
+        for idx in (0..self.plan.order.len()).rev() {
+            let i = self.plan.order[idx];
+            let Some((ji, p)) = self.plan.parent[i] else {
+                continue;
+            };
+            let up = match self.subspace[ji] {
+                Some(sub) => {
+                    let u = s.ia[i].apply(&sub);
+                    let d = sub.dot(&u);
+                    let floor =
+                        (INERTIA_RELATIVE_FLOOR * scale_of(&s.ia[i])).max(INERTIA_ABSOLUTE_FLOOR);
+                    if d <= floor {
+                        s.u[ji] = Wrench::ZERO;
+                        s.d[ji] = 0.0;
+                        s.ia[i]
+                    } else {
+                        s.u[ji] = u;
+                        s.d[ji] = d;
+                        s.ia[i].downdate(&u, 1.0 / d)
+                    }
+                }
+                None => s.ia[i],
+            };
+            if p != usize::MAX {
+                s.ia[p].add_assign(&up.to_parent(&s.x[i]));
+            }
+        }
+    }
+
+    /// `qdd = M(q)^-1 tau` using a factorisation from [`Self::factorise`], at zero velocity and zero
+    /// gravity — one column of the mobility matrix, and nothing else.
+    ///
+    /// Two cheap sweeps: the applied torques become bias forces on the way up, and accelerations on
+    /// the way down. No inertia is touched.
+    ///
+    /// # Panics
+    /// If a slice is shorter than [`Self::slots`].
+    pub fn solve_factorised(&self, tau: &[f64], s: &mut AbaScratch, qdd: &mut [f64]) {
+        let n = self.subspace.len();
+        assert!(tau.len() >= n, "tau must cover every joint");
+        assert!(qdd.len() >= n, "qdd must cover every joint");
+
+        for &i in &self.plan.order {
+            s.pa[i] = Wrench::ZERO;
+        }
+
+        for idx in (0..self.plan.order.len()).rev() {
+            let i = self.plan.order[idx];
+            let Some((ji, p)) = self.plan.parent[i] else {
+                continue;
+            };
+            let pp = match self.subspace[ji] {
+                Some(_) if s.d[ji] == 0.0 => {
+                    s.tau_bias[ji] = 0.0;
+                    s.pa[i]
+                }
+                Some(sub) => {
+                    let bias = tau[ji] - sub.dot(&s.pa[i]);
+                    s.tau_bias[ji] = bias;
+                    s.pa[i].add(&s.u[ji].scale(bias / s.d[ji]))
+                }
+                None => s.pa[i],
+            };
+            if p != usize::MAX {
+                s.pa[p] = s.pa[p].add(&pp.to_parent(&s.x[i]));
+            }
+        }
+
+        s.a[self.plan.root()] = Twist::ZERO;
+        for &i in &self.plan.order {
+            let Some((ji, p)) = self.plan.parent[i] else {
+                continue;
+            };
+            let ap = if p == usize::MAX {
+                Twist::ZERO
+            } else {
+                s.a[p]
+            };
+            let here = ap.to_child(&s.x[i]);
+            match self.subspace[ji] {
+                Some(_) if s.d[ji] == 0.0 => {
+                    qdd[ji] = 0.0;
+                    s.a[i] = here;
+                }
+                Some(sub) => {
+                    let acc = (s.tau_bias[ji] - here.dot(&s.u[ji])) / s.d[ji];
+                    qdd[ji] = acc;
+                    s.a[i] = here.add(&sub.scale(acc));
+                }
+                None => {
+                    qdd[ji] = 0.0;
+                    s.a[i] = here;
+                }
+            }
+        }
+    }
+
+    /// Fill the scratch's local transforms for a configuration.
+    ///
+    /// Split out of [`Self::constraint_force`] because every constraint at one configuration shares
+    /// them, and rebuilding them per constraint is a full forward-kinematics pass per contact.
+    pub fn prepare_transforms(&self, model: &KinematicModel, q: &[f64], s: &mut AbaScratch) {
+        for &i in &self.plan.order {
+            s.x[i] = match self.plan.parent[i] {
+                None => Se3::identity(),
+                Some((ji, _)) => {
+                    let joint = &model.joints[ji];
+                    joint_origin_se3(joint).compose(&joint_motion_se3(joint, q[ji]))
+                }
+            };
+        }
+    }
+
+    /// The joint torques a unit force along `world_direction`, applied at `world_point` on `body`,
+    /// produces — one column of the constraint Jacobian's transpose.
+    ///
+    /// # Why this and not a Jacobian
+    ///
+    /// A constraint needs `J^T lambda`, not `J`. Building `J` means a column per coordinate; this
+    /// needs one **upward sweep from the contact to the root**, which is `O(depth)` and touches only
+    /// the joints actually between the two. A foot's contact does not reach the other three legs,
+    /// and nothing here spends time discovering that.
+    ///
+    /// It is the second sweep of inverse dynamics with everything at rest and one external wrench,
+    /// which is why it shares the machinery rather than adding any.
+    ///
+    /// `poses` are the world poses from [`FkPlan::resolve_se3`]; `tau` is written in full, zero on
+    /// every joint the contact cannot reach.
+    ///
+    /// **[`Self::prepare_transforms`] or [`Self::factorise`] must have been called on `s` at this
+    /// configuration first**, which is why neither the model nor `q` appears here: this walks a
+    /// prepared scratch. The local transforms do not depend on which contact is being resolved, and
+    /// a mechanism with nineteen contacts was rebuilding all of them nineteen times.
+    ///
+    /// # Panics
+    /// If `body` is not a link, or if a slice is shorter than the mechanism needs.
+    #[allow(clippy::too_many_arguments)]
+    pub fn constraint_force(
+        &self,
+        poses: &[Se3],
+        body: usize,
+        world_point: [f64; 3],
+        world_direction: [f64; 3],
+        s: &mut AbaScratch,
+        tau: &mut [f64],
+    ) {
+        let n = self.subspace.len();
+        assert!(tau.len() >= n, "tau must cover every joint");
+        assert!(body < self.inertia.len(), "body {body} is not a link");
+        tau[..n].fill(0.0);
+
+        // The applied wrench in the contacting body's OWN frame: a pure force through a point is a
+        // force and the moment that point takes about the frame's origin.
+        let inverse = poses[body].inverse();
+        let dir = inverse.rotate(&world_direction);
+        let at = inverse.apply(&world_point);
+        let force = [dir[0], dir[1], dir[2]];
+        let moment = [
+            at[1] * force[2] - at[2] * force[1],
+            at[2] * force[0] - at[0] * force[2],
+            at[0] * force[1] - at[1] * force[0],
+        ];
+        let mut carried = Wrench {
+            n: moment,
+            f: force,
+        };
+
+        // Up the tree, one joint at a time. Each joint takes its share along its own axis and hands
+        // the rest to its parent; a fixed joint takes nothing and hands on everything.
+        let mut here = body;
+        while let Some((ji, parent)) = self.plan.parent[here] {
+            if let Some(sub) = self.subspace[ji] {
+                tau[ji] = sub.dot(&carried);
+            }
+            if parent == usize::MAX {
+                break; // anchored to the world, which absorbs whatever is left
+            }
+            carried = carried.to_parent(&s.x[here]);
+            here = parent;
+        }
+    }
+}
+
 /// A unit axis, or `None` when the joint declares a degenerate one.
 ///
 /// A zero axis is not a fixed joint — it is a declaration error — but refusing to build the whole

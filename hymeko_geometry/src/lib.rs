@@ -30,11 +30,16 @@
 
 pub mod articulated;
 pub mod collide;
+pub mod contact;
 pub mod forward;
 pub mod kinematics;
 pub mod transforms;
 
 pub use articulated::{AbaPlan, AbaScratch};
+pub use contact::{
+    ground_constraints, ground_contacts, Constraint, ConstraintSolver, ContactParameters,
+    GroundContact,
+};
 pub use collide::{
     colliders_of, intersects, intersects_at, place, BroadPhase, Collider, Contact, Convex,
     Placement,
