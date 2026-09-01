@@ -312,6 +312,91 @@ fn check(seed: u64, adversarial: bool) -> Option<Failure> {
         }
     }
 
+    // --- the three ways to get a mobility column must agree ------------------------------------
+    //
+    // `accelerations` at rest with no gravity, `factorise` + `solve_factorised`, and the same
+    // restricted to the paths that can matter. Three code paths, one answer — and the restricted one
+    // is new, subtle, and otherwise checked on five hand-picked mechanisms.
+    //
+    // Checked in BOTH populations: the sparse sweep must not disagree with the dense one just
+    // because the inertia is badly conditioned. Where the floor takes over, all three take it over
+    // together.
+    {
+        let mut reach = Vec::new();
+        let mut touched = vec![false; model.links.len()];
+        let bodies: Vec<usize> = (0..3)
+            .map(|k| (rng.below(model.links.len().max(1)) + k) % model.links.len())
+            .collect();
+        for &b in &bodies {
+            aba.reach(b, &mut reach);
+            for &link in &reach {
+                touched[link] = true;
+            }
+        }
+        let descend: Vec<usize> = aba
+            .order()
+            .iter()
+            .copied()
+            .filter(|&i| touched[i])
+            .collect();
+
+        let mut tau = vec![0.0; n];
+        for &s in &slots {
+            tau[s] = rng.signed() * 2.0;
+        }
+        let mut full = vec![0.0; n];
+        let mut factorised = vec![0.0; n];
+        let mut restricted = vec![0.0; n];
+
+        aba.factorise(&model, &q, &mut scratch);
+        aba.solve_factorised(&tau, &mut scratch, &mut factorised);
+        aba.factorise(&model, &q, &mut scratch);
+        // the restricted sweep is only owed its answer where it writes, so `tau` is confined to the
+        // same set — otherwise the two are not being asked the same question
+        let mut confined = vec![0.0; n];
+        for &link in &descend {
+            if let Some(joint) = aba.inbound_joint(link) {
+                confined[joint] = tau[joint];
+            }
+        }
+        // `up` must run deepest first, so a child's contribution reaches its parent before the
+        // parent is processed; `down` runs the other way. Handing the same ordering to both is the
+        // obvious mistake and this fuzz found it within a minute of being asked.
+        let ascend: Vec<usize> = descend.iter().rev().copied().collect();
+        aba.solve_factorised_over(&confined, &ascend, &descend, &mut scratch, &mut restricted);
+        aba.accelerations(&model, &q, &zero, &confined, [0.0; 3], &mut scratch, &mut full);
+
+        let scale = full.iter().fold(1.0f64, |a, v| a.max(v.abs()));
+        for &link in &descend {
+            let Some(joint) = aba.inbound_joint(link) else {
+                continue;
+            };
+            if !(restricted[joint] - full[joint]).abs().le(&(1e-9 * scale)) {
+                return fail(
+                    "the restricted sweep disagrees with the full solve",
+                    format!(
+                        "joint {joint}: restricted {:e}, full {:e}, scale {scale:e}",
+                        restricted[joint], full[joint]
+                    ),
+                );
+            }
+        }
+        // and the unrestricted factorised path against the same, over every joint
+        aba.factorise(&model, &q, &mut scratch);
+        aba.solve_factorised(&confined, &mut scratch, &mut factorised);
+        for &s in &slots {
+            if !(factorised[s] - full[s]).abs().le(&(1e-9 * scale)) {
+                return fail(
+                    "the factorised solve disagrees with the full one",
+                    format!(
+                        "slot {s}: factorised {:e}, full {:e}",
+                        factorised[s], full[s]
+                    ),
+                );
+            }
+        }
+    }
+
     if adversarial {
         // The quantitative identities are not owed where the inertia floor is doing the work.
         return None;

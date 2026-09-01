@@ -637,6 +637,27 @@ impl AbaPlan {
         }
     }
 
+    /// Whether every link's parent appears before it (`parents_first`) or after it.
+    ///
+    /// A `debug_assert` rather than an `assert`, because the sets come from a caller that built them
+    /// from [`Self::reach`] and [`Self::order`] and it costs a pass over them to check. But it IS
+    /// checked, because getting it backwards is silent: the sweep still runs, still returns numbers,
+    /// and they are wrong. A structural fuzz caught exactly that mistake — mine — within a minute of
+    /// being asked to compare the restricted sweep against the full one.
+    fn is_ordered(&self, links: &[usize], parents_first: bool) -> bool {
+        let mut seen = vec![false; self.inertia.len()];
+        for &i in links {
+            if let Some(parent) = self.kinematics_parent(i) {
+                // only links inside the set constrain the order
+                if links.contains(&parent) && seen[parent] != parents_first {
+                    return false;
+                }
+            }
+            seen[i] = true;
+        }
+        true
+    }
+
     /// The links from `body` up to the root, `body` first.
     ///
     /// This is the support of a constraint's generalised force, and it is a **path**: a force at a
@@ -693,6 +714,14 @@ impl AbaPlan {
         let n = self.subspace.len();
         assert!(tau.len() >= n, "tau must cover every joint");
         assert!(qdd.len() >= n, "qdd must cover every joint");
+        debug_assert!(
+            self.is_ordered(up, false),
+            "`up` must run deepest first: a child's contribution has to reach its parent before              the parent is processed"
+        );
+        debug_assert!(
+            self.is_ordered(down, true),
+            "`down` must run parents first, so an acceleration exists before it is propagated"
+        );
 
         // Only what the sweeps will touch. `up` is inside `down`, so clearing `down` clears both.
         for &i in down {
