@@ -39,18 +39,60 @@ use hymeko_clifford::Se3;
 use crate::articulated::{AbaPlan, AbaScratch};
 use crate::collide::{Collider, Placement};
 
+/// Below this, `A[k][k]` means the mechanism has no mobility along the constraint at all.
+///
+/// `A[k][k] = J_k M^-1 J_k^T` is the inverse of the mass the constraint feels, so zero means
+/// infinite mass — a welded body, or one whose only joint cannot move it in that direction.
+const MOBILITY_FLOOR: f64 = 1e-12;
+
+/// How a multiplier is limited.
+///
+/// A contact is three constraints, not one: the normal, which pushes and never pulls, and two
+/// tangent directions whose impulse is bounded by Coulomb's law. They are separate rows of the same
+/// problem because they act along different directions, and they are coupled because the bound on
+/// the tangents is set by the normal's answer.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Limit {
+    /// `p >= 0`. A contact normal pushes and never pulls.
+    Pushing,
+    /// Unbounded. A loop closure or a bilateral joint limit holds in both directions.
+    Free,
+    /// One of a tangent pair inside a friction cone: `|(p_self, p_partner)| <= mu * p[normal]`.
+    ///
+    /// The pair is confined to a DISC rather than clamped separately into a square.
+    /// A square is the pyramidal cone most engines use, and it makes friction depend on the
+    /// direction of sliding — a block slides more easily along a diagonal than along an axis, which
+    /// is an artefact of the discretisation and not of the physics.
+    Friction {
+        /// Index of the normal constraint whose impulse bounds this pair.
+        normal: usize,
+        /// The other tangent of the pair.
+        partner: usize,
+        /// Coefficient of friction.
+        mu: f64,
+    },
+}
+
 /// One scalar constraint on the mechanism.
 #[derive(Debug, Clone)]
 pub struct Constraint {
     /// One column of `J^T`: the joint torques a unit multiplier produces, from
     /// [`AbaPlan::constraint_force`].
+    ///
+    /// Dense storage, sparse content: see [`Self::reach`].
     pub force: Vec<f64>,
+    /// Where `force` can be non-zero — the links between the contacting body and the root.
+    ///
+    /// A force at a point on one body is felt by the joints between it and the root and by no
+    /// others, so this is the support of the column, and it is a path. Carrying it turns two `O(n)`
+    /// operations into `O(depth)` ones: the sweep that builds the mobility column, and the dot
+    /// product that turns two columns into an entry of the Delassus operator.
+    pub reach: Vec<usize>,
     /// Added to the constraint's own velocity before the inequality is applied. Negative pushes the
     /// bodies apart; this is where penetration correction and restitution enter.
     pub bias: f64,
-    /// A contact pushes and never pulls, so its multiplier is non-negative. A loop closure holds
-    /// both ways and its multiplier is free.
-    pub unilateral: bool,
+    /// What bounds this constraint's multiplier.
+    pub limit: Limit,
 }
 
 /// A contact found against the ground plane.
@@ -118,8 +160,29 @@ pub struct ContactParameters {
     pub margin: f64,
     /// Bounciness, in `[0, 1]`. Zero is a dead landing.
     pub restitution: f64,
-    /// Iterations of the projected Gauss-Seidel sweep.
+    /// Coefficient of Coulomb friction. Zero makes every contact frictionless and drops the two
+    /// tangent rows entirely, which is a third of the constraint problem.
+    pub friction: f64,
+    /// Most sweeps of projected Gauss-Seidel to make. A cap, not a target — see [`Self::tolerance`].
     pub iterations: usize,
+    /// Stop once no impulse moved by more than this fraction of the largest one.
+    ///
+    /// The change in the impulses is free to watch — it falls out of the sweep — where the residual
+    /// itself would cost another `c^2` per check.
+    ///
+    /// # The two regimes, measured
+    ///
+    /// **Frictionless**, which is a linear complementarity problem: machine precision in about ten
+    /// sweeps, on a standing quadruped and on a nineteen-contact pile alike.
+    ///
+    /// **With friction**, which is a cone complementarity problem and genuinely harder: the residual
+    /// falls 1.2e-1 at ten sweeps, 5.8e-3 at thirty, 8.8e-5 at sixty, 2.1e-8 at a hundred and
+    /// twenty, and reaches machine precision around five hundred. The bound on the tangent pair
+    /// moves as the normal impulse does, and that coupling is what costs the sweeps.
+    ///
+    /// So the cap matters here in a way it did not before, and what it buys is legible rather than
+    /// guessed at. Zero disables the early exit and makes [`Self::iterations`] a target again.
+    pub tolerance: f64,
 }
 
 impl Default for ContactParameters {
@@ -129,7 +192,16 @@ impl Default for ContactParameters {
             slop: 1e-4,
             margin: 1e-3,
             restitution: 0.0,
-            iterations: 30,
+            friction: 0.8,
+            // Chosen against the integrator around it, not against machine precision. Semi-implicit
+            // Euler at 240 Hz carries a first-order error of its own; a contact residual of 5.8e-3
+            // is already well under it, and thirty-two sweeps is where that lands. Sixty-four buys
+            // two more decimal places for twice the time and nothing the step can use.
+            //
+            // With friction the cap is what actually stops the iteration — the tolerance is not
+            // reached — so this is a cost knob, and the price of turning it is on record above.
+            iterations: 32,
+            tolerance: 1e-13,
         }
     }
 }
@@ -146,9 +218,18 @@ pub struct ConstraintSolver {
     b: Vec<f64>,
     /// The multipliers — impulses, in newton-seconds for a contact.
     impulse: Vec<f64>,
-    /// `M^-1 J^T`, one column of length `slots` per constraint.
+    /// `M^-1 J^T`, one column of length `slots` per constraint. Only the union of the reaches is
+    /// written; everything else is stale and never read.
     response: Vec<f64>,
     scratch: Vec<f64>,
+    /// Membership in the union of the reaches, by link.
+    touched: Vec<bool>,
+    /// That union, in the plan's order — the links the mobility columns are computed over.
+    descend: Vec<usize>,
+    /// Sweeps the last solve actually made.
+    sweeps: usize,
+    /// The limits of the last solve, so the residual can be read against the right condition.
+    limits: Vec<Limit>,
 }
 
 impl ConstraintSolver {
@@ -157,9 +238,122 @@ impl ConstraintSolver {
         Self::default()
     }
 
+    /// One row's unconstrained Gauss-Seidel update: the impulse that would satisfy row `k` exactly,
+    /// given every other impulse as it stands.
+    ///
+    /// The projection onto whatever the multiplier is allowed to be happens outside, because a
+    /// contact normal, a free row and a friction pair are allowed different things and only the last
+    /// of those needs two rows at once.
+    fn gauss_seidel(&self, k: usize) -> f64 {
+        let c = self.impulse.len();
+        let diagonal = self.a[k * c + k];
+        if diagonal <= MOBILITY_FLOOR {
+            return self.impulse[k];
+        }
+        let residual: f64 = self.b[k]
+            + self.a[k * c..k * c + c]
+                .iter()
+                .zip(&self.impulse)
+                .map(|(a, p)| a * p)
+                .sum::<f64>();
+        self.impulse[k] - residual / diagonal
+    }
+
+    /// How many Gauss-Seidel sweeps the last solve made, which is at most
+    /// [`ContactParameters::iterations`] and usually far fewer.
+    pub fn sweeps(&self) -> usize {
+        self.sweeps
+    }
+
     /// The impulses from the last [`Self::solve`], one per constraint.
     pub fn impulses(&self) -> &[f64] {
         &self.impulse
+    }
+
+    /// How far the last solve missed the complementarity conditions, relative to the problem's own
+    /// scale.
+    ///
+    /// The solution of `A p + b >= 0, p >= 0, p . (A p + b) = 0` satisfies `min(p_k, r_k) = 0` for
+    /// every `k`, where `r = A p + b`. That single expression covers all three conditions at once —
+    /// a negative impulse, a violated constraint, and a constraint carrying load while separating
+    /// all show up in it — so the largest `|min(p_k, r_k)|` is the error of the whole solve.
+    ///
+    /// Normalised by `max(|p|, |r|)`, because the absolute size of an impulse depends on the step
+    /// and the mass and says nothing about how well it was found.
+    ///
+    /// This is the ONLY approximate step in the chain. The articulated solves are exact to rounding
+    /// and the contact geometry is closed-form; projected Gauss-Seidel iterates. So this is the
+    /// number that says whether the physics is converged, and it is worth watching rather than
+    /// assuming.
+    ///
+    /// # Two different failures, and they must not be confused
+    ///
+    /// The returned pair separates them, because more iterations fix one and never fix the other:
+    ///
+    /// * **unconverged** — over the constraints the mechanism can actually push against. This is the
+    ///   iteration's own error and it shrinks; measured, it reaches machine precision in about ten
+    ///   sweeps on a standing quadruped.
+    /// * **unsatisfiable** — over the constraints with no mobility behind them, where
+    ///   `A[k][k]` is zero to rounding. Pushing there does nothing, so a violation cannot be
+    ///   removed by any impulse, and iterating is not what is missing. It means the CONFIGURATION is
+    ///   impossible: a body inside the floor that no joint can lift.
+    ///
+    /// Both are relative to the problem's own scale, because the absolute size of an impulse depends
+    /// on the step and the mass and says nothing about how well it was found.
+    pub fn complementarity_residual(&self) -> (f64, f64) {
+        let c = self.impulse.len();
+        if c == 0 {
+            return (0.0, 0.0);
+        }
+        let (mut unconverged, mut unsatisfiable, mut scale) = (0.0f64, 0.0f64, 0.0f64);
+        for k in 0..c {
+            let r: f64 = self.b[k]
+                + (0..c)
+                    .map(|l| self.a[k * c + l] * self.impulse[l])
+                    .sum::<f64>();
+            // For a pushing row, `min(p, r)` is the whole complementarity condition. A free row
+            // wants `r = 0`. A friction row wants `r = 0` while it is inside the cone, and is
+            // allowed a residual once it saturates — that residual IS the sliding.
+            let miss = match self.limits.get(k) {
+                Some(Limit::Pushing) | None => self.impulse[k].min(r).abs(),
+                Some(Limit::Free) => r.abs(),
+                Some(Limit::Friction {
+                    normal,
+                    partner,
+                    mu,
+                }) => {
+                    // Saturation is a property of the PAIR, not of either component. A pair on the
+                    // cone's boundary split as `(0.6 r, 0.8 r)` has neither component at `r`, and
+                    // testing them one at a time called both "inside the cone" and reported their
+                    // residuals — which read as a solver that plateaus at 5-8e-2 and never
+                    // converges. It was the measurement that was stuck, not the solve.
+                    let bound = mu * self.impulse[*normal].max(0.0);
+                    let length =
+                        (self.impulse[k].powi(2) + self.impulse[*partner].powi(2)).sqrt();
+                    if length >= bound * (1.0 - 1e-9) {
+                        0.0 // sliding, and a residual here is the friction doing its job
+                    } else {
+                        r.abs()
+                    }
+                }
+            };
+            if self.a[k * c + k] <= MOBILITY_FLOOR {
+                unsatisfiable = unsatisfiable.max(miss);
+            } else {
+                unconverged = unconverged.max(miss);
+            }
+            scale = scale.max(self.impulse[k].abs()).max(r.abs());
+        }
+        let scale = scale.max(f64::MIN_POSITIVE);
+        (unconverged / scale, unsatisfiable / scale)
+    }
+
+    /// How many constraints the mechanism has no mobility along — the ones the sweep cannot move.
+    pub fn unsatisfiable(&self) -> usize {
+        let c = self.impulse.len();
+        (0..c)
+            .filter(|&k| self.a[k * c + k] <= MOBILITY_FLOOR)
+            .count()
     }
 
     /// The Delassus operator from the last solve, row-major.
@@ -215,6 +409,24 @@ impl ConstraintSolver {
         self.response.resize(c * n, 0.0);
         self.scratch.clear();
         self.scratch.resize(n, 0.0);
+        self.limits.clear();
+        self.limits.extend(constraints.iter().map(|c| c.limit));
+
+        // The union of the reaches, in the plan's own order — everything any constraint will read of
+        // any mobility column, and nothing more. Built once per step rather than once per column.
+        //
+        // A reach is closed under taking parents and so is a union of them, which is exactly the
+        // precondition the restricted sweep needs.
+        self.touched.clear();
+        self.touched.resize(aba.links(), false);
+        for constraint in constraints {
+            for &link in &constraint.reach {
+                self.touched[link] = true;
+            }
+        }
+        self.descend.clear();
+        self.descend
+            .extend(aba.order().iter().copied().filter(|&i| self.touched[i]));
 
         // One column of `M^-1 J^T` per constraint: what the mechanism does when the ONLY torque is
         // the one that constraint exerts. Gravity off and velocity zero, because this is the
@@ -225,27 +437,37 @@ impl ConstraintSolver {
         // sweep per step, comparable in cost to the dynamics itself.
         for (k, constraint) in constraints.iter().enumerate() {
             assert!(constraint.force.len() >= n, "constraint {k} is too short");
-            aba.solve_factorised(&constraint.force, scratch, &mut self.scratch);
+            aba.solve_factorised_over(
+                &constraint.force,
+                &constraint.reach,
+                &self.descend,
+                scratch,
+                &mut self.scratch,
+            );
             self.response[k * n..k * n + n].copy_from_slice(&self.scratch[..n]);
         }
 
+        // Both of these are dot products against `force_k`, which is zero outside its reach — so
+        // both run over the reach and not over every coordinate. The entries of `response` outside
+        // the union are stale by construction, and this is why nothing reads them.
         for (k, constraint) in constraints.iter().enumerate() {
             for l in 0..c {
                 let column = &self.response[l * n..l * n + n];
-                self.a[k * c + l] = constraint
-                    .force
-                    .iter()
-                    .zip(column)
-                    .map(|(f, r)| f * r)
-                    .sum();
+                let mut sum = 0.0;
+                for &link in &constraint.reach {
+                    if let Some(joint) = aba.inbound_joint(link) {
+                        sum += constraint.force[joint] * column[joint];
+                    }
+                }
+                self.a[k * c + l] = sum;
             }
-            self.b[k] = constraint
-                .force
-                .iter()
-                .zip(velocity.iter())
-                .map(|(f, v)| f * v)
-                .sum::<f64>()
-                + constraint.bias;
+            let mut sum = 0.0;
+            for &link in &constraint.reach {
+                if let Some(joint) = aba.inbound_joint(link) {
+                    sum += constraint.force[joint] * velocity[joint];
+                }
+            }
+            self.b[k] = sum + constraint.bias;
         }
 
         // Projected Gauss-Seidel. Each sweep visits the constraints in turn and moves one multiplier
@@ -253,26 +475,73 @@ impl ConstraintSolver {
         // converges for a positive semidefinite `A`, which this is; it is what most engines actually
         // run, and it degrades into a slightly soft contact rather than into an explosion when it
         // runs out of iterations.
+        let mut sweeps = 0usize;
         for _ in 0..parameters.iterations {
+            sweeps += 1;
+            let mut moved: f64 = 0.0;
+            let mut largest: f64 = 0.0;
             for (k, constraint) in constraints.iter().enumerate() {
-                let row = &self.a[k * c..k * c + c];
-                let diagonal = row[k];
-                if diagonal <= 1e-12 {
-                    continue; // this constraint has no inertia behind it to push against
+                match constraint.limit {
+                    // The second of a friction pair is settled when the first is reached, because
+                    // the projection needs both at once.
+                    Limit::Friction { partner, .. } if partner < k => continue,
+                    Limit::Friction {
+                        normal,
+                        partner,
+                        mu,
+                    } => {
+                        // `mu * p_n` is the radius of the disc Coulomb allows, and `p_n` is whatever
+                        // the normal row has reached so far — the coupling that makes friction
+                        // depend on load.
+                        let bound = mu * self.impulse[normal].max(0.0);
+
+                        // Update both rows in sequence — the second sees the first — and THEN
+                        // project the pair onto the disc together.
+                        //
+                        // Projecting the pair rather than clamping each row separately is what keeps
+                        // friction isotropic: a per-row clamp confines the impulse to a square, and
+                        // a square makes a block slide more easily along a diagonal than along an
+                        // axis, which is an artefact of the discretisation and not of the physics.
+                        let before = (self.impulse[k], self.impulse[partner]);
+                        self.impulse[k] = self.gauss_seidel(k);
+                        self.impulse[partner] = self.gauss_seidel(partner);
+                        let length = (self.impulse[k].powi(2) + self.impulse[partner].powi(2)).sqrt();
+                        if length > bound && length > 0.0 {
+                            self.impulse[k] *= bound / length;
+                            self.impulse[partner] *= bound / length;
+                        }
+                        moved = moved
+                            .max((self.impulse[k] - before.0).abs())
+                            .max((self.impulse[partner] - before.1).abs());
+                        largest = largest
+                            .max(self.impulse[k].abs())
+                            .max(self.impulse[partner].abs());
+                    }
+                    limit => {
+                        if self.a[k * c + k] <= MOBILITY_FLOOR {
+                            // Nothing behind this constraint to push against: `A[k][k]` is
+                            // `J_k M^-1 J_k^T`, so a zero means the mechanism cannot move along it
+                            // at all. Leaving the impulse at zero is the only defensible answer —
+                            // any other value would be an impulse that does nothing, chosen
+                            // arbitrarily — and the residual reports it separately so it is not
+                            // mistaken for slow convergence.
+                            continue;
+                        }
+                        let mut next = self.gauss_seidel(k);
+                        if matches!(limit, Limit::Pushing) && next < 0.0 {
+                            next = 0.0;
+                        }
+                        moved = moved.max((next - self.impulse[k]).abs());
+                        largest = largest.max(next.abs());
+                        self.impulse[k] = next;
+                    }
                 }
-                let residual: f64 = self.b[k]
-                    + row
-                        .iter()
-                        .zip(&self.impulse)
-                        .map(|(a, p)| a * p)
-                        .sum::<f64>();
-                let mut next = self.impulse[k] - residual / diagonal;
-                if constraint.unilateral && next < 0.0 {
-                    next = 0.0;
-                }
-                self.impulse[k] = next;
+            }
+            if parameters.tolerance > 0.0 && moved <= parameters.tolerance * largest {
+                break;
             }
         }
+        self.sweeps = sweeps;
 
         for (k, _) in constraints.iter().enumerate() {
             let p = self.impulse[k];
@@ -319,6 +588,8 @@ pub fn ground_constraints(
     let n = aba.slots();
     for contact in contacts {
         let mut force = vec![0.0; n];
+        let mut reach = Vec::new();
+        aba.reach(colliders[contact.collider].link, &mut reach);
         aba.constraint_force(
             poses,
             colliders[contact.collider].link,
@@ -348,10 +619,71 @@ pub fn ground_constraints(
             .map(|(f, v)| f * v)
             .sum::<f64>()
             .min(0.0);
+        let normal = out.len();
         out.push(Constraint {
             force,
+            reach: reach.clone(),
             bias: bias_position + parameters.restitution * approaching,
-            unilateral: true,
+            limit: Limit::Pushing,
         });
+
+        if parameters.friction <= 0.0 {
+            continue;
+        }
+        // Two tangents, and the pair is what Coulomb bounds — not either one alone. The bias is
+        // zero: friction wants the contact point to stop, not to reach some target speed, and
+        // whether it can is the cone's business rather than this one's.
+        let (first, second) = (out.len(), out.len() + 1);
+        for (k, direction) in tangents([0.0, 0.0, 1.0]).into_iter().enumerate() {
+            let mut tangent = vec![0.0; n];
+            aba.constraint_force(
+                poses,
+                colliders[contact.collider].link,
+                contact.point,
+                direction,
+                scratch,
+                &mut tangent,
+            );
+            out.push(Constraint {
+                force: tangent,
+                reach: reach.clone(),
+                bias: 0.0,
+                limit: Limit::Friction {
+                    normal,
+                    partner: if k == 0 { second } else { first },
+                    mu: parameters.friction,
+                },
+            });
+        }
     }
+}
+
+/// Two unit directions spanning the plane perpendicular to `normal`.
+///
+/// The pair is arbitrary and it does not matter which: the friction bound is a disc, so it is
+/// invariant under rotating the basis within the plane. That invariance is the whole reason to
+/// project onto a disc instead of clamping into a square, where the choice WOULD matter.
+fn tangents(normal: [f64; 3]) -> [[f64; 3]; 2] {
+    // any axis not parallel to the normal, orthogonalised against it
+    let seed = if normal[0].abs() < 0.9 {
+        [1.0, 0.0, 0.0]
+    } else {
+        [0.0, 1.0, 0.0]
+    };
+    let along = seed[0] * normal[0] + seed[1] * normal[1] + seed[2] * normal[2];
+    let mut first = [
+        seed[0] - along * normal[0],
+        seed[1] - along * normal[1],
+        seed[2] - along * normal[2],
+    ];
+    let length = (first[0] * first[0] + first[1] * first[1] + first[2] * first[2]).sqrt();
+    for c in first.iter_mut() {
+        *c /= length;
+    }
+    let second = [
+        normal[1] * first[2] - normal[2] * first[1],
+        normal[2] * first[0] - normal[0] * first[2],
+        normal[0] * first[1] - normal[1] * first[0],
+    ];
+    [first, second]
 }

@@ -37,6 +37,7 @@ pub mod transforms;
 
 pub use articulated::{AbaPlan, AbaScratch};
 pub use contact::{
+    Limit,
     ground_constraints, ground_contacts, Constraint, ConstraintSolver, ContactParameters,
     GroundContact,
 };

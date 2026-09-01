@@ -80,6 +80,14 @@ struct Engine {
 }
 
 impl Engine {
+    /// Friction off. Every test written before friction existed is about the normal direction, and
+    /// on a fixture with one vertical coordinate a tangent row has nothing to act in.
+    fn frictionless(model: KinematicModel) -> Self {
+        let mut e = Self::new(model);
+        e.parameters.friction = 0.0;
+        e
+    }
+
     fn new(model: KinematicModel) -> Self {
         let aba = AbaPlan::new(&model).expect("the topology resolves");
         let plan = FkPlan::new(&model).expect("the topology resolves");
@@ -173,7 +181,7 @@ fn a_resting_body_receives_exactly_its_own_weight_from_the_ground() {
         (7.3, 0.25, 1.0 / 1000.0),
         (0.4, 0.05, 1.0 / 60.0),
     ] {
-        let mut e = Engine::new(falling_box(mass, [0.2, 0.2, half_height]));
+        let mut e = Engine::frictionless(falling_box(mass, [0.2, 0.2, half_height]));
         e.parameters.slop = 0.0;
         e.q[0] = half_height; // resting exactly on the plane
         e.step(h, &[0.0]);
@@ -199,7 +207,7 @@ fn the_delassus_operator_is_the_inverse_mass_the_contact_actually_feels() {
     // For a body sliding on one prismatic axis, `A = J M^-1 J^T` is `1/m` and nothing else. It is
     // the smallest case where the operator can be checked against a number rather than a property.
     for mass in [0.5, 1.0, 12.5] {
-        let mut e = Engine::new(falling_box(mass, [0.2, 0.2, 0.1]));
+        let mut e = Engine::frictionless(falling_box(mass, [0.2, 0.2, 0.1]));
         e.q[0] = 0.1;
         e.step(1.0 / 240.0, &[0.0]);
         let a = e.solver.delassus();
@@ -220,7 +228,7 @@ fn a_dropped_box_lands_and_stays_on_the_ground() {
     // Released from a height, it must fall, land, and settle with its lowest face on the plane —
     // not sink through, not bounce forever, and not hover.
     let half_height = 0.15;
-    let mut e = Engine::new(falling_box(2.0, [0.2, 0.2, half_height]));
+    let mut e = Engine::frictionless(falling_box(2.0, [0.2, 0.2, half_height]));
     e.q[0] = 1.0;
 
     let h = 1.0 / 480.0;
@@ -247,7 +255,7 @@ fn a_contact_never_adds_energy() {
     // a sign error in the impulse, or a projection applied the wrong way round, breaks immediately.
     let half_height = 0.1;
     let mass = 1.5;
-    let mut e = Engine::new(falling_box(mass, [0.2, 0.2, half_height]));
+    let mut e = Engine::frictionless(falling_box(mass, [0.2, 0.2, half_height]));
     e.q[0] = 0.8;
 
     let energy = |q: f64, qd: f64| 0.5 * mass * qd * qd + mass * G * q;
@@ -268,7 +276,7 @@ fn a_contact_never_adds_energy() {
 
 #[test]
 fn a_body_above_the_ground_generates_no_constraints_at_all() {
-    let mut e = Engine::new(falling_box(1.0, [0.2, 0.2, 0.1]));
+    let mut e = Engine::frictionless(falling_box(1.0, [0.2, 0.2, 0.1]));
     e.q[0] = 3.0;
     e.step(1.0 / 240.0, &[0.0]);
     assert!(
@@ -306,7 +314,7 @@ fn the_dense_solve_is_the_size_of_the_contact_set_not_the_mechanism() {
     let engine = hymeko_query::QueryEngine::new(&program.ir, &store.it);
     let model = extract_kinematic_model(&engine, "quadruped");
 
-    let mut e = Engine::new(model);
+    let mut e = Engine::frictionless(model);
     let n = e.aba.slots();
     // drop it onto the plane by lowering everything into contact
     e.step(1.0 / 240.0, &vec![0.0; n]);
@@ -350,7 +358,7 @@ fn two_contacts_on_one_coordinate_carry_the_weight_between_them_and_the_split_is
     // the operator rather than hidden.
     let half = 0.1;
     let mass = 3.0;
-    let mut e = Engine::new(falling_box(mass, [0.2, 0.2, half]));
+    let mut e = Engine::frictionless(falling_box(mass, [0.2, 0.2, half]));
     e.colliders.push(Collider {
         link: 0,
         shape: e.colliders[0].shape,
@@ -395,5 +403,215 @@ fn two_contacts_on_one_coordinate_carry_the_weight_between_them_and_the_split_is
         e.qd[0].abs() < 1e-12,
         "it should be held still, but qdot is {}",
         e.qd[0]
+    );
+}
+
+// --- friction -------------------------------------------------------------------------------------
+
+/// A box free to slide along world `x` and to move along world `z`, and nothing else.
+///
+/// Two coordinates is the smallest mechanism where friction can do anything: one to press the
+/// contact and one for it to resist. The carriage between them is massless, so the mass matrix is
+/// `diag(m, m)` and the closed forms below have no dressing on them.
+fn sliding_box(mass: f64, half: [f64; 3]) -> KinematicModel {
+    let slide = |name: &str, parent: &str, child: &str, axis: [f64; 3]| JointInfo {
+        did: DeclId::NONE,
+        name: name.into(),
+        joint_type: JointType::Prismatic,
+        parent: DeclId::NONE,
+        child: DeclId::NONE,
+        parent_link: parent.into(),
+        child_link: child.into(),
+        axis: Some(axis),
+        origin_xyz: Some([0.0; 3]),
+        origin_rpy_deg: None,
+        limits: None,
+    };
+    KinematicModel {
+        name: "sliding".into(),
+        links: vec![
+            LinkInfo {
+                did: DeclId::NONE,
+                name: "carriage".into(),
+                mass: None,
+                geometry: None,
+                origin: Some(vec![0.0; 3]),
+                color: None,
+            },
+            LinkInfo {
+                did: DeclId::NONE,
+                name: "body".into(),
+                mass: Some(mass),
+                geometry: Some(GeometryInfo {
+                    shape: GeometryShape::Box,
+                    dimensions: half.to_vec(),
+                    collision: None,
+                }),
+                origin: Some(vec![0.0; 3]),
+                color: None,
+            },
+        ],
+        joints: vec![
+            slide("x", "world", "carriage", [1.0, 0.0, 0.0]),
+            slide("z", "carriage", "body", [0.0, 0.0, 1.0]),
+        ],
+        frames: vec!["world".into()],
+    }
+}
+
+#[test]
+fn a_box_pushed_below_the_friction_limit_does_not_move() {
+    // Stiction, and the threshold is Coulomb's: a horizontal force under `mu m g` is entirely
+    // absorbed. Not "moves slowly" — does not move, because the tangent impulse stays inside the
+    // cone and the solve drives the tangential velocity to zero exactly.
+    let (mass, half, mu) = (2.0, 0.1, 0.6);
+    let limit = mu * mass * G;
+    for push in [0.0, 0.25 * limit, 0.9 * limit, 0.99 * limit] {
+        let mut e = Engine::new(sliding_box(mass, [0.2, 0.2, half]));
+        e.parameters.friction = mu;
+        e.parameters.slop = 0.0;
+        e.q[1] = half; // resting on the plane
+
+        for _ in 0..200 {
+            e.step(1.0 / 240.0, &[push, 0.0]);
+        }
+        assert!(
+            e.q[0].abs() < 1e-9,
+            "a push of {push} N against a limit of {limit} N moved it {} m",
+            e.q[0]
+        );
+        assert!(e.qd[0].abs() < 1e-9, "and left it sliding at {} m/s", e.qd[0]);
+    }
+}
+
+#[test]
+fn a_box_pushed_past_the_limit_accelerates_by_exactly_the_excess() {
+    // `a = (F - mu m g) / m`, the other half of Coulomb's law and the number a slipping contact has
+    // to produce. Measured over the whole motion rather than read off one step, so a solve that is
+    // right once and drifts afterwards fails.
+    let (mass, half, mu) = (2.0, 0.1, 0.4);
+    let limit = mu * mass * G;
+    for factor in [1.5, 3.0, 8.0] {
+        let push = factor * limit;
+        let mut e = Engine::new(sliding_box(mass, [0.2, 0.2, half]));
+        e.parameters.friction = mu;
+        e.parameters.slop = 0.0;
+        e.q[1] = half;
+
+        let h = 1.0 / 2000.0;
+        let steps = 2000;
+        for _ in 0..steps {
+            e.step(h, &[push, 0.0]);
+        }
+        let want = (push - limit) / mass;
+        // from rest, `x = a t^2 / 2`
+        let elapsed = steps as f64 * h;
+        let got = 2.0 * e.q[0] / (elapsed * elapsed);
+        assert!(
+            (got - want).abs() < 5e-3 * want,
+            "push {push} N: acceleration {got} against the expected {want}"
+        );
+    }
+}
+
+#[test]
+fn a_sliding_box_comes_to_rest_after_the_time_coulomb_predicts() {
+    // Given a shove and left alone, it decelerates at `mu g` and stops after `v / (mu g)`. What this
+    // catches beyond that: a friction that overshoots into reverse, which a projection onto the cone
+    // cannot do and a per-axis clamp can.
+    let (mass, half, mu) = (1.0, 0.1, 0.5);
+    let mut e = Engine::new(sliding_box(mass, [0.2, 0.2, half]));
+    e.parameters.friction = mu;
+    e.parameters.slop = 0.0;
+    e.q[1] = half;
+    e.qd[0] = 2.0;
+
+    let h = 1.0 / 1000.0;
+    let expected = 2.0 / (mu * G);
+    let mut stopped_at = None;
+    for step in 0..4000 {
+        e.step(h, &[0.0, 0.0]);
+        if stopped_at.is_none() && e.qd[0] <= 0.0 {
+            stopped_at = Some(step as f64 * h);
+        }
+        assert!(
+            e.qd[0] > -1e-6,
+            "step {step}: friction reversed the motion, to {} m/s",
+            e.qd[0]
+        );
+    }
+    let stopped = stopped_at.expect("it never stopped");
+    assert!(
+        (stopped - expected).abs() < 0.02 * expected,
+        "it stopped after {stopped} s against the expected {expected}"
+    );
+}
+
+#[test]
+fn the_tangent_impulse_never_leaves_the_cone() {
+    // The invariant the projection exists to keep, checked at every step of a run that both sticks
+    // and slips — so it covers the inside of the cone and its boundary.
+    let (mass, half, mu) = (1.5, 0.12, 0.35);
+    let mut e = Engine::new(sliding_box(mass, [0.2, 0.2, half]));
+    e.parameters.friction = mu;
+    e.q[1] = 0.6; // dropped, so it lands and then slides
+
+    // A short hard shove, then a push far below the limit — long enough after it that the box
+    // stops and STICKS. The first attempt pushed for half of a three-second run and it was still
+    // sliding at the end, so the cone's interior was never visited and the test proved half of what
+    // it claimed.
+    let h = 1.0 / 1000.0;
+    let (mut saw_saturated, mut saw_inside) = (false, false);
+    for step in 0..3000 {
+        let push = if step < 300 { 8.0 } else { 0.5 };
+        e.step(h, &[push, 0.0]);
+        for chunk in e.solver.impulses().chunks(3) {
+            if chunk.len() < 3 {
+                continue;
+            }
+            let tangential = (chunk[1] * chunk[1] + chunk[2] * chunk[2]).sqrt();
+            let bound = mu * chunk[0].max(0.0);
+            assert!(
+                tangential <= bound * (1.0 + 1e-9) + 1e-12,
+                "step {step}: |p_t| = {tangential} exceeds mu p_n = {bound}"
+            );
+            if bound > 1e-12 {
+                if tangential > 0.99 * bound {
+                    saw_saturated = true;
+                } else if tangential < 0.5 * bound {
+                    saw_inside = true;
+                }
+            }
+        }
+    }
+    assert!(saw_saturated, "the run never reached the cone's boundary");
+    assert!(saw_inside, "the run never stayed inside the cone");
+}
+
+#[test]
+fn friction_only_removes_energy() {
+    let (mass, half, mu) = (1.0, 0.1, 0.45);
+    let mut e = Engine::new(sliding_box(mass, [0.2, 0.2, half]));
+    e.parameters.friction = mu;
+    e.parameters.slop = 0.0;
+    e.q[1] = half;
+    e.qd[0] = 3.0;
+
+    let energy =
+        |e: &Engine| 0.5 * mass * (e.qd[0] * e.qd[0] + e.qd[1] * e.qd[1]) + mass * G * e.q[1];
+    let start = energy(&e);
+    let h = 1.0 / 1000.0;
+    for step in 0..2000 {
+        e.step(h, &[0.0, 0.0]);
+        assert!(
+            energy(&e) <= start + mass * G * G * h * h,
+            "step {step}: friction added energy, {} against {start}",
+            energy(&e)
+        );
+    }
+    assert!(
+        energy(&e) < 0.4 * start,
+        "friction removed only {:.0}% of the energy",
+        100.0 * (1.0 - energy(&e) / start)
     );
 }

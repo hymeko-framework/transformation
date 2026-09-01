@@ -1107,3 +1107,111 @@ fn the_factorised_solve_gives_what_the_full_one_does() {
     }
     assert!(checked >= 60, "only {checked} solves were compared");
 }
+
+#[test]
+fn the_restricted_sweep_agrees_with_the_full_one_everywhere_it_claims_to() {
+    // `solve_factorised_over` sweeps only the links that can matter: up along the applied torque's
+    // own path, down over the union of the paths any constraint will read. The claim is that where
+    // it writes, it writes what the full sweep would — and the values outside are stale by design,
+    // so the test must not look at them either.
+    let mut rng = Rng(0x5A3E);
+    let mut checked = 0;
+    for m in [
+        Some(branched()),
+        Some(fuzz_42278()),
+        robot("arm_gripper.hymeko", "robot"),
+        robot("humanoid.hymeko", "humanoid"),
+        robot("quadruped.hymeko", "quadruped"),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let aba = AbaPlan::new(&m).expect("the topology resolves");
+        let plan = FkPlan::new(&m).expect("the topology resolves");
+        let n = aba.slots();
+        let mut scratch = aba.scratch();
+        let mut full = vec![0.0; n];
+        let mut restricted = vec![0.0; n];
+        let mut poses = plan.identity_poses_se3();
+        let mut force = vec![0.0; n];
+        let mut reach = Vec::new();
+
+        for round in 0..4 {
+            let q: Vec<f64> = (0..n).map(|_| rng.signed() * 1.2).collect();
+            plan.resolve_se3(&m, &q, &mut poses);
+            aba.factorise(&m, &q, &mut scratch);
+
+            // a couple of contacts, so the union is a real union and not one path
+            let bodies: Vec<usize> = (0..3)
+                .map(|k| (round * 5 + k * 7 + 1) % m.links.len())
+                .collect();
+            let mut union: Vec<bool> = vec![false; aba.links()];
+            for &b in &bodies {
+                aba.reach(b, &mut reach);
+                for &link in &reach {
+                    union[link] = true;
+                }
+            }
+            let descend: Vec<usize> = aba
+                .order()
+                .iter()
+                .copied()
+                .filter(|&i| union[i])
+                .collect();
+
+            for &body in &bodies {
+                let w = poses[body].apply(&[0.1, -0.05, 0.2]);
+                aba.reach(body, &mut reach);
+                aba.constraint_force(
+                    &poses,
+                    body,
+                    [w[0], w[1], w[2]],
+                    [0.408_248_290_463_863_1, 0.408_248_290_463_863_1, 0.816_496_580_927_726_1],
+                    &mut scratch,
+                    &mut force,
+                );
+
+                aba.solve_factorised_over(&force, &reach, &descend, &mut scratch, &mut restricted);
+                aba.solve_factorised(&force, &mut scratch, &mut full);
+
+                let scale = full.iter().fold(1.0f64, |a, v| a.max(v.abs()));
+                for &link in &descend {
+                    let Some(joint) = aba.inbound_joint(link) else {
+                        continue;
+                    };
+                    assert!(
+                        (restricted[joint] - full[joint]).abs() < 1e-11 * scale,
+                        "{}: round {round}, body {body}, joint {joint}: restricted {} against full {}",
+                        m.name,
+                        restricted[joint],
+                        full[joint]
+                    );
+                }
+                // the factorisation survives, since the full solve above clobbered the bias fields
+                aba.factorise(&m, &q, &mut scratch);
+                checked += 1;
+            }
+        }
+    }
+    assert!(checked >= 40, "only {checked} sweeps were compared");
+}
+
+#[test]
+fn a_reach_is_a_path_that_ends_at_the_root() {
+    // The precondition the restricted sweep relies on: closed under taking parents, and finite.
+    for m in [branched(), double_pendulum(0.5, 2.0, 0.4, 1.0)] {
+        let aba = AbaPlan::new(&m).expect("the topology resolves");
+        let mut reach = Vec::new();
+        for body in 0..m.links.len() {
+            aba.reach(body, &mut reach);
+            assert_eq!(reach[0], body, "a reach starts at its own link");
+            assert!(reach.len() <= m.links.len(), "a reach revisited a link");
+            for pair in reach.windows(2) {
+                let parent = aba
+                    .kinematics_parent(pair[0])
+                    .expect("every link but the last has a parent in the reach");
+                assert_eq!(parent, pair[1], "a reach must step to the parent");
+            }
+        }
+    }
+}

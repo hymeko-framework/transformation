@@ -84,6 +84,9 @@ fn main() {
     ground_contacts(&colliders, &placed, ground, parameters.margin, &mut contacts);
     let c = contacts.len();
 
+    ground_constraints(
+        &aba, &poses, &colliders, &contacts, &qd, &parameters, h, &mut scratch, &mut constraints,
+    );
     let constrain_us = if c == 0 {
         0.0
     } else {
@@ -110,9 +113,11 @@ fn main() {
     };
 
     println!(
-        "  {root:<12} {} joints, {} colliders, {c} ground contacts at z = {ground}",
+        "  {root:<12} {} joints, {} colliders, {c} ground contacts at z = {ground},          {} constraint rows ({:.1} per contact)",
         n,
-        colliders.len()
+        colliders.len(),
+        constraints.len(),
+        constraints.len() as f64 / c.max(1) as f64
     );
     println!("    tree        {tree_us:>8.3} us");
     println!(
@@ -123,9 +128,9 @@ fn main() {
         println!("    constrain      (nothing is touching; raise the ground to exercise it)");
     } else {
         println!(
-            "    constrain   {constrain_us:>8.3} us   {c} constraints -> a {c}x{c} dense solve \
-             ({:.3} us each)",
-            constrain_us / c as f64
+            "    constrain   {constrain_us:>8.3} us   a {rows}x{rows} dense solve in {sweeps} sweeps",
+            rows = constraints.len(),
+            sweeps = solver.sweeps()
         );
     }
     println!(

@@ -193,6 +193,34 @@ impl AbaPlan {
         })
     }
 
+    /// How many links the mechanism has.
+    pub fn links(&self) -> usize {
+        self.inertia.len()
+    }
+
+    /// The joint that brings a link in, if any. The root has none, and neither does a link the
+    /// mechanism does not reach.
+    pub fn inbound_joint(&self, link: usize) -> Option<usize> {
+        self.plan.parent.get(link).and_then(|p| p.map(|(ji, _)| ji))
+    }
+
+    /// The link a link hangs from, if it hangs from a link at all. `None` for the root and for a
+    /// link anchored to a frame rather than to another body.
+    pub fn kinematics_parent(&self, link: usize) -> Option<usize> {
+        match self.plan.parent.get(link)? {
+            Some((_, p)) if *p != usize::MAX => Some(*p),
+            _ => None,
+        }
+    }
+
+    /// The links in an order where every parent precedes its children.
+    ///
+    /// Exposed so a caller can put a set of links into a sweepable order without knowing how the
+    /// topology was resolved.
+    pub fn order(&self) -> &[usize] {
+        &self.plan.order
+    }
+
     /// The underlying kinematic plan, for poses.
     pub fn kinematics(&self) -> &FkPlan {
         &self.plan
@@ -559,6 +587,118 @@ impl AbaPlan {
             };
             if p != usize::MAX {
                 s.ia[p].add_assign(&up.to_parent(&s.x[i]));
+            }
+        }
+    }
+
+    /// The links from `body` up to the root, `body` first.
+    ///
+    /// This is the support of a constraint's generalised force, and it is a **path**: a force at a
+    /// point on one body is felt by the joints between it and the root, and by no others. The set is
+    /// closed under taking parents, which is what lets a union of several of them be swept in the
+    /// plan's own order.
+    ///
+    /// # Panics
+    /// If `body` is not a link.
+    pub fn reach(&self, body: usize, out: &mut Vec<usize>) {
+        assert!(body < self.inertia.len(), "body {body} is not a link");
+        out.clear();
+        let mut here = body;
+        out.push(here);
+        while let Some((_, parent)) = self.plan.parent[here] {
+            if parent == usize::MAX {
+                break; // anchored to the world, which is not a link
+            }
+            out.push(parent);
+            here = parent;
+        }
+    }
+
+    /// [`Self::solve_factorised`] restricted to the parts of the tree that can matter.
+    ///
+    /// # The two sets, and why they differ
+    ///
+    /// `up` are the links whose inbound joint carries any of the applied torque — for a contact,
+    /// its [`Self::reach`]. Everywhere else the bias force stays zero, so sweeping those links is
+    /// arithmetic on zeros.
+    ///
+    /// `down` is where the answer is wanted, and it is **not** the same set and cannot be. An
+    /// acceleration introduced at one joint propagates to that link's whole subtree, so
+    /// `M^-1 J^T` is genuinely dense however sparse `J` is. What saves the work is that a
+    /// constraint problem never reads all of it: `A[k][l] = J_k . (M^-1 J_l^T)` and `J_k` is
+    /// supported on `reach(k)`, so the union of the reaches is all any of them will look at.
+    ///
+    /// # Preconditions
+    ///
+    /// `up` must be ordered deepest first and `down` in the plan's own order, `down` must contain
+    /// `up`, and `down` must be closed under taking parents. A union of reaches satisfies all three.
+    /// Entries of `qdd` outside `down` are left as they were — stale, and not to be read.
+    ///
+    /// # Panics
+    /// If a slice is shorter than [`Self::slots`].
+    pub fn solve_factorised_over(
+        &self,
+        tau: &[f64],
+        up: &[usize],
+        down: &[usize],
+        s: &mut AbaScratch,
+        qdd: &mut [f64],
+    ) {
+        let n = self.subspace.len();
+        assert!(tau.len() >= n, "tau must cover every joint");
+        assert!(qdd.len() >= n, "qdd must cover every joint");
+
+        // Only what the sweeps will touch. `up` is inside `down`, so clearing `down` clears both.
+        for &i in down {
+            s.pa[i] = Wrench::ZERO;
+            if let Some((ji, _)) = self.plan.parent[i] {
+                s.tau_bias[ji] = 0.0;
+            }
+        }
+
+        for &i in up {
+            let Some((ji, p)) = self.plan.parent[i] else {
+                continue;
+            };
+            let pp = match self.subspace[ji] {
+                Some(_) if s.d[ji] == 0.0 => s.pa[i],
+                Some(sub) => {
+                    let bias = tau[ji] - sub.dot(&s.pa[i]);
+                    s.tau_bias[ji] = bias;
+                    s.pa[i].add(&s.u[ji].scale(bias / s.d[ji]))
+                }
+                None => s.pa[i],
+            };
+            if p != usize::MAX {
+                s.pa[p] = s.pa[p].add(&pp.to_parent(&s.x[i]));
+            }
+        }
+
+        s.a[self.plan.root()] = Twist::ZERO;
+        for &i in down {
+            let Some((ji, p)) = self.plan.parent[i] else {
+                continue;
+            };
+            let ap = if p == usize::MAX {
+                Twist::ZERO
+            } else {
+                s.a[p]
+            };
+            let here = ap.to_child(&s.x[i]);
+            match self.subspace[ji] {
+                Some(_) if s.d[ji] == 0.0 => {
+                    qdd[ji] = 0.0;
+                    s.a[i] = here;
+                }
+                Some(sub) => {
+                    let acc = (s.tau_bias[ji] - here.dot(&s.u[ji])) / s.d[ji];
+                    qdd[ji] = acc;
+                    s.a[i] = here.add(&sub.scale(acc));
+                }
+                None => {
+                    qdd[ji] = 0.0;
+                    s.a[i] = here;
+                }
             }
         }
     }
