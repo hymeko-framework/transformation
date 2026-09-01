@@ -129,16 +129,44 @@ fn generate(seed: u64, adversarial: bool) -> (KinematicModel, Shape) {
             let d = rng.signed() * 0.4;
             [axis[0] * d, axis[1] * d, axis[2] * d]
         } else {
-            let mut c = rng.vec3();
-            // push it clear of the axis so the well-posed population really is well posed
-            let along = c[0] * axis[0] + c[1] * axis[1] + c[2] * axis[2];
-            for k in 0..3 {
-                c[k] = 0.3 * (c[k] - along * axis[k]) + 0.05 * axis[k];
+            // Push it clear of the axis, by a GUARANTEED distance and not merely a likely one.
+            //
+            // This used to scale down whatever perpendicular component the random vector happened to
+            // have, which is a guarantee in expectation and nothing at all in the tail. An overnight
+            // run of 233 million mechanisms found the tail: a vector that landed within a few
+            // microradians of the axis produced a mass 1.4 um off it, in the population whose entire
+            // definition is that no mass sits on its axis. It was reported as a solver failure, and
+            // the solver was innocent.
+            let raw = rng.vec3();
+            let along = raw[0] * axis[0] + raw[1] * axis[1] + raw[2] * axis[2];
+            let mut perp = [
+                raw[0] - along * axis[0],
+                raw[1] - along * axis[1],
+                raw[2] - along * axis[2],
+            ];
+            let n = (perp[0] * perp[0] + perp[1] * perp[1] + perp[2] * perp[2]).sqrt();
+            if n < 1e-6 {
+                // it landed on the axis; take any direction off it, deterministically
+                let alt = if axis[0].abs() < 0.9 {
+                    [1.0, 0.0, 0.0]
+                } else {
+                    [0.0, 1.0, 0.0]
+                };
+                let d = alt[0] * axis[0] + alt[1] * axis[1] + alt[2] * axis[2];
+                perp = [
+                    alt[0] - d * axis[0],
+                    alt[1] - d * axis[1],
+                    alt[2] - d * axis[2],
+                ];
             }
-            if c.iter().all(|v| v.abs() < 1e-3) {
-                c = [0.2, 0.1, -0.15];
-            }
-            c
+            let n = (perp[0] * perp[0] + perp[1] * perp[1] + perp[2] * perp[2]).sqrt();
+            // at least 5 cm off the axis, up to 35
+            let reach = 0.05 + 0.3 * rng.f64();
+            [
+                perp[0] / n * reach + 0.05 * axis[0],
+                perp[1] / n * reach + 0.05 * axis[1],
+                perp[2] / n * reach + 0.05 * axis[2],
+            ]
         };
 
         links.push(LinkInfo {

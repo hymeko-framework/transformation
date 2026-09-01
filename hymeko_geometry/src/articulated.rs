@@ -51,10 +51,17 @@ use crate::kinematics::kinematic::KinematicModel;
 /// How small `d = S^T I^A S` may be, RELATIVE to the articulated inertia it came from, before the
 /// joint is treated as having no inertia about its own axis at all.
 ///
-/// `d` is a difference of terms of size `|I^A|`, so its rounding error is about `eps |I^A|`. Below
-/// a few thousand times that, its value carries no information — and it can perfectly well come out
-/// NEGATIVE, because a positive semi-definite matrix that has been through a dozen congruences and
-/// downdates is only semi-definite to within rounding.
+/// `d` is a difference of terms of size `|I^A|`, so its rounding error is about `eps |I^A|`, and
+/// this floor is about forty-five of those. Below it `d` carries no information — and it can
+/// perfectly well come out NEGATIVE, because a positive semi-definite matrix that has been through a
+/// dozen congruences and downdates is only semi-definite to within rounding.
+///
+/// Forty-five and not more. The first attempt used `1e-12`, four thousand rounding units, and an
+/// overnight fuzz found what that discards: a 0.94 kg mass sitting 1.4 micrometres off its own axis
+/// gives `d = 1.9e-12` against a scale of 2.8 — three thousand times the noise, an entirely real
+/// number — and it was being thrown away and the joint reported as free. At this floor the same
+/// joint resolves to five significant figures instead. The rule is "indistinguishable from zero",
+/// which is a property of the arithmetic, not "small", which is a property of nothing.
 ///
 /// # Why this is relative, and why an absolute floor was a bug
 ///
@@ -73,7 +80,7 @@ use crate::kinematics::kinematic::KinematicModel;
 /// `U` is zero and the rank-one term it would remove is zero. Nothing is subtracted because there
 /// was nothing there — whether the subtree is massless, or merely carries all its mass on the one
 /// axis this joint turns about.
-const INERTIA_RELATIVE_FLOOR: f64 = 1e-12;
+const INERTIA_RELATIVE_FLOOR: f64 = 1e-14;
 
 /// The absolute backstop, for a subtree with no inertia at all, where the relative threshold is
 /// zero and every comparison against it would pass.
