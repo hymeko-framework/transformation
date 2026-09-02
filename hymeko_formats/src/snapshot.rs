@@ -66,7 +66,7 @@ fn render_value(v: &ValueR, ir: &Ir, st: &StringTable) -> String {
             if d.is_none() {
                 "?".to_string()
             } else {
-                st.resolve(ir.decl_nodes[d.0].name).to_string()
+                st.resolve(ir.decl_nodes[d.raw()].name).to_string()
             }
         }
     }
@@ -124,7 +124,7 @@ pub struct SnapshotDto {
 /// `snapshot_json()` below.
 pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
     let mk = |did: DeclId, with_arcs: bool| -> NodeDto {
-        let decl = &ir.decl_nodes[did.0];
+        let decl = &ir.decl_nodes[did.raw()];
         let name = st.resolve(decl.name).to_string();
         let kind_str = match decl.kind {
             DeclKind::Node => "Node",
@@ -135,14 +135,14 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
         let bases: Vec<String> = match decl.kind {
             DeclKind::Node => ir
                 .as_node(did)
-                .map(|nid| ir.nodes[nid.0].bases.iter()
-                    .map(|b| st.resolve(ir.decl_nodes[b.target().0].name).to_string())
+                .map(|nid| ir.nodes[nid.raw()].bases.iter()
+                    .map(|b| st.resolve(ir.decl_nodes[b.target().raw()].name).to_string())
                     .collect())
                 .unwrap_or_default(),
             DeclKind::Edge => ir
                 .as_edge(did)
-                .map(|eid| ir.edges[eid.0].bases.iter()
-                    .map(|b| st.resolve(ir.decl_nodes[b.target().0].name).to_string())
+                .map(|eid| ir.edges[eid.raw()].bases.iter()
+                    .map(|b| st.resolve(ir.decl_nodes[b.target().raw()].name).to_string())
                     .collect())
                 .unwrap_or_default(),
             _ => Vec::new(),
@@ -155,14 +155,14 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
         let mut arcs: Vec<ArcDto> = Vec::new();
         if with_arcs {
             if let Some(eid) = ir.as_edge(did) {
-                for &aid in &ir.edges[eid.0].arcs {
-                    for r in &ir.arcs[aid.0].refs {
+                for &aid in &ir.edges[eid.raw()].arcs {
+                    for r in &ir.arcs[aid.raw()].refs {
                         let tgt = r.target();
                         if !tgt.is_none() {
                             arcs.push(ArcDto {
                                 sign: r.sign(),
-                                target_id: tgt.0,
-                                target_name: st.resolve(ir.decl_nodes[tgt.0].name).to_string(),
+                                target_id: tgt.raw(),
+                                target_name: st.resolve(ir.decl_nodes[tgt.raw()].name).to_string(),
                             });
                         }
                     }
@@ -170,7 +170,7 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
             }
         }
         let value = decl.anno.value.as_ref().map(|v| render_value(v, ir, st));
-        NodeDto { id: did.0, name, kind: kind_str.to_string(), bases, tags, value, arcs }
+        NodeDto { id: did.raw(), name, kind: kind_str.to_string(), bases, tags, value, arcs }
     };
 
     let mut nodes = Vec::with_capacity(ir.nodes.len());
@@ -190,32 +190,32 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
         }
         let parent = decl.parent;
         if !parent.is_none() {
-            relationships.push(RelDto { kind: "scope".to_string(), from: did_idx, to: parent.0 });
+            relationships.push(RelDto { kind: "scope".to_string(), from: did_idx, to: parent.raw() });
         }
         if let Some(val) = &decl.anno.value {
             let mut targets = Vec::new();
             collect_ref_targets(val, &mut targets);
             for t in targets {
                 if !t.is_none() {
-                    relationships.push(RelDto { kind: "ref".to_string(), from: did_idx, to: t.0 });
+                    relationships.push(RelDto { kind: "ref".to_string(), from: did_idx, to: t.raw() });
                 }
             }
         }
     }
     for rec in &ir.nodes {
         if let Some(nid) = ir.as_node(rec.decl) {
-            for b in &ir.nodes[nid.0].bases {
+            for b in &ir.nodes[nid.raw()].bases {
                 if !b.target().is_none() {
-                    relationships.push(RelDto { kind: "isa".to_string(), from: rec.decl.0, to: b.target().0 });
+                    relationships.push(RelDto { kind: "isa".to_string(), from: rec.decl.raw(), to: b.target().raw() });
                 }
             }
         }
     }
     for rec in &ir.edges {
         if let Some(eid) = ir.as_edge(rec.decl) {
-            for b in &ir.edges[eid.0].bases {
+            for b in &ir.edges[eid.raw()].bases {
                 if !b.target().is_none() {
-                    relationships.push(RelDto { kind: "isa".to_string(), from: rec.decl.0, to: b.target().0 });
+                    relationships.push(RelDto { kind: "isa".to_string(), from: rec.decl.raw(), to: b.target().raw() });
                 }
             }
         }
@@ -262,36 +262,36 @@ pub fn emit_dot_graph(ir: &Ir, st: &StringTable, graph_name: &str) -> String {
     out.push_str("  node [fontname=\"Helvetica\"];\n\n");
 
     for rec in &ir.nodes {
-        let name = st.resolve(ir.decl_nodes[rec.decl.0].name);
+        let name = st.resolve(ir.decl_nodes[rec.decl.raw()].name);
         out.push_str(&format!(
             "  \"n{}\" [label=\"{}\", shape=ellipse, style=filled, fillcolor=\"#EEF1F5\"];\n",
-            rec.decl.0, dot_escape(name)
+            rec.decl.raw(), dot_escape(name)
         ));
     }
     for rec in &ir.edges {
-        let name = st.resolve(ir.decl_nodes[rec.decl.0].name);
+        let name = st.resolve(ir.decl_nodes[rec.decl.raw()].name);
         out.push_str(&format!(
             "  \"e{}\" [label=\"{}\", shape=box, style=\"rounded,filled\", fillcolor=\"#D7E4F5\"];\n",
-            rec.decl.0, dot_escape(name)
+            rec.decl.raw(), dot_escape(name)
         ));
     }
     out.push('\n');
 
     for rec in &ir.edges {
-        let eid_num = rec.decl.0;
+        let eid_num = rec.decl.raw();
         for &aid in &rec.arcs {
-            for r in &ir.arcs[aid.0].refs {
+            for r in &ir.arcs[aid.raw()].refs {
                 let tgt = r.target();
                 if tgt.is_none() { continue; }
                 let target_is_edge = ir
                     .decl_nodes
-                    .get(tgt.0)
+                    .get(tgt.raw())
                     .map(|d| matches!(d.kind, DeclKind::Edge))
                     .unwrap_or(false);
                 let tgt_id = if target_is_edge {
-                    format!("e{}", tgt.0)
+                    format!("e{}", tgt.raw())
                 } else {
-                    format!("n{}", tgt.0)
+                    format!("n{}", tgt.raw())
                 };
                 let (color, arrowhead, penwidth) = match r.sign() {
                      1 => ("#1b6ca8", "normal", 1.4),

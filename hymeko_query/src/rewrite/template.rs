@@ -24,6 +24,9 @@ use crate::traits::NameResolver;
 use super::match_context::{FieldValue, MatchContext};
 
 use std::collections::HashMap;
+use std::fmt;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Walk a [`FieldValue::List`] of degrees and emit space-separated
 /// radian values. Non-list values pass through via
@@ -273,7 +276,7 @@ fn decl_inherits_from<R: NameResolver>(
     if max_depth == 0 || did.is_none() {
         return false;
     }
-    let decl = &ir.decl_nodes[did.0];
+    let decl = &ir.decl_nodes[did.raw()];
 
     // Direct-name match on the decl itself.
     if resolver.resolve(decl.name) == base_name {
@@ -282,13 +285,13 @@ fn decl_inherits_from<R: NameResolver>(
 
     // Pull bases list from NodeRec or EdgeRec.
     let bases: Vec<hymeko::common::ids::DeclId> = if let Some(nid) = ir.as_node(did) {
-        ir.nodes[nid.0]
+        ir.nodes[nid.raw()]
             .bases
             .iter()
             .map(|b| b.target())
             .collect()
     } else if let Some(eid) = ir.as_edge(did) {
-        ir.edges[eid.0]
+        ir.edges[eid.raw()]
             .bases
             .iter()
             .map(|b| b.target())
@@ -325,7 +328,7 @@ fn resolve_expr<R: NameResolver>(expr: &str, ctx: &RenderContext<R>) -> String {
             hymeko::ir::ir::DeclKind::HyperArc => "arc".into(),
         },
         "depth" => m.depth.to_string(),
-        "id" => m.id.0.to_string(),
+        "id" => m.id.raw().to_string(),
 
         _ if expr.starts_with("field:") => {
             let field_path = &expr["field:".len()..];
@@ -429,6 +432,89 @@ pub struct TransformSpec {
     pub query_source: String,
     /// Template source.
     pub template_source: String,
+}
+
+/// Why a [`TransformSpec`] could not be loaded from a transform registry directory.
+///
+/// Typed so that callers -- the Python bindings, the CLI, other crates -- can distinguish a missing
+/// registry entry from a malformed transform directory without matching on formatted strings.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TransformSpecError {
+    /// `<transforms_dir>/<name>` is not an existing directory.
+    TransformNotFound { transforms_dir: String, name: String },
+    /// `queries.hymeko` is absent or unreadable.
+    QueriesUnreadable { path: String, reason: String },
+    /// The transform directory contains no `template.*` file.
+    TemplateMissing { dir: String },
+    /// A `template.*` file exists but could not be read.
+    TemplateUnreadable { path: String, reason: String },
+}
+
+impl TransformSpecError {
+    /// Stable machine-readable discriminant, for structured diagnostics.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::TransformNotFound { .. } => "transform_not_found",
+            Self::QueriesUnreadable { .. } => "queries_unreadable",
+            Self::TemplateMissing { .. } => "template_missing",
+            Self::TemplateUnreadable { .. } => "template_unreadable",
+        }
+    }
+}
+
+impl fmt::Display for TransformSpecError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TransformNotFound { transforms_dir, name } =>
+                write!(f, "transform '{name}' not found under '{transforms_dir}'"),
+            Self::QueriesUnreadable { path, reason } | Self::TemplateUnreadable { path, reason } =>
+                write!(f, "failed to read {path}: {reason}"),
+            Self::TemplateMissing { dir } => write!(f, "no template.* file found in {dir}"),
+        }
+    }
+}
+
+impl std::error::Error for TransformSpecError {}
+
+impl TransformSpec {
+    /// Load a spec from `<transforms_dir>/<name>/`: the `queries.hymeko` definitions plus the single
+    /// `template.*` file beside them.
+    ///
+    /// This is the library owner of transform-spec loading, so that a binding and a CLI cannot drift
+    /// apart on the registry layout.
+    ///
+    /// # Errors
+    /// Returns a typed [`TransformSpecError`] and never terminates the process: an invalid transform
+    /// directory is a recoverable caller error, which is what makes this usable from a library.
+    pub fn from_dir(transforms_dir: impl AsRef<Path>, name: &str) -> Result<Self, TransformSpecError> {
+        let root = transforms_dir.as_ref();
+        let dir = root.join(name);
+        if !dir.is_dir() {
+            return Err(TransformSpecError::TransformNotFound {
+                transforms_dir: root.display().to_string(),
+                name: name.to_string(),
+            });
+        }
+        let query_path = dir.join("queries.hymeko");
+        let query_source = fs::read_to_string(&query_path).map_err(|e| {
+            TransformSpecError::QueriesUnreadable { path: query_path.display().to_string(), reason: e.to_string() }
+        })?;
+        let template_path = Self::find_template_path(&dir)
+            .ok_or_else(|| TransformSpecError::TemplateMissing { dir: dir.display().to_string() })?;
+        let template_source = fs::read_to_string(&template_path).map_err(|e| {
+            TransformSpecError::TemplateUnreadable { path: template_path.display().to_string(), reason: e.to_string() }
+        })?;
+        Ok(Self { name: name.to_string(), query_source, template_source })
+    }
+
+    /// Deterministically pick the `template.*` file: sorted, so the choice cannot vary by filesystem.
+    fn find_template_path(dir: &Path) -> Option<PathBuf> {
+        let mut found: Vec<PathBuf> = fs::read_dir(dir).ok()?.flatten().map(|e| e.path())
+            .filter(|p| p.file_name().map(|n| n.to_string_lossy().starts_with("template.")).unwrap_or(false))
+            .collect();
+        found.sort();
+        found.into_iter().next()
+    }
 }
 
 /// Execute a full query-driven transform: parse queries → run → render template.

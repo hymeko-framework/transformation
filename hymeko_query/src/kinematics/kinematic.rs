@@ -172,7 +172,7 @@ pub fn extract_kinematic_model<R: NameResolver>(
 /// Find a direct child node by name and return its numeric value.
 fn find_child_num<R: NameResolver>(ir: &Ir, res: &R, did: DeclId, name: &str) -> Option<f64> {
     ir.decl_children(did).find_map(|cid| {
-        let child = &ir.decl_nodes[cid.0];
+        let child = &ir.decl_nodes[cid.raw()];
         if res.resolve(child.name) == name {
             match &child.anno.value {
                 Some(ValueR::Num(v)) => Some(*v),
@@ -187,7 +187,7 @@ fn find_child_num<R: NameResolver>(ir: &Ir, res: &R, did: DeclId, name: &str) ->
 /// Find a direct child node by name and return its list value as Vec<f64>.
 fn find_child_list<R: NameResolver>(ir: &Ir, res: &R, did: DeclId, name: &str) -> Option<Vec<f64>> {
     ir.decl_children(did).find_map(|cid| {
-        let child = &ir.decl_nodes[cid.0];
+        let child = &ir.decl_nodes[cid.raw()];
         if res.resolve(child.name) == name {
             extract_num_list(&child.anno.value)
         } else {
@@ -202,12 +202,12 @@ fn find_child_ref_value_list<R: NameResolver>(
     ir: &Ir, res: &R, did: DeclId, child_name: &str,
 ) -> Option<Vec<f64>> {
     ir.decl_children(did).find_map(|cid| {
-        let child = &ir.decl_nodes[cid.0];
+        let child = &ir.decl_nodes[cid.raw()];
         if res.resolve(child.name) != child_name { return None; }
         match &child.anno.value {
             Some(ValueR::Ref(target_did)) => {
                 if target_did.is_none() { return None; }
-                let target = &ir.decl_nodes[target_did.0];
+                let target = &ir.decl_nodes[target_did.raw()];
                 extract_num_list(&target.anno.value)
             }
             _ => None,
@@ -217,7 +217,7 @@ fn find_child_ref_value_list<R: NameResolver>(
 
 fn find_child_ref_target(ir: &Ir, did: DeclId) -> Option<DeclId> {
     ir.decl_children(did).find_map(|cid| {
-        let child = &ir.decl_nodes[cid.0];
+        let child = &ir.decl_nodes[cid.raw()];
         match &child.anno.value {
             Some(ValueR::Ref(target_did)) => Some(*target_did),
             _ => None,
@@ -241,7 +241,7 @@ fn extract_num_list(val: &Option<ValueR>) -> Option<Vec<f64>> {
     }
 }
 fn extract_value_list(ir: &Ir, did: DeclId) -> Option<Vec<f64>> {
-    let decl = &ir.decl_nodes[did.0];
+    let decl = &ir.decl_nodes[did.raw()];
     extract_num_list(&decl.anno.value)
 }
 
@@ -249,16 +249,16 @@ fn extract_value_list(ir: &Ir, did: DeclId) -> Option<Vec<f64>> {
 /// from box/cylinder/sphere.
 fn extract_geometry<R: NameResolver>(ir: &Ir, res: &R, link_did: DeclId) -> Option<GeometryInfo> {
     ir.decl_children(link_did).find_map(|cid| {
-        let child = &ir.decl_nodes[cid.0];
+        let child = &ir.decl_nodes[cid.raw()];
         let cname = res.resolve(child.name);
         if cname != "link_geometry" { return None; }
 
         if let Some(nid) = ir.as_node(cid) {
             let mut unknown_shape: Option<String> = None;
-            for base in &ir.nodes[nid.0].bases {
+            for base in &ir.nodes[nid.raw()].bases {
                 let target = base.target();
                 if target.is_none() { continue; }
-                let base_name = res.resolve(ir.decl_nodes[target.0].name);
+                let base_name = res.resolve(ir.decl_nodes[target.raw()].name);
                 let shape = match base_name {
                     "box"      => Some(GeometryShape::Box),
                     "cylinder" => Some(GeometryShape::Cylinder),
@@ -290,7 +290,7 @@ fn extract_geometry<R: NameResolver>(ir: &Ir, res: &R, link_did: DeclId) -> Opti
 /// Absence ⇒ `None` (historical default). Both fields are required together when the block is present.
 fn extract_collision<R: NameResolver>(ir: &Ir, res: &R, geom_did: DeclId) -> Option<CollisionMask> {
     ir.decl_children(geom_did).find_map(|cid| {
-        if res.resolve(ir.decl_nodes[cid.0].name) != "collision" {
+        if res.resolve(ir.decl_nodes[cid.raw()].name) != "collision" {
             return None;
         }
         let contype = find_child_num(ir, res, cid, "contype")? as i64;
@@ -338,19 +338,19 @@ fn check_inherits_simple<R: NameResolver>(
     if depth == 0 || did.is_none() { return false; }
 
     if let Some(nid) = ir.as_node(did) {
-        for base_ref in &ir.nodes[nid.0].bases {
+        for base_ref in &ir.nodes[nid.raw()].bases {
             let target = base_ref.target();
             if target.is_none() { continue; }
-            let tname = res.resolve(ir.decl_nodes[target.0].name);
+            let tname = res.resolve(ir.decl_nodes[target.raw()].name);
             if tname == base_name { return true; }
             if check_inherits_simple(ir, res, target, base_name, depth - 1) { return true; }
         }
     }
     if let Some(eid) = ir.as_edge(did) {
-        for base_ref in &ir.edges[eid.0].bases {
+        for base_ref in &ir.edges[eid.raw()].bases {
             let target = base_ref.target();
             if target.is_none() { continue; }
-            let tname = res.resolve(ir.decl_nodes[target.0].name);
+            let tname = res.resolve(ir.decl_nodes[target.raw()].name);
             if tname == base_name { return true; }
             if check_inherits_simple(ir, res, target, base_name, depth - 1) { return true; }
         }
@@ -376,7 +376,7 @@ fn find_inherited_ref_target<R: NameResolver>(
         return None;
     }
     for cid in ir.decl_children(did) {
-        let child = &ir.decl_nodes[cid.0];
+        let child = &ir.decl_nodes[cid.raw()];
         if res.resolve(child.name) == name {
             if let Some(ValueR::Ref(target)) = &child.anno.value {
                 if !target.is_none() {
@@ -386,14 +386,14 @@ fn find_inherited_ref_target<R: NameResolver>(
         }
     }
     if let Some(nid) = ir.as_node(did) {
-        for base in &ir.nodes[nid.0].bases {
+        for base in &ir.nodes[nid.raw()].bases {
             if let Some(t) = find_inherited_ref_target(ir, res, base.target(), name, depth - 1) {
                 return Some(t);
             }
         }
     }
     if let Some(eid) = ir.as_edge(did) {
-        for base in &ir.edges[eid.0].bases {
+        for base in &ir.edges[eid.raw()].bases {
             if let Some(t) = find_inherited_ref_target(ir, res, base.target(), name, depth - 1) {
                 return Some(t);
             }

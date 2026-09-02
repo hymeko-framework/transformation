@@ -8,7 +8,11 @@ resolver = "2"
 members = ["hymeko_emitter", "hymeko_query", "hymeko_formats"]
 
 [workspace.dependencies]
-hymeko_core = { git = "ssh://git@amaterasu.local:2222/hymeko/core.git", branch = "main" }
+# Pinned to the revision this repository actually builds against. core@main has since replaced the
+# three `decl_to_*` maps with a private dispatch slot (documented "option D", 2026-08-31); migrating the
+# ~20 IR-construction write sites in entropy.rs / rewrite/{regen,split}.rs to the public
+# `push_decl` / `bind_*_decl` API is a separate, owner-level change and is NOT done here.
+hymeko_core = { git = "ssh://git@amaterasu.local:2222/hymeko/core.git", rev = "15223bcd762806b69909ea73f7526586c2d2ded6" }
 parser = { git = "ssh://git@amaterasu.local:2222/hymeko/parser.git", branch = "master" }
 serde = "1.0.228"
 log = "0.4.29"

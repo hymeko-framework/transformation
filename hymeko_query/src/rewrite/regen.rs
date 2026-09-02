@@ -243,7 +243,7 @@ fn scope_bases(ir: &Ir, it: &Interner, did: DeclId) -> String {
         return String::new();
     }
     let Some(nid) = ir.as_node(did) else { return String::new() };
-    let bases = &ir.nodes[nid.0].bases;
+    let bases = &ir.nodes[nid.raw()].bases;
     if bases.is_empty() {
         return String::new();
     }
@@ -400,14 +400,14 @@ mod tests {
         ir.decl_to_arc.push(None);
         ir.decl_hash.push(None);
         if parent.is_some() {
-            let first = ir.decl_nodes[parent.0].first_child;
+            let first = ir.decl_nodes[parent.raw()].first_child;
             if first.is_none() {
-                ir.decl_nodes[parent.0].first_child = did;
-                ir.decl_nodes[parent.0].last_child = did;
+                ir.decl_nodes[parent.raw()].first_child = did;
+                ir.decl_nodes[parent.raw()].last_child = did;
             } else {
-                let last = ir.decl_nodes[parent.0].last_child;
-                ir.decl_nodes[last.0].next_sibling = did;
-                ir.decl_nodes[parent.0].last_child = did;
+                let last = ir.decl_nodes[parent.raw()].last_child;
+                ir.decl_nodes[last.raw()].next_sibling = did;
+                ir.decl_nodes[parent.raw()].last_child = did;
             }
         }
         did
@@ -417,7 +417,7 @@ mod tests {
         let did = push_decl(ir, parent, DeclKind::Node, name);
         let nid = NodeId::new(ir.nodes.len());
         ir.nodes.push(NodeRec::new(did, Vec::new()));
-        ir.decl_to_node[did.0] = Some(nid);
+        ir.decl_to_node[did.raw()] = Some(nid);
         did
     }
 
@@ -428,7 +428,7 @@ mod tests {
         let e_did = push_decl(ir, parent, DeclKind::Edge, name);
         let eid = EdgeId::new(ir.edges.len());
         ir.edges.push(EdgeRec::new(e_did, Vec::new()));
-        ir.decl_to_edge[e_did.0] = Some(eid);
+        ir.decl_to_edge[e_did.raw()] = Some(eid);
 
         let arc_did = push_decl(ir, e_did, DeclKind::HyperArc, SymId::new(0));
         let aid = HyperArcId::new(ir.arcs.len());
@@ -442,8 +442,8 @@ mod tests {
                 }
             }).collect();
         ir.arcs.push(ArcRec { anno: AnnoR::default(), in_edge: e_did, refs });
-        ir.decl_to_arc[arc_did.0] = Some(aid);
-        ir.edges[eid.0].arcs.push(aid);
+        ir.decl_to_arc[arc_did.raw()] = Some(aid);
+        ir.edges[eid.raw()].arcs.push(aid);
         e_did
     }
 
