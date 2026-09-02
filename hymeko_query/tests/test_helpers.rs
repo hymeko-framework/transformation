@@ -85,7 +85,7 @@ pub fn find_decl(ir: &Ir, it: &Interner, name: &str, kind: DeclKind) -> DeclId {
 
 pub fn get_node<'a>(ir: &'a Ir, did: DeclId) -> &'a NodeRec {
     let nid = ir.as_node(did).expect("decl should be a node");
-    &ir.nodes[nid.0]
+    &ir.nodes[nid.raw()]
 }
 
 pub fn has_tag(it: &Interner, tags: &[SymId], name: &str) -> bool {

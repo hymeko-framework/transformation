@@ -134,7 +134,7 @@ fn arity_sign_and_degrees(
 
     for &e_did in edges {
         let Some(eid) = ir.as_edge(e_did) else { continue };
-        let edge = &ir.edges[eid.0];
+        let edge = &ir.edges[eid.raw()];
 
         let mut arity: usize = 0;
         let mut n_plus: usize = 0;
@@ -142,7 +142,7 @@ fn arity_sign_and_degrees(
         let mut n_neutral: usize = 0;
 
         for &aid in &edge.arcs {
-            let arc = &ir.arcs[aid.0];
+            let arc = &ir.arcs[aid.raw()];
             for r in &arc.refs {
                 arity += 1;
                 match r {
@@ -218,7 +218,7 @@ fn scope_children<'a>(ir: &'a Ir, scope: DeclId) -> Box<dyn Iterator<Item = Decl
         Box::new(
             (0..ir.decl_nodes.len())
                 .map(DeclId::new)
-                .filter(move |&d| ir.decl_nodes[d.0].parent.is_none()),
+                .filter(move |&d| ir.decl_nodes[d.raw()].parent.is_none()),
         )
     } else {
         Box::new(ir.decl_children(scope))
@@ -253,14 +253,14 @@ mod tests {
 
         // Chain into parent's child list (append).
         if parent.is_some() {
-            let first = ir.decl_nodes[parent.0].first_child;
+            let first = ir.decl_nodes[parent.raw()].first_child;
             if first.is_none() {
-                ir.decl_nodes[parent.0].first_child = did;
-                ir.decl_nodes[parent.0].last_child = did;
+                ir.decl_nodes[parent.raw()].first_child = did;
+                ir.decl_nodes[parent.raw()].last_child = did;
             } else {
-                let last = ir.decl_nodes[parent.0].last_child;
-                ir.decl_nodes[last.0].next_sibling = did;
-                ir.decl_nodes[parent.0].last_child = did;
+                let last = ir.decl_nodes[parent.raw()].last_child;
+                ir.decl_nodes[last.raw()].next_sibling = did;
+                ir.decl_nodes[parent.raw()].last_child = did;
             }
         }
         did
@@ -270,7 +270,7 @@ mod tests {
         let did = push_decl(ir, parent, DeclKind::Node);
         let nid = NodeId::new(ir.nodes.len());
         ir.nodes.push(NodeRec::new(did, Vec::new()));
-        ir.decl_to_node[did.0] = Some(nid);
+        ir.decl_to_node[did.raw()] = Some(nid);
         did
     }
 
@@ -278,7 +278,7 @@ mod tests {
         let e_did = push_decl(ir, parent, DeclKind::Edge);
         let eid = EdgeId::new(ir.edges.len());
         ir.edges.push(EdgeRec::new(e_did, Vec::new()));
-        ir.decl_to_edge[e_did.0] = Some(eid);
+        ir.decl_to_edge[e_did.raw()] = Some(eid);
 
         // One arc per edge, carrying all signed refs — matches the
         // `lower_arc` shape (an Edge contains HyperArc children each
@@ -297,8 +297,8 @@ mod tests {
             })
             .collect();
         ir.arcs.push(ArcRec { anno: AnnoR::default(), in_edge: e_did, refs });
-        ir.decl_to_arc[arc_did.0] = Some(aid);
-        ir.edges[eid.0].arcs.push(aid);
+        ir.decl_to_arc[arc_did.raw()] = Some(aid);
+        ir.edges[eid.raw()].arcs.push(aid);
         e_did
     }
 

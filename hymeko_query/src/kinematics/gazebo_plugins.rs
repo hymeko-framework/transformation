@@ -68,7 +68,7 @@ fn find_child_str<R: NameResolver>(
     name: &str,
 ) -> Option<String> {
     ir.decl_children(did).find_map(|cid| {
-        let child = &ir.decl_nodes[cid.0];
+        let child = &ir.decl_nodes[cid.raw()];
         if res.resolve(child.name) != name {
             return None;
         }
@@ -85,7 +85,7 @@ fn build_plugin_info<R: NameResolver>(
     did: DeclId,
     kind: GazeboPluginKind,
 ) -> GazeboPluginInfo {
-    let edge_name = res.resolve(ir.decl_nodes[did.0].name).to_string();
+    let edge_name = res.resolve(ir.decl_nodes[did.raw()].name).to_string();
     GazeboPluginInfo {
         did,
         edge_name,
