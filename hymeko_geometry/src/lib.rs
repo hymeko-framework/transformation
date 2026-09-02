@@ -31,11 +31,13 @@
 pub mod articulated;
 pub mod collide;
 pub mod contact;
+pub mod engine;
 pub mod forward;
 pub mod kinematics;
 pub mod transforms;
 
 pub use articulated::{AbaPlan, AbaScratch};
+pub use engine::{Engine, FreeFlight};
 pub use contact::{
     Limit,
     ground_constraints, ground_contacts, Constraint, ConstraintSolver, ContactParameters,
