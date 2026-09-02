@@ -29,4 +29,4 @@ pub use split::{
     propose_split_for_highest_h_sign_with, propose_split_with,
     Cluster, SplitProposal, WeightAggregation,
 };
-pub use template::{execute_transform, TransformSpec};
+pub use template::{execute_transform, TransformSpec, TransformSpecError};
