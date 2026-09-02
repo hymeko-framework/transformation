@@ -117,7 +117,8 @@ impl SplitProposal {
     /// The two non-cross edge lists, for convenience when step 4 is
     /// generating per-cluster hypervertex bodies.
     pub fn edges_in(&self, cluster: Cluster) -> impl Iterator<Item = DeclId> + '_ {
-        self.edge_assignments.iter()
+        self.edge_assignments
+            .iter()
             .filter(move |(_, c)| *c == cluster)
             .map(|(d, _)| *d)
     }
@@ -153,7 +154,8 @@ pub fn propose_split_with(
 
     let (cluster_a, cluster_b) = split_by_labels(&vertices, &labels);
     let edge_assignments = classify_edges(ir, &edges, &cluster_a, &cluster_b);
-    let n_cross_edges = edge_assignments.iter()
+    let n_cross_edges = edge_assignments
+        .iter()
         .filter(|(_, c)| *c == Cluster::Cross)
         .count();
 
@@ -184,10 +186,14 @@ pub fn propose_split_for_highest_h_sign_with(
     weight_agg: WeightAggregation,
 ) -> Option<SplitProposal> {
     let scopes = compute_entropy_hierarchical(ir);
-    let best = scopes.into_iter()
+    let best = scopes
+        .into_iter()
         .filter(|(_, e)| e.n_edges > 0 && e.n_vertices >= 2)
-        .max_by(|(_, a), (_, b)| a.h_sign.partial_cmp(&b.h_sign)
-            .unwrap_or(std::cmp::Ordering::Equal))?;
+        .max_by(|(_, a), (_, b)| {
+            a.h_sign
+                .partial_cmp(&b.h_sign)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })?;
     propose_split_with(ir, best.0, weight_agg)
 }
 
@@ -197,7 +203,8 @@ fn scope_vertices_and_edges(ir: &Ir, scope: DeclId) -> (Vec<DeclId>, Vec<DeclId>
     let mut vertices = Vec::new();
     let mut edges = Vec::new();
     let children: Vec<DeclId> = if scope.is_none() {
-        (0..ir.decl_nodes.len()).map(DeclId::new)
+        (0..ir.decl_nodes.len())
+            .map(DeclId::new)
             .filter(|d| ir.decl_nodes[d.raw()].parent.is_none())
             .collect()
     } else {
@@ -237,15 +244,17 @@ fn incidence_signatures(
     edges: &[DeclId],
     weight_agg: WeightAggregation,
 ) -> Vec<Vec<f64>> {
-    let v_idx: HashMap<DeclId, usize> = vertices.iter().enumerate()
-        .map(|(i, d)| (*d, i))
-        .collect();
+    let v_idx: HashMap<DeclId, usize> = vertices.iter().enumerate().map(|(i, d)| (*d, i)).collect();
     let mut sigs = vec![vec![0.0; edges.len()]; vertices.len()];
     for (e_idx, e_did) in edges.iter().enumerate() {
-        let Some(eid) = ir.as_edge(*e_did) else { continue };
+        let Some(eid) = ir.as_edge(*e_did) else {
+            continue;
+        };
         for &aid in &ir.edges[eid.raw()].arcs {
             for r in &ir.arcs[aid.raw()].refs {
-                let Some(&row) = v_idx.get(&r.target()) else { continue };
+                let Some(&row) = v_idx.get(&r.target()) else {
+                    continue;
+                };
                 sigs[row][e_idx] += arc_weight_magnitude(r, weight_agg);
             }
         }
@@ -262,23 +271,27 @@ fn incidence_signatures(
 /// survives, or the weights are absent entirely, returns `1.0` so the
 /// arc still counts as a unit participation in the feature space.
 fn arc_weight_magnitude(r: &SignedRefR, agg: WeightAggregation) -> f64 {
-    let Some(ws) = r.atom().weights.as_ref() else { return 1.0 };
+    let Some(ws) = r.atom().weights.as_ref() else {
+        return 1.0;
+    };
     let mut scalars = Vec::new();
     for v in ws {
         collect_scalars(v, &mut scalars);
     }
-    if scalars.is_empty() { return 1.0; }
+    if scalars.is_empty() {
+        return 1.0;
+    }
     match agg {
         WeightAggregation::FirstScalar => scalars[0].abs(),
-        WeightAggregation::L1Norm      => scalars.iter().map(|n| n.abs()).sum(),
-        WeightAggregation::L2Norm      => scalars.iter().map(|n| n * n).sum::<f64>().sqrt(),
-        WeightAggregation::LinfNorm    => scalars.iter().map(|n| n.abs()).fold(0.0_f64, f64::max),
+        WeightAggregation::L1Norm => scalars.iter().map(|n| n.abs()).sum(),
+        WeightAggregation::L2Norm => scalars.iter().map(|n| n * n).sum::<f64>().sqrt(),
+        WeightAggregation::LinfNorm => scalars.iter().map(|n| n.abs()).fold(0.0_f64, f64::max),
     }
 }
 
 fn collect_scalars(v: &ValueR, out: &mut Vec<f64>) {
     match v {
-        ValueR::Num(n)  => out.push(*n),
+        ValueR::Num(n) => out.push(*n),
         ValueR::List(xs) => xs.iter().for_each(|x| collect_scalars(x, out)),
         ValueR::Str(_) | ValueR::Ref(_) => {}
     }
@@ -316,7 +329,9 @@ fn kmeans_two(sigs: &[Vec<f64>]) -> (Vec<usize>, f64) {
         }
     }
 
-    let inertia: f64 = sigs.iter().zip(labels.iter())
+    let inertia: f64 = sigs
+        .iter()
+        .zip(labels.iter())
         .map(|(sig, &l)| squared_distance(sig, &centroids[l]))
         .sum();
     (labels, inertia)
@@ -367,16 +382,18 @@ fn recompute_centroid(
 }
 
 fn squared_distance(a: &[f64], b: &[f64]) -> f64 {
-    a.iter().zip(b.iter())
-        .map(|(x, y)| (x - y).powi(2))
-        .sum()
+    a.iter().zip(b.iter()).map(|(x, y)| (x - y).powi(2)).sum()
 }
 
 fn split_by_labels(vertices: &[DeclId], labels: &[usize]) -> (Vec<DeclId>, Vec<DeclId>) {
     let mut a = Vec::new();
     let mut b = Vec::new();
     for (v, &l) in vertices.iter().zip(labels.iter()) {
-        if l == 0 { a.push(*v); } else { b.push(*v); }
+        if l == 0 {
+            a.push(*v);
+        } else {
+            b.push(*v);
+        }
     }
     a.sort_by_key(|d| d.raw());
     b.sort_by_key(|d| d.raw());
@@ -395,7 +412,8 @@ fn classify_edges(
 ) -> Vec<(DeclId, Cluster)> {
     let in_a: HashMap<DeclId, ()> = cluster_a.iter().map(|d| (*d, ())).collect();
     let in_b: HashMap<DeclId, ()> = cluster_b.iter().map(|d| (*d, ())).collect();
-    edges.iter()
+    edges
+        .iter()
         .map(|&e_did| (e_did, classify_one_edge(ir, e_did, &in_a, &in_b)))
         .collect()
 }
@@ -406,20 +424,25 @@ fn classify_one_edge(
     in_a: &HashMap<DeclId, ()>,
     in_b: &HashMap<DeclId, ()>,
 ) -> Cluster {
-    let Some(eid) = ir.as_edge(e_did) else { return Cluster::Cross };
+    let Some(eid) = ir.as_edge(e_did) else {
+        return Cluster::Cross;
+    };
     let mut count_a = 0usize;
     let mut count_b = 0usize;
     for &aid in &ir.edges[eid.raw()].arcs {
         for r in &ir.arcs[aid.raw()].refs {
-            if in_a.contains_key(&r.target()) { count_a += 1; }
-            else if in_b.contains_key(&r.target()) { count_b += 1; }
+            if in_a.contains_key(&r.target()) {
+                count_a += 1;
+            } else if in_b.contains_key(&r.target()) {
+                count_b += 1;
+            }
         }
     }
     match (count_a, count_b) {
         (0, 0) => Cluster::Cross, // edge targets nothing in scope
         (_, 0) => Cluster::A,
         (0, _) => Cluster::B,
-        _      => Cluster::Cross,
+        _ => Cluster::Cross,
     }
 }
 
@@ -432,8 +455,7 @@ mod tests {
     // Tiny IR builder (mirrors the one in entropy.rs tests).
 
     fn push_decl(ir: &mut Ir, parent: DeclId, kind: DeclKind) -> DeclId {
-        let did = DeclId::new(ir.decl_nodes.len());
-        ir.decl_nodes.push(DeclNode {
+        let did = ir.push_decl(DeclNode {
             kind,
             name: SymId::new(0),
             parent,
@@ -442,9 +464,6 @@ mod tests {
             next_sibling: DeclId::NONE,
             anno: AnnoR::default(),
         });
-        ir.decl_to_node.push(None);
-        ir.decl_to_edge.push(None);
-        ir.decl_to_arc.push(None);
         ir.decl_hash.push(None);
         if parent.is_some() {
             let first = ir.decl_nodes[parent.raw()].first_child;
@@ -464,14 +483,14 @@ mod tests {
         let did = push_decl(ir, parent, DeclKind::Node);
         let nid = NodeId::new(ir.nodes.len());
         ir.nodes.push(NodeRec::new(did, Vec::new()));
-        ir.decl_to_node[did.raw()] = Some(nid);
+        ir.bind_node_decl(did, nid)
+            .expect("fresh decl: NONE slot, in-range record");
         did
     }
 
     fn push_edge(ir: &mut Ir, parent: DeclId, incidences: &[(i8, DeclId)]) -> DeclId {
-        let weighted: Vec<(i8, DeclId, Option<f64>)> = incidences.iter()
-            .map(|(s, d)| (*s, *d, None))
-            .collect();
+        let weighted: Vec<(i8, DeclId, Option<f64>)> =
+            incidences.iter().map(|(s, d)| (*s, *d, None)).collect();
         push_edge_weighted(ir, parent, &weighted)
     }
 
@@ -483,23 +502,34 @@ mod tests {
         let e_did = push_decl(ir, parent, DeclKind::Edge);
         let eid = EdgeId::new(ir.edges.len());
         ir.edges.push(EdgeRec::new(e_did, Vec::new()));
-        ir.decl_to_edge[e_did.raw()] = Some(eid);
+        ir.bind_edge_decl(e_did, eid)
+            .expect("fresh decl: NONE slot, in-range record");
 
         let arc_did = push_decl(ir, e_did, DeclKind::HyperArc);
         let aid = HyperArcId::new(ir.arcs.len());
-        let refs = incidences.iter()
+        let refs = incidences
+            .iter()
             .map(|&(sign, target, weight)| {
                 let weights = weight.map(|w| vec![ValueR::Num(w)]);
-                let atom = RefAtomR { target, anno: AnnoR::default(), weights };
+                let atom = RefAtomR {
+                    target,
+                    anno: AnnoR::default(),
+                    weights,
+                };
                 match sign {
-                    1  => SignedRefR::Plus(atom),
+                    1 => SignedRefR::Plus(atom),
                     -1 => SignedRefR::Minus(atom),
-                    _  => SignedRefR::Neutral(atom),
+                    _ => SignedRefR::Neutral(atom),
                 }
             })
             .collect();
-        ir.arcs.push(ArcRec { anno: AnnoR::default(), in_edge: e_did, refs });
-        ir.decl_to_arc[arc_did.raw()] = Some(aid);
+        ir.arcs.push(ArcRec {
+            anno: AnnoR::default(),
+            in_edge: e_did,
+            refs,
+        });
+        ir.bind_arc_decl(arc_did, aid)
+            .expect("fresh decl: NONE slot, in-range record");
         ir.edges[eid.raw()].arcs.push(aid);
         e_did
     }
@@ -531,22 +561,36 @@ mod tests {
         let v1 = push_node(&mut ir, root);
         let v2 = push_node(&mut ir, root);
         let v3 = push_node(&mut ir, root);
-        let e_left  = push_edge(&mut ir, root, &[(1, v0), (-1, v1)]);
+        let e_left = push_edge(&mut ir, root, &[(1, v0), (-1, v1)]);
         let e_right = push_edge(&mut ir, root, &[(1, v2), (-1, v3)]);
 
         let proposal = propose_split(&ir, root).expect("should propose");
         // Each cluster must contain exactly one edge's vertices.
         assert_eq!(proposal.cluster_a.len() + proposal.cluster_b.len(), 4);
         // Both edges should be non-cross (their targets are disjoint clusters).
-        let cross: Vec<_> = proposal.edge_assignments.iter()
+        let cross: Vec<_> = proposal
+            .edge_assignments
+            .iter()
             .filter(|(_, c)| *c == Cluster::Cross)
             .collect();
-        assert!(cross.is_empty(), "expected zero cross edges, got {}", cross.len());
+        assert!(
+            cross.is_empty(),
+            "expected zero cross edges, got {}",
+            cross.len()
+        );
         // Edge e_left and e_right must end up in different clusters.
-        let e_left_cluster  = proposal.edge_assignments.iter()
-            .find(|(d, _)| *d == e_left).unwrap().1;
-        let e_right_cluster = proposal.edge_assignments.iter()
-            .find(|(d, _)| *d == e_right).unwrap().1;
+        let e_left_cluster = proposal
+            .edge_assignments
+            .iter()
+            .find(|(d, _)| *d == e_left)
+            .unwrap()
+            .1;
+        let e_right_cluster = proposal
+            .edge_assignments
+            .iter()
+            .find(|(d, _)| *d == e_right)
+            .unwrap()
+            .1;
         assert_ne!(e_left_cluster, e_right_cluster);
         assert_eq!(proposal.n_cross_edges, 0);
     }
@@ -566,8 +610,10 @@ mod tests {
 
         let proposal = propose_split(&ir, root).expect("should propose");
         // At least one edge must be cross (the shared-vertex targets).
-        assert!(proposal.n_cross_edges >= 1,
-                "expected at least one cross edge on shared-vertex topology, got 0");
+        assert!(
+            proposal.n_cross_edges >= 1,
+            "expected at least one cross edge on shared-vertex topology, got 0"
+        );
     }
 
     #[test]
@@ -587,15 +633,21 @@ mod tests {
 
         // Manually push edges with multi-component weights — the test
         // helper only supports single-scalar weights.
-        push_edge_with_raw_weights(&mut ir, root,
+        push_edge_with_raw_weights(
+            &mut ir,
+            root,
             &[(1, hub), (-1, v0)],
-            &[None, Some(vec![3.0, 4.0])]);
-        push_edge_with_raw_weights(&mut ir, root,
+            &[None, Some(vec![3.0, 4.0])],
+        );
+        push_edge_with_raw_weights(
+            &mut ir,
+            root,
             &[(1, hub), (-1, v1)],
-            &[None, Some(vec![1.0, 1.0, 1.0])]);
+            &[None, Some(vec![1.0, 1.0, 1.0])],
+        );
 
-        let l1   = propose_split_with(&ir, root, WeightAggregation::L1Norm).unwrap();
-        let l2   = propose_split_with(&ir, root, WeightAggregation::L2Norm).unwrap();
+        let l1 = propose_split_with(&ir, root, WeightAggregation::L1Norm).unwrap();
+        let l2 = propose_split_with(&ir, root, WeightAggregation::L2Norm).unwrap();
         let linf = propose_split_with(&ir, root, WeightAggregation::LinfNorm).unwrap();
         let first = propose_split_with(&ir, root, WeightAggregation::FirstScalar).unwrap();
 
@@ -603,10 +655,8 @@ mod tests {
         // because `hub` bridges every edge), but their inertia values
         // differ because the coordinates themselves differ.
         let inertias = [l1.inertia, l2.inertia, linf.inertia, first.inertia];
-        let unique: std::collections::BTreeSet<u64> = inertias
-            .iter()
-            .map(|x| x.to_bits())
-            .collect();
+        let unique: std::collections::BTreeSet<u64> =
+            inertias.iter().map(|x| x.to_bits()).collect();
         assert!(
             unique.len() >= 3,
             "expected ≥3 distinct inertias across L1/L2/Linf/FirstScalar, got {unique:?} from {inertias:?}"
@@ -629,8 +679,10 @@ mod tests {
 
         let default = propose_split(&ir, root).unwrap();
         let explicit_l2 = propose_split_with(&ir, root, WeightAggregation::L2Norm).unwrap();
-        assert_eq!(default.inertia, explicit_l2.inertia,
-                   "propose_split should default to L2Norm");
+        assert_eq!(
+            default.inertia, explicit_l2.inertia,
+            "propose_split should default to L2Norm"
+        );
     }
 
     fn push_edge_with_raw_weights(
@@ -639,28 +691,45 @@ mod tests {
         incidences: &[(i8, DeclId)],
         weights: &[Option<Vec<f64>>],
     ) -> DeclId {
-        assert_eq!(incidences.len(), weights.len(),
-                   "incidence and weight slices must have matching length");
+        assert_eq!(
+            incidences.len(),
+            weights.len(),
+            "incidence and weight slices must have matching length"
+        );
         let e_did = push_decl(ir, parent, DeclKind::Edge);
         let eid = EdgeId::new(ir.edges.len());
         ir.edges.push(EdgeRec::new(e_did, Vec::new()));
-        ir.decl_to_edge[e_did.raw()] = Some(eid);
+        ir.bind_edge_decl(e_did, eid)
+            .expect("fresh decl: NONE slot, in-range record");
 
         let arc_did = push_decl(ir, e_did, DeclKind::HyperArc);
         let aid = HyperArcId::new(ir.arcs.len());
-        let refs = incidences.iter().zip(weights.iter())
+        let refs = incidences
+            .iter()
+            .zip(weights.iter())
             .map(|(&(sign, target), w)| {
-                let weights = w.as_ref().map(|ws| ws.iter().map(|n| ValueR::Num(*n)).collect());
-                let atom = RefAtomR { target, anno: AnnoR::default(), weights };
+                let weights = w
+                    .as_ref()
+                    .map(|ws| ws.iter().map(|n| ValueR::Num(*n)).collect());
+                let atom = RefAtomR {
+                    target,
+                    anno: AnnoR::default(),
+                    weights,
+                };
                 match sign {
-                    1  => SignedRefR::Plus(atom),
+                    1 => SignedRefR::Plus(atom),
                     -1 => SignedRefR::Minus(atom),
-                    _  => SignedRefR::Neutral(atom),
+                    _ => SignedRefR::Neutral(atom),
                 }
             })
             .collect();
-        ir.arcs.push(ArcRec { anno: AnnoR::default(), in_edge: e_did, refs });
-        ir.decl_to_arc[arc_did.raw()] = Some(aid);
+        ir.arcs.push(ArcRec {
+            anno: AnnoR::default(),
+            in_edge: e_did,
+            refs,
+        });
+        ir.bind_arc_decl(arc_did, aid)
+            .expect("fresh decl: NONE slot, in-range record");
         ir.edges[eid.raw()].arcs.push(aid);
         e_did
     }
@@ -677,8 +746,8 @@ mod tests {
         {
             let root = push_node(&mut ir_unweighted, DeclId::NONE);
             let hub = push_node(&mut ir_unweighted, root);
-            let v0  = push_node(&mut ir_unweighted, root);
-            let v1  = push_node(&mut ir_unweighted, root);
+            let v0 = push_node(&mut ir_unweighted, root);
+            let v1 = push_node(&mut ir_unweighted, root);
             push_edge(&mut ir_unweighted, root, &[(1, hub), (-1, v0)]);
             push_edge(&mut ir_unweighted, root, &[(1, hub), (-1, v1)]);
         }
@@ -686,17 +755,21 @@ mod tests {
         {
             let root = push_node(&mut ir_weighted, DeclId::NONE);
             let hub = push_node(&mut ir_weighted, root);
-            let v0  = push_node(&mut ir_weighted, root);
-            let v1  = push_node(&mut ir_weighted, root);
-            push_edge_weighted(&mut ir_weighted, root, &[
-                (1, hub, Some(1.0)), (-1, v0, Some(10.0)),
-            ]);
-            push_edge_weighted(&mut ir_weighted, root, &[
-                (1, hub, Some(1.0)), (-1, v1, Some(0.1)),
-            ]);
+            let v0 = push_node(&mut ir_weighted, root);
+            let v1 = push_node(&mut ir_weighted, root);
+            push_edge_weighted(
+                &mut ir_weighted,
+                root,
+                &[(1, hub, Some(1.0)), (-1, v0, Some(10.0))],
+            );
+            push_edge_weighted(
+                &mut ir_weighted,
+                root,
+                &[(1, hub, Some(1.0)), (-1, v1, Some(0.1))],
+            );
         }
         let unweighted = propose_split(&ir_unweighted, DeclId::new(0)).expect("unweighted");
-        let weighted   = propose_split(&ir_weighted,   DeclId::new(0)).expect("weighted");
+        let weighted = propose_split(&ir_weighted, DeclId::new(0)).expect("weighted");
         // Weights are supposed to carry into the feature space, so the
         // two proposals should not be structurally identical. Compare
         // inertia — weighted will have a different value because the

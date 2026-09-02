@@ -1,0 +1,33 @@
+%% Transformation migration 15223bcd -> 5fe2c88. STRATEGY HYMEKO-PLATFORM-2026-09-01-v1.
+flowchart TD
+    subgraph before["BEFORE — core@15223bcd (3 public decl_to_* maps)"]
+        B1["hymeko_query: entropy / rewrite{regen,split}"]
+        B2["hymeko_emitter: bridge.rs (editor IR -> core Ir)"]
+        B3["ir.decl_to_node/edge/arc[did.raw()] = Some(id)  (PUBLIC field write)"]
+        B4["did.0  (PUBLIC Id field)"]
+        B1 --> B3
+        B2 --> B3
+        B2 --> B4
+    end
+    subgraph after["AFTER — core@5fe2c88 (option-D private slot)"]
+        A1["ir.push_decl(DeclNode) -> DeclId   (arena + NONE slot)"]
+        A2["ir.bind_node_decl / bind_edge_decl / bind_arc_decl(did, id) -> Result"]
+        A3["did.raw()   (public accessor)"]
+        A1 --> A2
+    end
+    B3 -->|"~24 sites: construct-new-canonical-Ir"| A2
+    B4 -->|"~14 sites"| A3
+
+    classDef gate fill:#dfd,stroke:#0a0;
+    G["GATE PASSED: fresh construction, public API suffices,\nno second IR, no core edit"]:::gate
+
+    subgraph phases["Phase order"]
+      P0["P0 preserve python rework (done)"] --> P1["P1 read-only audit (this plan)"]
+      P1 --> P2["P2 frozen baseline @15223bcd"]
+      P2 --> P3["P3 migrate + re-pin @5fe2c88"]
+      P3 --> P4["P4 V&V + fault mutants + A/B; push; verify SHA"]
+      P4 -->|"green only"| P5["P5 standalone hymeko_python integration"]
+    end
+
+%% Single hymeko_core in the whole graph is the invariant: cargo tree must show exactly one.
+%% Byte-identical query/transform/emit output where the contract requires; no semantics change.

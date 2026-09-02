@@ -116,10 +116,7 @@ fn entropy_from_scope(ir: &Ir, vertices: &[DeclId], edges: &[DeclId]) -> Structu
 
 /// Single-pass accumulator: arity histogram + per-edge sign-role counts
 /// + degree-by-target map. Returns `(H_arity, H_sign, deg)`.
-fn arity_sign_and_degrees(
-    ir: &Ir,
-    edges: &[DeclId],
-) -> (f64, f64, HashMap<DeclId, usize>) {
+fn arity_sign_and_degrees(ir: &Ir, edges: &[DeclId]) -> (f64, f64, HashMap<DeclId, usize>) {
     if edges.is_empty() {
         return (0.0, 0.0, HashMap::new());
     }
@@ -133,7 +130,9 @@ fn arity_sign_and_degrees(
     let mut sign_entropy_sum = 0.0;
 
     for &e_did in edges {
-        let Some(eid) = ir.as_edge(e_did) else { continue };
+        let Some(eid) = ir.as_edge(e_did) else {
+            continue;
+        };
         let edge = &ir.edges[eid.raw()];
 
         let mut arity: usize = 0;
@@ -236,8 +235,7 @@ mod tests {
     }
 
     fn push_decl(ir: &mut Ir, parent: DeclId, kind: DeclKind) -> DeclId {
-        let did = DeclId::new(ir.decl_nodes.len());
-        ir.decl_nodes.push(DeclNode {
+        let did = ir.push_decl(DeclNode {
             kind,
             name: SymId::new(0),
             parent,
@@ -246,9 +244,6 @@ mod tests {
             next_sibling: DeclId::NONE,
             anno: AnnoR::default(),
         });
-        ir.decl_to_node.push(None);
-        ir.decl_to_edge.push(None);
-        ir.decl_to_arc.push(None);
         ir.decl_hash.push(None);
 
         // Chain into parent's child list (append).
@@ -270,7 +265,8 @@ mod tests {
         let did = push_decl(ir, parent, DeclKind::Node);
         let nid = NodeId::new(ir.nodes.len());
         ir.nodes.push(NodeRec::new(did, Vec::new()));
-        ir.decl_to_node[did.raw()] = Some(nid);
+        ir.bind_node_decl(did, nid)
+            .expect("fresh decl: NONE slot, in-range record");
         did
     }
 
@@ -278,7 +274,8 @@ mod tests {
         let e_did = push_decl(ir, parent, DeclKind::Edge);
         let eid = EdgeId::new(ir.edges.len());
         ir.edges.push(EdgeRec::new(e_did, Vec::new()));
-        ir.decl_to_edge[e_did.raw()] = Some(eid);
+        ir.bind_edge_decl(e_did, eid)
+            .expect("fresh decl: NONE slot, in-range record");
 
         // One arc per edge, carrying all signed refs — matches the
         // `lower_arc` shape (an Edge contains HyperArc children each
@@ -288,7 +285,11 @@ mod tests {
         let refs = incidences
             .iter()
             .map(|&(sign, target)| {
-                let atom = RefAtomR { target, anno: AnnoR::default(), weights: None };
+                let atom = RefAtomR {
+                    target,
+                    anno: AnnoR::default(),
+                    weights: None,
+                };
                 match sign {
                     1 => SignedRefR::Plus(atom),
                     -1 => SignedRefR::Minus(atom),
@@ -296,8 +297,13 @@ mod tests {
                 }
             })
             .collect();
-        ir.arcs.push(ArcRec { anno: AnnoR::default(), in_edge: e_did, refs });
-        ir.decl_to_arc[arc_did.raw()] = Some(aid);
+        ir.arcs.push(ArcRec {
+            anno: AnnoR::default(),
+            in_edge: e_did,
+            refs,
+        });
+        ir.bind_arc_decl(arc_did, aid)
+            .expect("fresh decl: NONE slot, in-range record");
         ir.edges[eid.raw()].arcs.push(aid);
         e_did
     }
@@ -342,7 +348,7 @@ mod tests {
         assert_eq!(e.n_vertices, 3);
         assert_eq!(e.n_edges, 1);
         assert_eq!(e.h_arity, 0.0); // single edge → degenerate arity dist.
-        assert_eq!(e.h_sign, 0.0);  // uniform sign → no entropy.
+        assert_eq!(e.h_sign, 0.0); // uniform sign → no entropy.
         // Every vertex has degree 1 → degenerate degree dist. → 0.
         assert_eq!(e.h_degree, 0.0);
         assert_eq!(e.h_total, 0.0);
@@ -386,7 +392,11 @@ mod tests {
         let e = compute_entropy(&ir, root);
         assert_eq!(e.n_vertices, 5);
         assert_eq!(e.n_edges, 2);
-        assert!(e.h_arity.abs() < 1e-12, "H_arity should be 0, got {}", e.h_arity);
+        assert!(
+            e.h_arity.abs() < 1e-12,
+            "H_arity should be 0, got {}",
+            e.h_arity
+        );
         let expected_h_sign = 3f64.ln();
         assert!(
             (e.h_sign - expected_h_sign).abs() < 1e-12,
@@ -428,9 +438,19 @@ mod tests {
         push_edge(&mut ir, outer, &[(1, inner_v0), (-1, inner_v1)]);
 
         let scopes = compute_entropy_hierarchical(&ir);
-        assert_eq!(scopes.len(), 2, "expected root + outer scope, got {scopes:?}");
-        assert!(scopes[0].0.is_none(), "first scope should be the module root");
-        assert_eq!(scopes[1].0, outer, "second scope should be the outer hypervertex");
+        assert_eq!(
+            scopes.len(),
+            2,
+            "expected root + outer scope, got {scopes:?}"
+        );
+        assert!(
+            scopes[0].0.is_none(),
+            "first scope should be the module root"
+        );
+        assert_eq!(
+            scopes[1].0, outer,
+            "second scope should be the outer hypervertex"
+        );
         assert_eq!(scopes[0].1.n_edges, 1);
         assert_eq!(scopes[1].1.n_edges, 1);
     }

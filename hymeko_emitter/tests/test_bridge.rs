@@ -34,7 +34,10 @@ impl HymekoParser for LalrpopParser {
 fn load_and_lower(
     path: impl AsRef<Path>,
 ) -> Result<
-    (ModuleStore<StdFsProvider, LalrpopParser>, Arc<CompiledProgram>),
+    (
+        ModuleStore<StdFsProvider, LalrpopParser>,
+        Arc<CompiledProgram>,
+    ),
     ModuleLoadError,
 > {
     let fs = StdFsProvider::new();
@@ -64,8 +67,7 @@ fn sign_glyph(s: Sign) -> char {
 }
 
 fn structural(editor: &HyMeKoEditorIR) -> Structural {
-    let mut vertex_names: Vec<String> =
-        editor.vertices.values().map(|v| v.name.clone()).collect();
+    let mut vertex_names: Vec<String> = editor.vertices.values().map(|v| v.name.clone()).collect();
     vertex_names.sort();
 
     let key_to_name: std::collections::BTreeMap<_, _> = editor
@@ -125,7 +127,11 @@ fn editor_roundtrips_through_compiler_ir() {
     });
     editor.hyperedges.insert(HyperEdge {
         name: "spin_joint".into(),
-        incident: vec![(base, Sign::Plus), (spinner, Sign::Minus), (axis, Sign::Minus)],
+        incident: vec![
+            (base, Sign::Plus),
+            (spinner, Sign::Minus),
+            (axis, Sign::Minus),
+        ],
         weight: 1.0,
         patch_id: None,
     });
@@ -202,11 +208,7 @@ fn mini_arm_compile_ir_projects_into_editor_and_back() {
         load_and_lower("../data/robotics/robots/mini_arm.hymeko").expect("compile");
     let editor = from_compiler_ir(&compiled.ir, &store.it);
 
-    let names: BTreeSet<&str> = editor
-        .vertices
-        .values()
-        .map(|v| v.name.as_str())
-        .collect();
+    let names: BTreeSet<&str> = editor.vertices.values().map(|v| v.name.as_str()).collect();
     assert!(names.contains("base_link"), "missing base_link");
     assert!(names.contains("spinner"), "missing spinner");
 
@@ -267,22 +269,20 @@ fn incident_vertices_that_are_edges_in_arena_are_filtered_on_reverse() {
     };
 
     let push = |ir: &mut Ir, d: DeclNode| {
-        let id = DeclId::new(ir.decl_nodes.len());
-        ir.decl_nodes.push(d);
-        ir.decl_to_node.push(None);
-        ir.decl_to_edge.push(None);
-        ir.decl_to_arc.push(None);
+        let id = ir.push_decl(d);
         ir.decl_hash.push(None);
         id
     };
 
     let node_did = push(&mut ir, fresh(DeclKind::Node, node_sym));
     ir.nodes.push(NodeRec::new(node_did, Vec::new()));
-    ir.decl_to_node[node_did.0] = Some(NodeId::new(0));
+    ir.bind_node_decl(node_did, NodeId::new(0))
+        .expect("fresh decl: NONE slot, in-range record");
 
     let edge1_did = push(&mut ir, fresh(DeclKind::Edge, edge1_sym));
     ir.edges.push(EdgeRec::new(edge1_did, Vec::new()));
-    ir.decl_to_edge[edge1_did.0] = Some(EdgeId::new(0));
+    ir.bind_edge_decl(edge1_did, EdgeId::new(0))
+        .expect("fresh decl: NONE slot, in-range record");
 
     let edge2_did = push(&mut ir, fresh(DeclKind::Edge, edge2_sym));
     let mut e2 = EdgeRec::new(edge2_did, Vec::new());
@@ -297,13 +297,18 @@ fn incident_vertices_that_are_edges_in_arena_are_filtered_on_reverse() {
     ir.arcs.push(ArcRec {
         anno: AnnoR::default(),
         in_edge: edge2_did,
-        refs: vec![SignedRefR::Plus(atom(node_did)), SignedRefR::Plus(atom(edge1_did))],
+        refs: vec![
+            SignedRefR::Plus(atom(node_did)),
+            SignedRefR::Plus(atom(edge1_did)),
+        ],
     });
     let arc_id = HyperArcId::new(0);
-    ir.decl_to_arc[arc_did.0] = Some(arc_id);
+    ir.bind_arc_decl(arc_did, arc_id)
+        .expect("fresh decl: NONE slot, in-range record");
     e2.arcs.push(arc_id);
     ir.edges.push(e2);
-    ir.decl_to_edge[edge2_did.0] = Some(EdgeId::new(1));
+    ir.bind_edge_decl(edge2_did, EdgeId::new(1))
+        .expect("fresh decl: NONE slot, in-range record");
 
     let editor = from_compiler_ir(&ir, &interner);
     // Two edges on the arena side; each projects into the editor.
