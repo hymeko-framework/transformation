@@ -627,10 +627,10 @@ fn inherits_named(
     use hymeko::ir::ir::SignedRefR;
 
     let bases_of = |decl: DeclId| -> &[SignedRefR] {
-        if let Some(Some(node)) = ir.decl_to_node.get(decl.raw()) {
+        if let Some(node) = ir.as_node(decl) {
             return &ir.nodes[node.raw()].bases;
         }
-        if let Some(Some(edge)) = ir.decl_to_edge.get(decl.raw()) {
+        if let Some(edge) = ir.as_edge(decl) {
             return &ir.edges[edge.raw()].bases;
         }
         &[]

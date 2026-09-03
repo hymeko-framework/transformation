@@ -1,0 +1,42 @@
+% Transformation migration — dependency graph before/after (single hymeko_core).
+% STRATEGY-ID: HYMEKO-PLATFORM-2026-09-01-v1 · ROADMAP-TASK: TRANSFORMATION-M2B · 2026-09-02.
+\documentclass[tikz,border=6pt]{standalone}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds}
+\begin{document}
+\begin{tikzpicture}[
+  font=\small,
+  box/.style={draw,rounded corners,align=center,inner sep=4pt,minimum height=8mm},
+  core/.style={box,fill=blue!8},
+  tf/.style={box,fill=orange!10},
+  py/.style={box,fill=green!8},
+  old/.style={box,fill=red!8},
+  dep/.style={-{Latex[length=2mm]},thick},
+]
+% BEFORE
+\node[old] (c15) {\texttt{hymeko\_core@15223bcd}\\(public \texttt{decl\_to\_*} maps)};
+\node[tf,below left=10mm and 2mm of c15] (q0) {\texttt{hymeko\_query@old}};
+\node[tf,below=10mm of c15] (f0) {\texttt{hymeko\_formats@old}};
+\node[tf,below right=10mm and 2mm of c15] (e0) {\texttt{hymeko\_emitter@old}\\(editor IR + bridge)};
+\node[py,above=8mm of c15] (py0) {\texttt{hymeko\_python}\\pins core@15223bcd\\(read-only IR views blocked)};
+\draw[dep] (q0) -- (c15); \draw[dep] (f0) -- (c15); \draw[dep] (e0) -- (c15);
+\draw[dep] (py0) -- (c15);
+\node[below=1mm of f0,font=\footnotesize,red!60!black] {ONE core, but stale: no \texttt{build\_path\_index}, Index-taking hash};
+
+% AFTER
+\node[core,right=52mm of c15] (c58) {\textbf{\texttt{hymeko\_core@5fe2c88}}\\(option-D private slot;\\\texttt{push\_decl}/\texttt{bind\_*\_decl},\\\texttt{build\_path\_index})};
+\node[tf,below left=10mm and 2mm of c58] (q1) {\texttt{hymeko\_query}\\(migrated writes)};
+\node[tf,below=10mm of c58] (f1) {\texttt{hymeko\_formats}};
+\node[tf,below right=10mm and 2mm of c58] (e1) {\texttt{hymeko\_emitter}\\(migrated bridge)};
+\node[py,above=8mm of c58] (py1) {\texttt{hymeko\_python}\\re-pins core@5fe2c88\\(Phase 5: full canonical ownership)};
+\draw[dep] (q1) -- (c58); \draw[dep] (f1) -- (c58); \draw[dep] (e1) -- (c58);
+\draw[dep] (py1) -- (c58); \draw[dep] (py1) to[bend right=15] (q1);
+\node[below=1mm of f1,font=\footnotesize,green!45!black] {ONE core, canonical: paths via \texttt{build\_path\_index}, Index-free hash};
+
+\draw[dep,dashed] (c15) -- node[above,font=\footnotesize]{re-pin} (c58);
+
+\begin{scope}[on background layer]
+  \node[draw,dotted,rounded corners,fit=(c15)(q0)(f0)(e0)(py0),label={[font=\footnotesize]above:BEFORE (blocked)}] {};
+  \node[draw,dotted,rounded corners,fit=(c58)(q1)(f1)(e1)(py1),label={[font=\footnotesize]above:AFTER (this + PY1)}] {};
+\end{scope}
+\end{tikzpicture}
+\end{document}

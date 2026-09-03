@@ -1,0 +1,84 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,booktabs,hyperref,enumitem}
+\title{Transformation migration to canonical core \texttt{5fe2c88}}
+\author{STRATEGY-ID: HYMEKO-PLATFORM-2026-09-01-v1 \\ ROADMAP-TASK: TRANSFORMATION-M2B}
+\date{Created-at: 2026-09-02 18:40 CEDT}
+\begin{document}
+\maketitle
+
+\section*{ETA}
+$\approx$3--4 h: read-only audit (done) $+$ frozen baseline (0.75) $+$ mechanical migration of
+the write/id sites (1.0) $+$ V\&V, fault mutants, benchmark A/B (1.25) $+$ report (0.5). Basis:
+the migration is \emph{mechanical} (private-field writes $\to$ public constructors; \texttt{.0}$\to$
+\texttt{.raw()}); the cost is the byte-identical baseline + mutant net, not new logic.
+
+\section{Goal \& scope}
+Re-pin \texttt{hymeko/transformation} (\texttt{hymeko\_query}, \texttt{hymeko\_formats},
+\texttt{hymeko\_emitter}) from \texttt{hymeko\_core@15223bcd} to the canonical
+\texttt{hymeko\_core@5fe2c88}, so the whole Cargo graph carries \textbf{exactly one}
+\texttt{hymeko\_core}. No transform \emph{semantics} change; query/transform/emit output stays
+\textbf{byte-identical} where the contract requires it. No \texttt{hymeko\_core} production edit.
+No second IR / DTO / bridge created. Branch \texttt{feat/transformation-current-canonical-core}.
+
+\section{Why it was blocked, and why it is now feasible}
+core@main replaced the three public \texttt{decl\_to\_\{node,edge,arc\}: Vec<Option<Id>>} maps
+with a \emph{private} 8-byte dispatch slot (\texttt{decl\_to\_record}, ``option D'', 2026-08-31).
+Transformation writes those maps directly at \textbf{$\approx$24 sites}. core@5fe2c88 exposes the
+matching \textbf{public construction seam}: \texttt{push\_decl(DeclNode)->DeclId} (arena $+$ NONE
+slot) and public \texttt{bind\_\{node,edge,arc\}\_decl(d, id)->Result<(),DispatchError>}. Every
+write site is \emph{fresh construction} (a local \texttt{push\_decl} helper $+$ record binds), not
+in-place topology mutation, so it maps \textbf{1:1} to the public API. Audit bottom line: the
+migration needs \textbf{no missing core mutation API} and \textbf{no HARD STOP}.
+
+\section{Affected files (transformation only)}
+\begin{itemize}[nosep]
+  \item \texttt{Cargo.toml} (workspace): \texttt{hymeko\_core} rev \texttt{15223bcd}$\to$\texttt{5fe2c88}
+        (APPROVED-DEPENDENCY-EDIT: transformation-current-core-pin); parser unchanged.
+  \item \texttt{hymeko\_query/src/entropy.rs}, \texttt{rewrite/regen.rs}, \texttt{rewrite/split.rs}:
+        \texttt{decl\_to\_*.push(None)} $\to$ folded into \texttt{ir.push\_decl(..)};
+        \texttt{decl\_to\_X[did.raw()] = Some(id)} $\to$ \texttt{ir.bind\_X\_decl(did, id)?}.
+  \item \texttt{hymeko\_emitter/src/bridge.rs}: same, $+$ \texttt{did.0} $\to$ \texttt{did.raw()}
+        ($\approx$14 \texttt{.0} sites across the tree).
+  \item Any read-only accessor whose signature moved between \texttt{15223bcd} and \texttt{5fe2c88}
+        (from the inventory) $\to$ the public getter.
+  \item \texttt{Cargo.lock}: re-resolved; itemized diff audited (single \texttt{hymeko\_core}).
+\end{itemize}
+\textbf{No \texttt{hymeko\_core/**} edit.} If a minimal core seam turns out missing: document the
+smallest seam and HARD STOP (do not auto-edit core).
+
+\section{Test strategy}
+Phase-2 frozen baseline at \texttt{15223bcd}: full test/doctest counts; query / transform / emitted
+\texttt{.hymeko} + URDF/SDF/MJCF/DOT/Mermaid goldens; canonical hash; entity cardinalities; error
+variants; serde round-trip; the \texttt{compile/validate/transform/emit/query\_batch} contract the
+Python binding consumes. Fixtures: simple hierarchy, import/namespace, annotations/values,
+$+/-/\sim$, duplicate incidence, weighted hyperarc, WebXR, VLAN/service, Steiner/sunflower/Mycielski,
+malformed source \& malformed Ir; large workloads deterministically generated. Phase-4: re-run all
+against \texttt{5fe2c88}; assert byte-identical where the contract requires; fault mutants
+(old-Index hash, cross-version Ir, dropped namespace prefix, lost sign, deduped duplicate, partial
+transform commit, emitter reading another IR) each caught by a named test.
+
+\section{Performance budget}
+Peak RSS $\le$ 16\,GiB. Benchmark A/B (15223bcd vs 5fe2c88): compile, validate, query, query\_batch,
+transform, emit, peak RSS. A $>10\%$ regression blocks completion until profiled.
+
+\section{Rollback}
+Additive branch; revert = drop the branch. No core change to unwind; no main merge.
+
+\section{Risk anticipation}
+\begin{itemize}[nosep]
+  \item \textbf{Worst case:} a deterministically-generated $\ge 10^5$-incidence source through
+        \texttt{compile}$\to$\texttt{transform}$\to$\texttt{emit}; the migrated construction path
+        must stay $O(\text{nnz})$ and byte-identical.
+  \item \textbf{Contract:} \texttt{bind\_*\_decl} returns \texttt{Result}; the old field write could
+        not fail. The migration must handle/propagate \texttt{DispatchError} (index-overflow /
+        double-bind) rather than \texttt{unwrap} silently at the $10^5$ scale — but a bind that the
+        old code did unconditionally is provably first-and-only, so a documented invariant +
+        \texttt{expect} is acceptable where proven, else propagate.
+  \item \textbf{Two core versions:} \texttt{cargo tree} must show exactly one \texttt{hymeko\_core};
+        any second (via a stale transitive pin) is a build-breaking finding.
+  \item \textbf{Dirty user checkout:} the user is actively on \texttt{feat/geometry-\dots} with new
+        \texttt{hymeko\_dynamics}/\texttt{hymeko\_optimize} crates. Work only in the clone
+        \texttt{/d/hnnwork/transformation}; never touch the user checkout.
+\end{itemize}
+\end{document}

@@ -4,7 +4,7 @@
 //!
 //! These tests lock the *current, pre-migration* behaviour of the emitter crate
 //! against the `15223bc` canonical-IR accessor API, so the later mechanical
-//! migration of raw `ir.<arena>[id.raw()]` reads to accessors is provably
+//! migration of raw `ir.<arena>[id.0]` reads to accessors is provably
 //! behaviour-preserving. Nothing here changes production source.
 //!
 //! Four kinds of oracle:
@@ -147,7 +147,7 @@ fn accessor_equivalence_holds_for_every_decl_on_a_real_ir() {
     );
 
     for (did, decl) in ir.decls() {
-        // kind_of == raw decl_nodes[did.raw()].kind
+        // kind_of == raw decl_nodes[did.0].kind
         assert_eq!(
             ir.kind_of(did),
             Some(decl.kind),
@@ -165,14 +165,14 @@ fn accessor_equivalence_holds_for_every_decl_on_a_real_ir() {
 
         match decl.kind {
             DeclKind::Node => {
-                let nid = ir.decl_to_node[did.raw()].expect("node mapping present");
+                let nid = ir.as_node(did).expect("node mapping present");
                 let (a_nid, a_rec) = ir.node_for_decl(did).expect("node_for_decl present");
                 assert_eq!(a_nid, nid, "node id @ {did:?}");
                 assert_eq!(a_rec.decl, did, "node back-link @ {did:?}");
                 assert_eq!(ir.as_node(did), Some(nid), "as_node @ {did:?}");
             }
             DeclKind::Edge => {
-                let eid = ir.decl_to_edge[did.raw()].expect("edge mapping present");
+                let eid = ir.as_edge(did).expect("edge mapping present");
                 let (a_eid, a_rec) = ir.edge_for_decl(did).expect("edge_for_decl present");
                 assert_eq!(a_eid, eid, "edge id @ {did:?}");
                 assert_eq!(a_rec.decl, did, "edge back-link @ {did:?}");
@@ -209,10 +209,7 @@ fn node_for_decl_rejects_a_corrupted_backlink_where_raw_would_mislead() {
 
     // Raw projection is now a silently-wrong answer: the mapping still resolves,
     // the record is still there — it just describes the wrong declaration.
-    assert!(
-        ir.decl_to_node[node_did.raw()].is_some(),
-        "raw mapping still present"
-    );
+    assert!(ir.as_node(node_did).is_some(), "raw mapping still present");
 
     // The checked-composite accessor refuses it (back-link mismatch -> None).
     assert!(

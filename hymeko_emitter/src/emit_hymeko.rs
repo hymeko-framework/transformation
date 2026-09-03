@@ -78,7 +78,10 @@ fn emit_tags(ir: &Ir, it: &Interner, did: DeclId) -> String {
     if tags.is_empty() {
         return String::new();
     }
-    let rendered: Vec<String> = tags.iter().map(|&s| format!("<{}>", it.resolve(s))).collect();
+    let rendered: Vec<String> = tags
+        .iter()
+        .map(|&s| format!("<{}>", it.resolve(s)))
+        .collect();
     format!(" {}", rendered.join(" "))
 }
 
@@ -86,7 +89,10 @@ fn emit_bases(ir: &Ir, it: &Interner, bases: &[SignedRefR]) -> String {
     if bases.is_empty() {
         return String::new();
     }
-    let names: Vec<&str> = bases.iter().map(|b| decl_name(ir, it, b.target())).collect();
+    let names: Vec<&str> = bases
+        .iter()
+        .map(|b| decl_name(ir, it, b.target()))
+        .collect();
     format!(": {}", names.join(", "))
 }
 

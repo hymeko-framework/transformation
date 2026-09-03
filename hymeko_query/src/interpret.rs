@@ -41,6 +41,24 @@ pub fn interpret_as_queries(ast: &Description<'_, &str>) -> Vec<NamedQuery> {
 /// This helper finds a top-level `context` block and interprets its children
 /// as the queries, ignoring the transform-header node. If no `context` block
 /// is found, falls back to the plain [`interpret_as_queries`] behaviour.
+/// Parse a transform's query source and interpret it, in one step.
+///
+/// The `Description` type belongs to the parser this crate is linked against. Handing that type across a
+/// crate boundary makes every caller share the exact same `parser` source specification -- a caller that
+/// pins the same commit through a different URL form gets a *different* type and a mismatch that reads as
+/// a version conflict. Callers therefore pass the source text and let this crate own the parse.
+///
+/// # Errors
+/// Returns the parse diagnostic as a string; an empty query set is reported rather than returned silently.
+pub fn interpret_query_source(source: &str) -> Result<Vec<NamedQuery>, String> {
+    let ast = parser::parse_description(source).map_err(|e| format!("query parse error: {e:?}"))?;
+    let queries = interpret_transform_queries(&ast);
+    if queries.is_empty() {
+        return Err("no queries found in the query source".to_string());
+    }
+    Ok(queries)
+}
+
 pub fn interpret_transform_queries(ast: &Description<'_, &str>) -> Vec<NamedQuery> {
     for item in &ast.items {
         if let HyperItem::Node(n) = item {

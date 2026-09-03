@@ -70,7 +70,10 @@ pub fn emit_split_rewrite(
 
     // Bridge vertices at outer scope — they're referenced by cross edges.
     if !bridges.is_empty() {
-        let _ = writeln!(&mut out, "// Bridge vertices (targets of cross-cluster edges, promoted to outer scope)");
+        let _ = writeln!(
+            &mut out,
+            "// Bridge vertices (targets of cross-cluster edges, promoted to outer scope)"
+        );
         for did in &bridges {
             emit_decl(ir, it, *did, 0, &mut out);
         }
@@ -79,7 +82,8 @@ pub fn emit_split_rewrite(
 
     // Cluster A scope.
     emit_cluster_scope(
-        ir, it,
+        ir,
+        it,
         &format!("{orig_name}_cluster_a"),
         proposal.target_scope,
         &non_bridge_a,
@@ -91,7 +95,8 @@ pub fn emit_split_rewrite(
 
     // Cluster B scope.
     emit_cluster_scope(
-        ir, it,
+        ir,
+        it,
         &format!("{orig_name}_cluster_b"),
         proposal.target_scope,
         &non_bridge_b,
@@ -103,7 +108,10 @@ pub fn emit_split_rewrite(
 
     // Cross edges at outer scope.
     if !cross_edges.is_empty() {
-        let _ = writeln!(&mut out, "// Cross-cluster edges (reference bridge vertices at outer scope)");
+        let _ = writeln!(
+            &mut out,
+            "// Cross-cluster edges (reference bridge vertices at outer scope)"
+        );
         for did in &cross_edges {
             emit_decl(ir, it, *did, 0, &mut out);
         }
@@ -123,16 +131,22 @@ fn partition_vertices(
     proposal: &SplitProposal,
 ) -> (Vec<DeclId>, Vec<DeclId>, Vec<DeclId>) {
     let bridge_set = collect_bridge_vertices(ir, proposal);
-    let bridges: Vec<DeclId> = proposal.cluster_a.iter()
+    let bridges: Vec<DeclId> = proposal
+        .cluster_a
+        .iter()
         .chain(proposal.cluster_b.iter())
         .copied()
         .filter(|d| bridge_set.contains(d))
         .collect();
-    let non_bridge_a: Vec<DeclId> = proposal.cluster_a.iter()
+    let non_bridge_a: Vec<DeclId> = proposal
+        .cluster_a
+        .iter()
         .copied()
         .filter(|d| !bridge_set.contains(d))
         .collect();
-    let non_bridge_b: Vec<DeclId> = proposal.cluster_b.iter()
+    let non_bridge_b: Vec<DeclId> = proposal
+        .cluster_b
+        .iter()
         .copied()
         .filter(|d| !bridge_set.contains(d))
         .collect();
@@ -145,7 +159,9 @@ fn collect_bridge_vertices(ir: &Ir, proposal: &SplitProposal) -> HashSet<DeclId>
         if *cluster != Cluster::Cross {
             continue;
         }
-        let Some(eid) = ir.as_edge(*e_did) else { continue };
+        let Some(eid) = ir.as_edge(*e_did) else {
+            continue;
+        };
         for &aid in &ir.edges[eid.raw()].arcs {
             for r in &ir.arcs[aid.raw()].refs {
                 let t = r.target();
@@ -164,8 +180,8 @@ fn partition_edges(proposal: &SplitProposal) -> (Vec<DeclId>, Vec<DeclId>, Vec<D
     let mut cross = Vec::new();
     for (e_did, cluster) in &proposal.edge_assignments {
         match cluster {
-            Cluster::A     => a.push(*e_did),
-            Cluster::B     => b.push(*e_did),
+            Cluster::A => a.push(*e_did),
+            Cluster::B => b.push(*e_did),
             Cluster::Cross => cross.push(*e_did),
         }
     }
@@ -185,25 +201,37 @@ fn emit_header(
     let _ = writeln!(out, "// Rewritten from `{orig}` — entropy hot-swap step 4");
     let _ = writeln!(out, "// Base name: {base_name}");
     let _ = writeln!(out, "//");
-    let _ = writeln!(out,
+    let _ = writeln!(
+        out,
         "// Cluster A: {} vertices, {} edges",
         proposal.cluster_a.len(),
-        proposal.edge_assignments.iter()
-            .filter(|(_, c)| *c == Cluster::A).count(),
+        proposal
+            .edge_assignments
+            .iter()
+            .filter(|(_, c)| *c == Cluster::A)
+            .count(),
     );
-    let _ = writeln!(out,
+    let _ = writeln!(
+        out,
         "// Cluster B: {} vertices, {} edges",
         proposal.cluster_b.len(),
-        proposal.edge_assignments.iter()
-            .filter(|(_, c)| *c == Cluster::B).count(),
+        proposal
+            .edge_assignments
+            .iter()
+            .filter(|(_, c)| *c == Cluster::B)
+            .count(),
     );
     let _ = writeln!(out, "// Cross edges: {}", proposal.n_cross_edges);
     let _ = writeln!(out, "// Inertia: {:.4}", proposal.inertia);
     let _ = writeln!(out, "//");
-    let _ = writeln!(out,
-        "// NOTE: Imports / `using` aliases are not retained by the arena IR.");
-    let _ = writeln!(out,
-        "// Re-add them at the top of this file before recompile.");
+    let _ = writeln!(
+        out,
+        "// NOTE: Imports / `using` aliases are not retained by the arena IR."
+    );
+    let _ = writeln!(
+        out,
+        "// Re-add them at the top of this file before recompile."
+    );
     let _ = writeln!(out);
 }
 
@@ -242,12 +270,17 @@ fn scope_bases(ir: &Ir, it: &Interner, did: DeclId) -> String {
     if did.is_none() {
         return String::new();
     }
-    let Some(nid) = ir.as_node(did) else { return String::new() };
+    let Some(nid) = ir.as_node(did) else {
+        return String::new();
+    };
     let bases = &ir.nodes[nid.raw()].bases;
     if bases.is_empty() {
         return String::new();
     }
-    let names: Vec<&str> = bases.iter().map(|b| decl_name(ir, it, b.target())).collect();
+    let names: Vec<&str> = bases
+        .iter()
+        .map(|b| decl_name(ir, it, b.target()))
+        .collect();
     format!(": {}", names.join(", "))
 }
 
@@ -272,10 +305,16 @@ fn emit_decl(ir: &Ir, it: &Interner, did: DeclId, depth: usize, out: &mut String
 }
 
 fn emit_node_decl(
-    ir: &Ir, it: &Interner, did: DeclId, name: &str,
-    pad: &str, depth: usize, out: &mut String,
+    ir: &Ir,
+    it: &Interner,
+    did: DeclId,
+    name: &str,
+    pad: &str,
+    depth: usize,
+    out: &mut String,
 ) {
-    let bases = ir.as_node(did)
+    let bases = ir
+        .as_node(did)
         .map(|nid| emit_bases(ir, it, &ir.nodes[nid.raw()].bases))
         .unwrap_or_default();
     let tags = emit_tags(ir, it, did);
@@ -284,7 +323,11 @@ fn emit_node_decl(
 
     match (inline_value, has_children) {
         (Some(ValueR::Ref(target)), false) => {
-            let _ = writeln!(out, "{pad}{name}{bases}{tags} -> {};", decl_name(ir, it, *target));
+            let _ = writeln!(
+                out,
+                "{pad}{name}{bases}{tags} -> {};",
+                decl_name(ir, it, *target)
+            );
         }
         (Some(v), false) => {
             let _ = writeln!(out, "{pad}{name}{bases}{tags} {};", emit_value(ir, it, v));
@@ -303,10 +346,16 @@ fn emit_node_decl(
 }
 
 fn emit_edge_decl(
-    ir: &Ir, it: &Interner, did: DeclId, name: &str,
-    pad: &str, depth: usize, out: &mut String,
+    ir: &Ir,
+    it: &Interner,
+    did: DeclId,
+    name: &str,
+    pad: &str,
+    depth: usize,
+    out: &mut String,
 ) {
-    let bases = ir.as_edge(did)
+    let bases = ir
+        .as_edge(did)
         .map(|eid| emit_bases(ir, it, &ir.edges[eid.raw()].bases))
         .unwrap_or_default();
     let tags = emit_tags(ir, it, did);
@@ -314,7 +363,9 @@ fn emit_edge_decl(
     if let Some(eid) = ir.as_edge(did) {
         let arc_pad = INDENT.repeat(depth + 1);
         for &aid in &ir.edges[eid.raw()].arcs {
-            let refs: Vec<String> = ir.arcs[aid.raw()].refs.iter()
+            let refs: Vec<String> = ir.arcs[aid.raw()]
+                .refs
+                .iter()
                 .map(|r| emit_signed_ref(ir, it, r))
                 .collect();
             let _ = writeln!(out, "{arc_pad}({});", refs.join(", "));
@@ -331,8 +382,8 @@ fn emit_edge_decl(
 
 fn emit_signed_ref(ir: &Ir, it: &Interner, r: &SignedRefR) -> String {
     let sign = match r {
-        SignedRefR::Plus(_)    => '+',
-        SignedRefR::Minus(_)   => '-',
+        SignedRefR::Plus(_) => '+',
+        SignedRefR::Minus(_) => '-',
         SignedRefR::Neutral(_) => '~',
     };
     let atom = r.atom();
@@ -347,15 +398,25 @@ fn emit_signed_ref(ir: &Ir, it: &Interner, r: &SignedRefR) -> String {
 }
 
 fn emit_bases(ir: &Ir, it: &Interner, bases: &[SignedRefR]) -> String {
-    if bases.is_empty() { return String::new(); }
-    let names: Vec<&str> = bases.iter().map(|b| decl_name(ir, it, b.target())).collect();
+    if bases.is_empty() {
+        return String::new();
+    }
+    let names: Vec<&str> = bases
+        .iter()
+        .map(|b| decl_name(ir, it, b.target()))
+        .collect();
     format!(": {}", names.join(", "))
 }
 
 fn emit_tags(ir: &Ir, it: &Interner, did: DeclId) -> String {
     let tags = &ir.decl_nodes[did.raw()].anno.tags;
-    if tags.is_empty() { return String::new(); }
-    let rendered: Vec<String> = tags.iter().map(|&s| format!("<{}>", it.resolve(s))).collect();
+    if tags.is_empty() {
+        return String::new();
+    }
+    let rendered: Vec<String> = tags
+        .iter()
+        .map(|&s| format!("<{}>", it.resolve(s)))
+        .collect();
     format!(" {}", rendered.join(" "))
 }
 
@@ -387,17 +448,15 @@ mod tests {
     use hymeko::ir::ir::{AnnoR, ArcRec, DeclNode, EdgeRec, NodeRec, RefAtomR};
 
     fn push_decl(ir: &mut Ir, parent: DeclId, kind: DeclKind, name: SymId) -> DeclId {
-        let did = DeclId::new(ir.decl_nodes.len());
-        ir.decl_nodes.push(DeclNode {
-            kind, name, parent,
+        let did = ir.push_decl(DeclNode {
+            kind,
+            name,
+            parent,
             first_child: DeclId::NONE,
             last_child: DeclId::NONE,
             next_sibling: DeclId::NONE,
             anno: AnnoR::default(),
         });
-        ir.decl_to_node.push(None);
-        ir.decl_to_edge.push(None);
-        ir.decl_to_arc.push(None);
         ir.decl_hash.push(None);
         if parent.is_some() {
             let first = ir.decl_nodes[parent.raw()].first_child;
@@ -417,32 +476,47 @@ mod tests {
         let did = push_decl(ir, parent, DeclKind::Node, name);
         let nid = NodeId::new(ir.nodes.len());
         ir.nodes.push(NodeRec::new(did, Vec::new()));
-        ir.decl_to_node[did.raw()] = Some(nid);
+        ir.bind_node_decl(did, nid)
+            .expect("fresh decl: NONE slot, in-range record");
         did
     }
 
     fn push_edge_named(
-        ir: &mut Ir, parent: DeclId, name: SymId,
+        ir: &mut Ir,
+        parent: DeclId,
+        name: SymId,
         incidences: &[(i8, DeclId)],
     ) -> DeclId {
         let e_did = push_decl(ir, parent, DeclKind::Edge, name);
         let eid = EdgeId::new(ir.edges.len());
         ir.edges.push(EdgeRec::new(e_did, Vec::new()));
-        ir.decl_to_edge[e_did.raw()] = Some(eid);
+        ir.bind_edge_decl(e_did, eid)
+            .expect("fresh decl: NONE slot, in-range record");
 
         let arc_did = push_decl(ir, e_did, DeclKind::HyperArc, SymId::new(0));
         let aid = HyperArcId::new(ir.arcs.len());
-        let refs = incidences.iter()
+        let refs = incidences
+            .iter()
             .map(|&(sign, target)| {
-                let atom = RefAtomR { target, anno: AnnoR::default(), weights: None };
+                let atom = RefAtomR {
+                    target,
+                    anno: AnnoR::default(),
+                    weights: None,
+                };
                 match sign {
-                    1  => SignedRefR::Plus(atom),
+                    1 => SignedRefR::Plus(atom),
                     -1 => SignedRefR::Minus(atom),
-                    _  => SignedRefR::Neutral(atom),
+                    _ => SignedRefR::Neutral(atom),
                 }
-            }).collect();
-        ir.arcs.push(ArcRec { anno: AnnoR::default(), in_edge: e_did, refs });
-        ir.decl_to_arc[arc_did.raw()] = Some(aid);
+            })
+            .collect();
+        ir.arcs.push(ArcRec {
+            anno: AnnoR::default(),
+            in_edge: e_did,
+            refs,
+        });
+        ir.bind_arc_decl(arc_did, aid)
+            .expect("fresh decl: NONE slot, in-range record");
         ir.edges[eid.raw()].arcs.push(aid);
         e_did
     }
@@ -475,9 +549,11 @@ mod tests {
         // logic lives.
         let (bridges, nb_a, nb_b) = partition_vertices(&ir, &proposal);
         assert!(bridges.is_empty(), "clean split has no bridges");
-        assert_eq!(nb_a.len() + nb_b.len(),
-                   proposal.cluster_a.len() + proposal.cluster_b.len(),
-                   "without bridges, all vertices stay in their cluster");
+        assert_eq!(
+            nb_a.len() + nb_b.len(),
+            proposal.cluster_a.len() + proposal.cluster_b.len(),
+            "without bridges, all vertices stay in their cluster"
+        );
 
         let (edges_a, edges_b, cross) = partition_edges(&proposal);
         assert!(cross.is_empty());
@@ -497,7 +573,10 @@ mod tests {
         let proposal = propose_split(&ir, root).expect("should split");
         assert!(proposal.n_cross_edges >= 1);
         let (_, _, cross) = partition_edges(&proposal);
-        assert_eq!(cross.len(), proposal.n_cross_edges,
-                   "partition_edges' cross count matches proposal.n_cross_edges");
+        assert_eq!(
+            cross.len(),
+            proposal.n_cross_edges,
+            "partition_edges' cross count matches proposal.n_cross_edges"
+        );
     }
 }

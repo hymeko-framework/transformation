@@ -56,11 +56,7 @@ fn fresh_decl_node(kind: DeclKind, name: SymId) -> DeclNode {
 }
 
 fn push_decl(ir: &mut Ir, decl: DeclNode) -> DeclId {
-    let id = DeclId::new(ir.decl_nodes.len());
-    ir.decl_nodes.push(decl);
-    ir.decl_to_node.push(None);
-    ir.decl_to_edge.push(None);
-    ir.decl_to_arc.push(None);
+    let id = ir.push_decl(decl); // arena + private dispatch slot (option D)
     ir.decl_hash.push(None);
     id
 }
@@ -104,7 +100,8 @@ pub fn to_compiler_ir(editor: &HyMeKoEditorIR, interner: &mut Interner) -> Ir {
 
         let nid = NodeId::new(ir.nodes.len());
         ir.nodes.push(NodeRec::new(did, Vec::new()));
-        ir.decl_to_node[did.raw()] = Some(nid);
+        ir.bind_node_decl(did, nid)
+            .expect("fresh decl: NONE dispatch slot, record index in 62-bit domain");
 
         vertex_to_decl.insert(vkey, did);
     }
@@ -123,7 +120,9 @@ pub fn to_compiler_ir(editor: &HyMeKoEditorIR, interner: &mut Interner) -> Ir {
             .incident
             .iter()
             .filter_map(|(vkey, sign)| {
-                vertex_to_decl.get(vkey).map(|&tgt| signed_ref_for(tgt, *sign))
+                vertex_to_decl
+                    .get(vkey)
+                    .map(|&tgt| signed_ref_for(tgt, *sign))
             })
             .collect();
         let arc_id = HyperArcId::new(ir.arcs.len());
@@ -132,11 +131,13 @@ pub fn to_compiler_ir(editor: &HyMeKoEditorIR, interner: &mut Interner) -> Ir {
             in_edge: edge_did,
             refs,
         });
-        ir.decl_to_arc[arc_did.raw()] = Some(arc_id);
+        ir.bind_arc_decl(arc_did, arc_id)
+            .expect("fresh decl: NONE dispatch slot, record index in 62-bit domain");
         edge_rec.arcs.push(arc_id);
 
         ir.edges.push(edge_rec);
-        ir.decl_to_edge[edge_did.raw()] = Some(eid);
+        ir.bind_edge_decl(edge_did, eid)
+            .expect("fresh decl: NONE dispatch slot, record index in 62-bit domain");
     }
 
     ir
@@ -170,7 +171,9 @@ pub fn from_compiler_ir(ir: &Ir, interner: &Interner) -> HyMeKoEditorIR {
     let mut node_decl_to_vkey: BTreeMap<DeclId, VertexKey> = BTreeMap::new();
 
     for node in &ir.nodes {
-        let name = interner.resolve(ir.decl_nodes[node.decl.raw()].name).to_string();
+        let name = interner
+            .resolve(ir.decl_nodes[node.decl.raw()].name)
+            .to_string();
         let vkey = editor.vertices.insert(Vertex {
             name,
             level: 0,
@@ -181,7 +184,9 @@ pub fn from_compiler_ir(ir: &Ir, interner: &Interner) -> HyMeKoEditorIR {
     }
 
     for edge in &ir.edges {
-        let name = interner.resolve(ir.decl_nodes[edge.decl.raw()].name).to_string();
+        let name = interner
+            .resolve(ir.decl_nodes[edge.decl.raw()].name)
+            .to_string();
         let mut incident: Vec<(VertexKey, Sign)> = Vec::new();
 
         for &arc_id in &edge.arcs {

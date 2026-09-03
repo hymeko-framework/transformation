@@ -78,10 +78,10 @@ impl Reader<'_> {
     }
 
     fn bases(&self, decl: DeclId) -> &[SignedRefR] {
-        if let Some(Some(node)) = self.ir.decl_to_node.get(decl.raw()) {
+        if let Some(node) = self.ir.as_node(decl) {
             return &self.ir.nodes[node.raw()].bases;
         }
-        if let Some(Some(edge)) = self.ir.decl_to_edge.get(decl.raw()) {
+        if let Some(edge) = self.ir.as_edge(decl) {
             return &self.ir.edges[edge.raw()].bases;
         }
         &[]
