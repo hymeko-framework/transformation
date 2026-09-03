@@ -3,16 +3,19 @@
 #   hymeko_query   : pattern-matching query engine over the hypergraph IR
 #   hymeko_geometry: the geometric/kinematic reading of the IR — shapes, links, joints, forward kinematics
 #   hymeko_formats : built-in format emitters (URDF/SDF/MJCF/DOT/Mermaid/Gazebo) — query plugin
+#   hymeko_optimize: IR -> constrained-optimisation problem (MNA, duals, replaceable backends)
+#   hymeko_dynamics: IR -> port-Hamiltonian system (J from signed incidence, modal analysis)
+#   hymeko_sources : a SourceProvider over strings, so a model compiles where there is no disk
 # `core` and `parser` are external repos, pulled as git dependencies.
 [workspace]
 resolver = "2"
-members = ["hymeko_emitter", "hymeko_query", "hymeko_geometry", "hymeko_formats"]
+members = ["hymeko_emitter", "hymeko_query", "hymeko_geometry", "hymeko_formats", "hymeko_optimize", "hymeko_dynamics", "hymeko_sources"]
 
 [workspace.dependencies]
 hymeko_core = { git = "ssh://git@amaterasu.local:2222/hymeko/core.git", branch = "main" }
 parser = { git = "ssh://git@amaterasu.local:2222/hymeko/parser.git", branch = "master" }
 # The Tensor pillar's geometric algebra — SE(n) rigid motions live there, not here.
 # NOTE: path only until `hymeko/tensor` is pushed with `hymeko_clifford::algebra::Se`.
-hymeko_clifford = { path = "../tensor/hymeko_clifford" }
+hymeko_clifford = { git = "ssh://git@amaterasu.local:2222/hymeko/tensor.git", branch = "main" }
 serde = "1.0.228"
 log = "0.4.29"

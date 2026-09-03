@@ -1,0 +1,35 @@
+[package]
+name = "hymeko_dynamics"
+version = "0.1.0"
+edition = "2024"
+description = "IR to port-Hamiltonian system: the dynamical projection"
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "hymeko-dynamics"
+path = "src/bin/dynamics.rs"
+
+# cdylib so a wasm target produces a module; rlib for every other consumer.
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+# The browser surface. Off by default: analysing a system has no business depending on wasm-bindgen.
+web = ["dep:wasm-bindgen"]
+
+[dependencies]
+wasm-bindgen = { version = "0.2.127", optional = true }
+hymeko_core = { workspace = true }
+# The Tensor pillar's numerics. Dependency-free by contract, so pulling it in by path adds nothing
+# else to this crate's graph.
+# The Tensor pillar, consumed as a repository rather than as the directory next door. A path
+# that leaves this repo builds only where the whole framework happens to be checked out side
+# by side, which is a property of one laptop and not of the code.
+hymeko_numerics = { git = "ssh://git@amaterasu.local:2222/hymeko/tensor.git", branch = "main" }
+# The shared in-memory SourceProvider, so a model compiles where there is no disk.
+hymeko_sources = { path = "../hymeko_sources" }
+
+[dev-dependencies]
+# The network reading of the same circuit, so the quasi-static limit can be checked against it.
+hymeko_optimize = { path = "../hymeko_optimize" }
