@@ -18,8 +18,8 @@ committed WebXR module. It therefore preserves the current camera/fiducial
 vocabulary, borrowed spatial query API, query tests, and the
 `maxwell_fiducial_demo.hymeko` integration fixture.
 
-The workspace is pinned to paired core cleanup commit
-`f5181de6735380abb1efc060bebad548ccf459aa`; the resolved core dependency
+The workspace is pinned to integrated core commit
+`772819cdb0eafe62b08599509f46d23ac95eb6ca`; the resolved core dependency
 therefore contains no WebXR module.
 
 The crate-local `data/` tree contains the WebXR vocabulary and the exact

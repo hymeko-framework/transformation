@@ -13,9 +13,9 @@ resolver = "2"
 members = ["hymeko_emitter", "hymeko_query", "hymeko_geometry", "hymeko_formats", "hymeko_optimize", "hymeko_dynamics", "hymeko_sources", "hymeko_webxr"]
 
 [workspace.dependencies]
-# Pinned to the paired core ownership-cleanup commit: WebXR is supplied by this
-# workspace's hymeko_webxr crate while core supplies only the canonical IR.
-hymeko_core = { git = "ssh://git@amaterasu.local:2222/hymeko/core.git", rev = "f5181de6735380abb1efc060bebad548ccf459aa" }
+# Pinned to the integrated core commit: WebXR is supplied by this workspace's
+# hymeko_webxr crate while core supplies canonical IR and transport codecs.
+hymeko_core = { git = "ssh://git@amaterasu.local:2222/hymeko/core.git", rev = "772819cdb0eafe62b08599509f46d23ac95eb6ca" }
 parser = { git = "ssh://git@amaterasu.local:2222/hymeko/parser.git", branch = "master" }
 # The Tensor pillar's geometric algebra — SE(n) rigid motions live there, not here.
 # NOTE: path only until `hymeko/tensor` is pushed with `hymeko_clifford::algebra::Se`.
