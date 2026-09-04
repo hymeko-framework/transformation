@@ -18,6 +18,10 @@ committed WebXR module. It therefore preserves the current camera/fiducial
 vocabulary, borrowed spatial query API, query tests, and the
 `maxwell_fiducial_demo.hymeko` integration fixture.
 
+The workspace is pinned to paired core cleanup commit
+`f5181de6735380abb1efc060bebad548ccf459aa`; the resolved core dependency
+therefore contains no WebXR module.
+
 The crate-local `data/` tree contains the WebXR vocabulary and the exact
 dynamics/optimization fixtures needed to compile that integration fixture.
 The supporting dynamics/optimization sources remain in core for now: removing
@@ -31,7 +35,8 @@ WebXR edit and needs its own atomic change.
   28 passed, 1 measurement benchmark ignored
 - `cargo clippy -p hymeko_webxr --all-targets --all-features -- -D warnings`:
   pass
-- `cargo test --workspace --all-features --no-fail-fast`: pass, zero failures
+- `cargo test --workspace --all-features --no-fail-fast`, after pinning the
+  WebXR-free core commit: pass, zero failures
 
 The full-workspace authority tests require the repository to be adjacent to a
 `core` checkout because an existing test resolves `../../core/data`. The first

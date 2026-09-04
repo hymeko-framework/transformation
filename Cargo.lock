@@ -477,7 +477,7 @@ source = "git+ssh://git@amaterasu.local:2222/hymeko/tensor.git?branch=main#b1d86
 [[package]]
 name = "hymeko_core"
 version = "0.1.0"
-source = "git+ssh://git@amaterasu.local:2222/hymeko/core.git?rev=5fe2c88364573c58ad6f7882a3233f8575ecc369#5fe2c88364573c58ad6f7882a3233f8575ecc369"
+source = "git+ssh://git@amaterasu.local:2222/hymeko/core.git?rev=f5181de6735380abb1efc060bebad548ccf459aa#f5181de6735380abb1efc060bebad548ccf459aa"
 dependencies = [
  "blake3",
  "nalgebra",
