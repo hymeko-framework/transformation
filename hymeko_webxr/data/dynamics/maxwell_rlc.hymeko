@@ -1,0 +1,173 @@
+// maxwell_rlc.hymeko — a driven RLC circuit coupled to one electromagnetic field mode, declared.
+//
+// The state is `x = [charge, circuit_flux, displacement_flux, magnetic_flux]`. The last two are the
+// Maxwell pair written as INTEGRAL quantities — electric displacement flux [C] and magnetic flux
+// [Wb] — which keeps every effort/flow product in watts while preserving the curl structure:
+//
+//     d(displacement)/dt = curl * H  -  sigma * E  -  k * i        (Ampere-Maxwell)
+//     d(magnetic)/dt     = -curl * E                                (Faraday)
+//
+// Both fall out of ONE hyperedge each. `@maxwell_curl` is the curl pair; its two signs are Faraday
+// and Ampere, and they are opposite because the language's sign convention makes them opposite, not
+// because anybody wrote a minus.
+//
+// Nothing here is a matrix. The interconnection `J` is assembled from the three ports below, and the
+// hand-written 4x4 in `hymeko_simulator::electro::port_hamiltonian::structure_matrix` is a
+// transcription of exactly this chain — which is checkable, and is checked.
+//
+// The parameter values are the simulator's own defaults, so the parity test compares two
+// implementations of the same system rather than two different systems.
+
+maxwell_rlc_description {
+    @"meta_dynamics.hymeko";
+    // Imports are not transitive: `meta_dynamics` uses the optimisation vocabulary's quantity kinds
+    // and unit root, and a file that wants the same names must say so itself.
+    @"../optimization/meta_optimization.hymeko";
+    using opt.kinds    as kind;
+    using opt.units    as u;
+    using ph.units     as pu;
+    using ph.stores    as store;
+    using ph.couplings as couple;
+    using ph.losses    as loss;
+    using ph.inputs    as input;
+    using ph.waveforms as wave;
+    using ph.readouts  as read;
+    using ph.studies   as study;
+    using ph.shapes    as shape;
+    using ph.regions   as region;
+}
+
+maxwell_rlc: kind, u, pu, store, couple, loss, input, wave, read, study, shape, region {
+
+    // ── The circuit ─────────────────────────────────────────────────────────────
+    C: kind.parameter { unit pu.farad; value 0.000000047; }   // 47 nF
+    L: kind.parameter { unit pu.henry; value 0.008; }          // 8 mH
+    R: kind.parameter { unit u.ohm;    value 12.0; }
+
+    // ── The field mode ──────────────────────────────────────────────────────────
+    // One reduced mode, not a discretised volume: an effective capacitance and inductance standing
+    // for the mode's stored electric and magnetic energy. That is a model choice and it is the
+    // reason `curl` below is a number rather than an operator.
+    C_field: kind.parameter { unit pu.farad;   value 0.000000033; }  // 33 nF
+    L_field: kind.parameter { unit pu.henry;   value 0.005; }         // 5 mH
+    sigma:   kind.parameter { unit pu.siemens; value 0.00025; }       // medium conductance
+
+    // ── Structure weights ───────────────────────────────────────────────────────
+    // Declared as parameters rather than written into the ports, so a coupling sweep changes a
+    // number in this file and a solver never learns that anything changed.
+    unity:   kind.parameter { unit u.dimensionless; value 1.0; }
+    k_coupling: kind.parameter { unit u.dimensionless; value 0.36; }
+    g_curl:     kind.parameter { unit u.dimensionless; value 0.72; }
+
+    // ── The state ───────────────────────────────────────────────────────────────
+    // `capacity` is the denominator of the coordinate's quadratic store, so the effort conjugate to
+    // charge is a voltage and the effort conjugate to flux is a current. Nothing else is needed:
+    // `Q = diag(1/capacity)` and `grad H = Q x`.
+    charge:            store.capacitive { unit pu.coulomb; capacity C; }
+    circuit_flux:      store.inductive  { unit pu.weber;   capacity L; }
+    displacement_flux: store.capacitive { unit pu.coulomb; capacity C_field; }
+    magnetic_flux:     store.inductive  { unit pu.weber;   capacity L_field; }
+
+    // ── J: the chain ────────────────────────────────────────────────────────────
+    // Four coordinates, three edges. `(+ target, - source, ~ weight)` puts `+w` at
+    // `J[source][target]` and `-w` at `J[target][source]`, so the matrix is skew because the
+    // convention is, and the energy balance is a consequence rather than a claim.
+    @lc_exchange:   couple.port { (+ circuit_flux,      - charge,            ~ unity); }
+    @field_pickup:  couple.port { (+ displacement_flux, - circuit_flux,      ~ k_coupling); }
+    @maxwell_curl:  couple.port { (+ magnetic_flux,     - displacement_flux, ~ g_curl); }
+
+    // ── R: where energy leaves ──────────────────────────────────────────────────
+    @series_resistance: loss.dissipative { (+ circuit_flux,      ~ R); }
+    @medium_loss:       loss.dissipative { (+ displacement_flux, ~ sigma); }
+
+    // ── G u: the drive ──────────────────────────────────────────────────────────
+    // A voltage source is in series with the inductor, so it enters the FLUX coordinate's rate
+    // equation. Which coordinate an input drives is a modelling statement and it is made here.
+    source_amplitude: kind.parameter { unit u.volt;   value 10.0; }
+    source_frequency: kind.parameter { unit pu.hertz; value 6000.0; }
+
+    supply: wave.cosine {
+        amplitude source_amplitude;
+        frequency source_frequency;
+    }
+    @excitation: input.drive { (+ circuit_flux, ~ supply); }
+
+    // ── Mode geometry ────────────────────────────────────────────────────────────
+    // Each store is given the spatial mode it is the amplitude of, so a field can be drawn at all.
+    // The dimensions are not free: every one below was SOLVED so that the geometry implies exactly
+    // the capacity declared above, and `the_geometry_implies_the_declared_capacity` checks it. Get
+    // one wrong and the rendered field would carry a different energy from the simulated coordinate.
+    //
+    // A 33 nF vacuum gap would need four square metres of plate; at a relative permittivity of 100 it
+    // is nineteen centimetres square, which is a real capacitor and draws sensibly. The dielectric is
+    // therefore declared rather than assumed.
+    circuit_gap: shape.parallel_plate {
+        area                  0.053082226166532;   // 23.0 cm square
+        separation            0.001;
+        relative_permittivity 100.0;
+        centre [-3.0, 0.0, 0.0];
+        axis   [0.0, 1.0, 0.0];
+    }
+    circuit_coil: shape.solenoid {
+        turns  400.0;
+        area   0.00282743338823081;   // 3 cm radius
+        length 0.071061151726527;
+        centre [-1.0, 0.0, 0.0];
+        axis   [1.0, 0.0, 0.0];
+    }
+    field_gap: shape.parallel_plate {
+        area                  0.0372704992233096;   // 19.3 cm square
+        separation            0.001;
+        relative_permittivity 100.0;
+        centre [1.0, 0.0, 0.0];
+        axis   [0.0, 1.0, 0.0];
+    }
+    field_coil: shape.solenoid {
+        turns  400.0;
+        area   0.00282743338823081;
+        length 0.113697842762444;
+        centre [3.0, 0.0, 0.0];
+        axis   [1.0, 0.0, 0.0];
+    }
+
+    @charge_region:       region.occupies { (+ charge,            ~ circuit_gap); }
+    @circuit_flux_region: region.occupies { (+ circuit_flux,      ~ circuit_coil); }
+    @field_region:        region.occupies { (+ displacement_flux, ~ field_gap); }
+    @magnetic_region:     region.occupies { (+ magnetic_flux,     ~ field_coil); }
+
+    // ── The study ───────────────────────────────────────────────────────────────
+    // Sweeping the coupling from nothing to unity is what turns two independent oscillators into
+    // two hybridised normal modes. The biquadratic says their PRODUCT cannot move while their sum
+    // does, so the pair must repel rather than cross — and the sweep is declared here because which
+    // question is being asked is part of the model, not part of the command that runs it.
+    coupling_sweep: study.sweep {
+        over  k_coupling;
+        from  0.0;
+        to    1.0;
+        steps 41;
+    }
+
+    // ── Readouts ────────────────────────────────────────────────────────────────
+    // Each gives one trajectory column a name, a unit and a stable declaration identity, so a plot
+    // axis and a test assertion refer to the same thing rather than to the same array index.
+    capacitor_voltage: kind.derived { unit u.volt;    }
+    circuit_current:   kind.derived { unit u.ampere;  }
+    electric_effort:   kind.derived { unit u.volt;    }
+    magnetic_effort:   kind.derived { unit u.ampere;  }
+
+    @read_vc: read.effort { (+ capacitor_voltage, - charge); }
+    @read_il: read.effort { (+ circuit_current,   - circuit_flux); }
+    @read_e:  read.effort { (+ electric_effort,   - displacement_flux); }
+    @read_h:  read.effort { (+ magnetic_effort,   - magnetic_flux); }
+
+    stored_charge: kind.derived { unit pu.coulomb; }
+    @read_q: read.store { (+ stored_charge, - charge); }
+
+    field_electric_energy: kind.derived { unit pu.joule; }
+    @read_we: read.stored_energy { (+ field_electric_energy, - displacement_flux); }
+
+    // The Poynting flux of the reduced mode: one electric effort times one magnetic effort, and
+    // nothing more. `S = E x H` is a product of two readouts, so it is declared as one.
+    poynting: kind.derived { unit u.watt; }
+    @read_s: read.product { (+ poynting, - displacement_flux, - magnetic_flux); }
+}

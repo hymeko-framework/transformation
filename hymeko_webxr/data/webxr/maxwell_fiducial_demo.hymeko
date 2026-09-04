@@ -1,0 +1,63 @@
+// Maxwell dynamics plus two camera-tracked spatial objects.
+// The detector learns marker identity/size from this compiled IR; runtime poses remain transient.
+maxwell_fiducial_demo {
+    @"../dynamics/maxwell_rlc.hymeko";
+    // HyMeKo imports are intentionally non-transitive. Re-export the vocabularies and aliases the
+    // imported dynamics model resolves against when this wrapper is the compilation entry point.
+    @"../dynamics/meta_dynamics.hymeko";
+    @"../optimization/meta_optimization.hymeko";
+    @"meta_spatial.hymeko";
+    using opt.kinds as kind;
+    using opt.units as u;
+    using ph.units as pu;
+    using ph.stores as store;
+    using ph.couplings as couple;
+    using meta_spatial.spatial as s;
+}
+
+tracking_scene: + <isa> s.kinds.scene {
+    world_frame: + <isa> s.kinds.spatial_frame {}
+    camera_frame: + <isa> s.kinds.camera_frame {
+        external_frame_id "logitech_optical";
+        camera_id 0;
+        image_encoding "Rgb8";
+        color_space "sRGB";
+    }
+    @camera_in_world: s.relations.parent_frame {
+        (+ camera_frame, - world_frame);
+        position [0.0, 0.0, 0.0];
+        orientation [0.0, 0.0, 0.0, 1.0];
+    }
+
+    aruco_frame: + <isa> s.kinds.spatial_frame {}
+    aruco_17: + <isa> s.kinds.fiducial_anchor {
+        fiducial_kind "aruco";
+        family "DICT_4X4_50";
+        identifier "17";
+        size_m 0.08;
+    }
+    @track_aruco_17: s.relations.fiducial_registration { (+ aruco_frame, ~ aruco_17); }
+    tracked_probe: + <isa> s.kinds.spatial_entity {}
+    @probe_on_aruco: s.relations.placement {
+        (+ tracked_probe, - aruco_frame);
+        position [0.0, 0.10, 0.0];
+        orientation [0.0, 0.0, 0.0, 1.0];
+        scale [1.0, 1.0, 1.0];
+    }
+
+    qr_frame: + <isa> s.kinds.spatial_frame {}
+    demo_qr: + <isa> s.kinds.fiducial_anchor {
+        fiducial_kind "qr";
+        family "qr";
+        identifier "hymeko://demo/tracked-panel";
+        size_m 0.08;
+    }
+    @track_demo_qr: s.relations.fiducial_registration { (+ qr_frame, ~ demo_qr); }
+    tracked_panel: + <isa> s.kinds.spatial_entity {}
+    @panel_on_qr: s.relations.placement {
+        (+ tracked_panel, - qr_frame);
+        position [0.10, 0.0, 0.0];
+        orientation [0.0, 0.0, 0.0, 1.0];
+        scale [1.4, 0.7, 0.25];
+    }
+}

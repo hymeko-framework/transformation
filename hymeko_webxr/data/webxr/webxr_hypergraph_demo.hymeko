@@ -1,0 +1,76 @@
+// webxr_hypergraph_demo — a small service dependency network expressed as a spatial hypergraph.
+// The same declarations are domain entities (services) AND spatial entities (via inheritance).
+// Compiles: source -> RealParser -> ModuleStore -> canonical Ir -> coherence -> webxr::validate.
+webxr_hypergraph_demo {
+    @"meta_webxr.hymeko";
+    @"meta_spatial.hymeko";
+    using meta_spatial.spatial as s;
+    using meta_webxr.webxr as x;
+}
+
+// a service is a domain kind that is also a spatial entity
+service: + <isa> s.kinds.spatial_entity {}
+// a domain dependency relation (multiway): a service depends on others
+@depends {}
+
+scene: + <isa> s.kinds.scene {
+    // session config: immersive-ar preferred, local-floor primary space, inline fallback
+    @xr_session: x.session.session_config { (+ x.session_modes.immersive_ar, - x.reference_spaces.local_floor, ~ x.session_modes.inline); }
+
+    // optional capability requests (source states intent only)
+    @req_hit_test: x.session.capability_request { (+ scene, - x.capabilities.hit_test); requirement "optional"; }
+    @req_anchors:  x.session.capability_request { (+ scene, - x.capabilities.anchors);  requirement "optional"; }
+
+    // two spatial frames
+    workspace_frame: + <isa> s.kinds.spatial_frame {}
+    panel_frame:     + <isa> s.kinds.spatial_frame {}
+    @panel_parent: s.relations.parent_frame { (+ panel_frame, - workspace_frame); }
+
+    // input + action instances
+    hand_ctrl:   + <isa> x.input.controller {}
+    right_hand:  + <isa> x.input.right_hand {}
+    select_act:  + <isa> x.actions.select {}
+    grab_act:    + <isa> x.actions.grab {}
+    release_act: + <isa> x.actions.release {}
+
+    // six services (spatial entities)
+    web:   + <isa> service { accessibility_label "Web frontend"; }
+    api:   + <isa> service { accessibility_label "API gateway"; }
+    auth:  + <isa> service { accessibility_label "Auth service"; }
+    db:    + <isa> service { accessibility_label "Database"; }
+    cache: + <isa> service { accessibility_label "Cache"; }
+    queue: + <isa> service { accessibility_label "Message queue"; }
+
+    // appearance + asset hints
+    web_look: + <isa> s.kinds.appearance { color [0.2, 0.6, 0.9, 1.0]; }
+    db_asset: + <isa> s.kinds.visual_asset { uri "assets/db.glb"; media_type "model/gltf-binary"; role "mesh"; }
+    @web_appear: s.relations.appearance_binding { (+ web, - web_look); }
+    @db_appear:  s.relations.appearance_binding { (+ db,  - db_asset); }
+
+    // placements (entity in a frame with a pose)
+    @place_web:   s.relations.placement { (+ web,   - workspace_frame); position [0.0, 1.0, -2.0]; orientation [0.0, 0.0, 0.0, 1.0]; scale [1.0, 1.0, 1.0]; }
+    @place_api:   s.relations.placement { (+ api,   - workspace_frame); position [0.6, 1.0, -2.0]; orientation [0.0, 0.0, 0.0, 1.0]; scale [1.0, 1.0, 1.0]; }
+    @place_auth:  s.relations.placement { (+ auth,  - workspace_frame); position [-0.6, 1.0, -2.0]; orientation [0.0, 0.0, 0.0, 1.0]; scale [1.0, 1.0, 1.0]; }
+    @place_db:    s.relations.placement { (+ db,    - panel_frame); position [0.0, 0.0, 0.0]; orientation [0.0, 0.0, 0.0, 1.0]; scale [1.0, 1.0, 1.0]; }
+    @place_cache: s.relations.placement { (+ cache, - panel_frame); position [0.4, 0.0, 0.0]; orientation [0.0, 0.0, 0.0, 1.0]; scale [1.0, 1.0, 1.0]; }
+    @place_queue: s.relations.placement { (+ queue, - panel_frame); position [-0.4, 0.0, 0.0]; orientation [0.0, 0.0, 0.0, 1.0]; scale [1.0, 1.0, 1.0]; }
+
+    // domain dependency hyperedges (multiway, >2 participants)
+    @web_deps:  depends { (+ web,  - api, - auth); }
+    @api_deps:  depends { (+ api,  - db,  - cache, - queue); }
+
+    // semantic anchor intent (durable attachment of the workspace)
+    ws_anchor: + <isa> s.kinds.semantic_anchor {}
+    @anchor_ws: s.relations.anchoring { (+ web, - workspace_frame, ~ ws_anchor); }
+
+    // affordances
+    web_grab: + <isa> s.kinds.affordance {}
+
+    // interactions: controller grab/release + select
+    @grab_web:    s.relations.interaction { (+ hand_ctrl, ~ grab_act,    - web); }
+    @release_web: s.relations.interaction { (+ hand_ctrl, ~ release_act, - web); }
+    @select_web:  s.relations.interaction { (+ hand_ctrl, ~ select_act,  - web); }
+
+    // on select: highlight the connected component (web + its dependencies)
+    @highlight_cc: s.relations.effect { (+ select_act, - web, - api, - auth); }
+}

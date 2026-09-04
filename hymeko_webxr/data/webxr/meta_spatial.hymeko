@@ -1,0 +1,71 @@
+// meta_spatial — general, renderer-independent spatial semantics for HyMeKo.
+//
+// Not a scene graph and not a renderer format: it declares the *meaning* of a spatial scene so it
+// lowers into the one canonical hymeko_core::ir::Ir. meta_webxr imports and specialises this; both
+// share the same Ir (no bridge, no second model).
+//
+// Coordinate contract (WebXR / glTF convention — deliberately distinct from meta_kinematics's
+// URDF/degrees/RPY/Z-up domain):
+//   - length unit: meter
+//   - right-handed; +X right, +Y up, -Z forward
+//   - orientation: unit quaternion, component order x, y, z, w
+//   - scale is a separate factor, NOT part of the rigid transform
+//   - a pose is always relative to a named spatial_frame
+meta_spatial {}
+
+spatial {
+    contract {
+        length_unit      "meter";
+        handedness       "right";
+        axis_right       "+X";
+        axis_up          "+Y";
+        axis_forward     "-Z";
+        quaternion_order "xyzw";
+    }
+
+    // --- entity kinds (isa hierarchy) ---
+    kinds {
+        spatial_thing {}                                    // root abstraction
+
+        scene:          + <isa> spatial_thing {}            // the authored scene root
+        spatial_frame:  + <isa> spatial_thing {              // a coordinate frame to be placed in / joined to
+            external_frame_id "";                            // optional transport/runtime optical-frame name
+        }
+        camera_frame: + <isa> spatial_frame {                // authored identity of an external camera stream
+            camera_id 0;                                     // Chordex logical camera id, not a device index
+            image_encoding "Rgb8";                           // ImageFrame encoding expected by the consumer
+            color_space "sRGB";                              // interpretation of decoded colour channels
+        }
+        spatial_entity: + <isa> spatial_thing {}            // a placeable thing with identity
+        visual_asset:   + <isa> spatial_thing {}            // a referenced asset (URI/media-type/role only)
+        appearance:     + <isa> spatial_thing {}            // material / appearance hint
+        semantic_anchor: + <isa> spatial_thing {}           // a durable spatial attachment point (semantic)
+        fiducial_anchor: + <isa> semantic_anchor {           // a QR/AruCo identity, not a runtime pose
+            fiducial_kind "";                                // "qr" or "aruco"
+            family "";                                       // "qr" or an OpenCV ArUco dictionary name
+            identifier "";                                   // QR payload or decimal ArUco id
+            size_m 0.0;                                      // physical side length; required for metric pose
+        }
+        affordance:     + <isa> spatial_thing {}            // what an entity offers (selectable, grabbable, ...)
+        action:         + <isa> spatial_thing {}            // a hardware-independent interaction verb
+        input_role:     + <isa> spatial_thing {}            // an abstract input source role
+    }
+
+    // --- pose template (numeric lists; the contract above governs units/order) ---
+    pose {
+        position    [0.0, 0.0, 0.0];        // metres, relative to a named frame
+        orientation [0.0, 0.0, 0.0, 1.0];   // unit quaternion, x y z w
+        scale       [1.0, 1.0, 1.0];        // separate factor
+    }
+
+    // --- relation archetypes (multiway @-hyperedges; +=subject, -=object, ~=peer) ---
+    relations {
+        @placement {}          // (+ spatial_entity, - spatial_frame) with a pose
+        @parent_frame {}       // (+ child spatial_frame, - parent spatial_frame)
+        @fiducial_registration {} // (+ tracked spatial_frame, ~ fiducial_anchor)
+        @appearance_binding {} // (+ spatial_entity, - appearance | - visual_asset)
+        @anchoring {}          // (+ spatial_entity, - spatial_frame, ~ semantic_anchor)
+        @interaction {}        // (+ input_role, ~ action, - target[, - context])
+        @effect {}             // (+ action, - affected spatial_entity ...)
+    }
+}

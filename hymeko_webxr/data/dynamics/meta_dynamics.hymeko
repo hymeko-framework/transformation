@@ -1,0 +1,279 @@
+// meta_dynamics.hymeko — port-Hamiltonian systems, declared.
+//
+//     x' = (J - R) grad H(x) + G u,      J skew,  R positive semidefinite
+//
+// The claim this vocabulary exists to make is that **J is not a matrix somebody wrote down.** It is
+// the signed incidence of a hypergraph, and the skew-symmetry that makes the energy balance hold is
+// a consequence of the sign convention rather than a property to be checked afterwards.
+//
+//   G-SPHF                    port-Hamiltonian
+//   ------------------------  -------------------------------------------------
+//   vertex                    an energy store — one state coordinate
+//   hyperedge                 a power port — where energy moves between stores
+//   sigma (-1 source, +1 target)   the DIRECTION of that flow, which is the sign in J
+//
+// So a port is declared `(+ target, - source, ~ weight)` and contributes `J[source][target] = +w`,
+// `J[target][source] = -w`. Every off-diagonal pair appears with opposite signs by construction, so
+// `e^T J e = 0` identically and the interconnection cannot create energy. A model that wanted to
+// break the energy balance would have to break the sign convention, and the sign convention is the
+// language's, not the model's.
+//
+// # Why this is a separate vocabulary from meta_optimization
+//
+// It is not, quite. A quantity is a quantity: `opt.kinds.parameter`, `opt.kinds.derived` and the
+// unit system are imported and used unchanged, and the units this file adds are declared under the
+// SAME root `opt.unit`, so a consumer's unit check sees one system rather than two. What is new here
+// is the STRUCTURE — coordinates, ports, dissipation, drives — which an optimisation problem has no
+// use for and a dynamical system cannot do without.
+
+meta_dynamics_description {
+    @"../optimization/meta_optimization.hymeko";
+    using opt as o;
+}
+
+ph: o {
+    // === Type roots ===
+    coordinate {}   // one energy store; one state coordinate
+    @structure {}   // a hyperedge contributing to J, R or G
+    @readout   {}   // a named observation of the trajectory
+    waveform   {}   // how an input varies in time
+    study      {}   // a declared investigation over the system
+    shape      {}   // the spatial mode a coordinate is the amplitude of
+    place      {}   // a point the circuit occupies
+
+    // === Units ===
+    //
+    // Declared under `opt.unit`, extending the system the optimisation vocabulary already carries
+    // rather than starting a second one. Adding a unit is additive; a second unit ROOT would be a
+    // second alphabet, and two alphabets is how a volt starts meaning two things.
+    units {
+        farad:    + <isa> o.unit {}
+        henry:    + <isa> o.unit {}
+        coulomb:  + <isa> o.unit {}
+        weber:    + <isa> o.unit {}
+        siemens:  + <isa> o.unit {}
+        hertz:    + <isa> o.unit {}
+        second:   + <isa> o.unit {}
+        joule:    + <isa> o.unit {}
+
+        // Mechanical. Declared, not checked — the language has no unit system — so these are what a
+        // reader is told a number means, and the projection never reads them.
+        metre:                    + <isa> o.unit {}
+        kilogram:                 + <isa> o.unit {}
+        newton:                   + <isa> o.unit {}
+        newton_second:            + <isa> o.unit {}   // momentum
+        metre_per_newton:         + <isa> o.unit {}   // compliance, 1/k
+        newton_second_per_metre:  + <isa> o.unit {}   // damping
+        metre_per_second:         + <isa> o.unit {}
+    }
+
+    // === The state ===
+    //
+    // A coordinate carries a `capacity`: the denominator of its quadratic energy store,
+    //
+    //     H_k = x_k^2 / (2 * capacity_k),      effort_k = dH/dx_k = x_k / capacity_k
+    //
+    // so `Q = diag(1/capacity)` and the Hamiltonian is a sum of INDEPENDENT quadratic stores. No
+    // cross term couples two coordinates inside the energy: all the coupling lives in `J`, which is
+    // where a port-Hamiltonian system puts it. The two subtypes differ only in what a human reads
+    // them as — the arithmetic is the same, which is the point of the abstraction.
+    // There are exactly TWO kinds, and every domain names them differently. What distinguishes them
+    // is which of the conjugate pair the state is: an EFFORT store holds the quantity whose effort is
+    // a potential difference (charge in a capacitance; extension in a spring), a FLOW store holds the
+    // one whose effort is a rate through the element (flux in an inductance; momentum in a mass).
+    //
+    // The projection needs the distinction and nothing else: `xdot + R e` is what a branch carrying a
+    // flow store drops, `e` is what one carrying an effort store drops, and that is the same sentence
+    // about a resistor and about a dashpot.
+    stores {
+        effort_store: + <isa> ph.coordinate {}
+        flow_store:   + <isa> ph.coordinate {}
+
+        // The electrical reading.
+        capacitive: + <isa> stores.effort_store {}   // charge;    effort = voltage
+        inductive:  + <isa> stores.flow_store   {}   // flux;      effort = current
+
+        // The mechanical one, under the analogy that makes the two the SAME structure: a body has one
+        // velocity, so a mass sits at a junction exactly as a node's capacitance does, and its effort
+        // — the velocity — is the across-variable there. A spring sits on a branch exactly as an
+        // inductance does, and its effort — the force — is what passes through it.
+        //
+        //     voltage <-> velocity     current <-> force
+        //     node capacitance <-> mass          inductance <-> compliance
+        //     resistance <-> damping             current source <-> applied force
+        //
+        // So a walk that turns branch drops into node potentials turns relative velocities into body
+        // velocities, and it is the same walk because it is the same statement.
+        //
+        // `capacity` is what divides the square: a mass declares its MASS (`H = p^2/2m`, effort
+        // `p/m = v`) and a spring declares its COMPLIANCE (`H = q^2/(2/k)`, effort `kq = F`).
+        kinetic: + <isa> stores.effort_store {}      // momentum;  effort = velocity
+        elastic: + <isa> stores.flow_store   {}      // extension; effort = force
+    }
+
+    // === J: where energy can flow ===
+    couplings {
+        // `(+ target, - source, ~ weight)`. The weight's units are whatever makes `w * effort` a
+        // flow for this pair, which for a charge/flux pair is dimensionless and for a curl pair is
+        // the discrete curl operator's coefficient.
+        @port: + <isa> ph.structure {}
+    }
+
+    // === R: where energy leaves ===
+    losses {
+        // `(+ coordinate, ~ value)`. Non-negative — a negative dissipation would create energy, and
+        // the projection refuses one rather than letting the balance quietly stop holding.
+        @dissipative: + <isa> ph.structure {}
+    }
+
+    // === G u: what drives it ===
+    inputs {
+        // `(+ coordinate, ~ waveform)`. The input enters the coordinate's own rate equation, so a
+        // voltage source drives the flux coordinate and a current source drives the charge one.
+        @drive: + <isa> ph.structure {}
+    }
+    waveforms {
+        // `amplitude`, `frequency` — both references to declared parameters, so a sweep changes a
+        // number in the model rather than a literal in a solver.
+        cosine: + <isa> ph.waveform {}
+    }
+
+    // === Studies ===
+    //
+    // A parameter sweep is DECLARED, not passed on a command line. What is varied, over what range,
+    // in how many steps, is a statement about the investigation, and a flag that could override it
+    // would be a second place to say what the investigation is. `over` names a declared parameter;
+    // the projection can re-evaluate itself at another value of it because it kept track of which
+    // structural elements that parameter supplied.
+    studies {
+        sweep: + <isa> ph.study {}   // over, from, to, steps
+    }
+
+    // === Mode geometry ===
+    //
+    // A reduced coordinate is the AMPLITUDE of a spatial mode. Until the model says WHICH mode,
+    // there is no field anywhere — the dynamics is lumped and has no space in it — and a picture of
+    // "the field" would be inventing structure the model does not contain.
+    //
+    // A shape declares that basis function, and declaring it is not decoration: the geometry IMPLIES
+    // a capacity, and if the implied one disagrees with the declared one then the picture and the
+    // physics are two different systems. The projection computes both and a test compares them, so a
+    // rendering is a projection of the model rather than an illustration beside it.
+    //
+    //     integral over the region of the field energy density  ==  x^2 / (2 * capacity)
+    //
+    // `centre` and `axis` are where the region sits in a DRAWING. They do not enter the dynamics;
+    // they are presentation, declared here for the same reason a scene's camera is.
+    shapes {
+        // A uniform field between two plates: `area`, `separation`, `relative_permittivity`.
+        // The conjugate effort is a voltage, so `E = effort / separation` and the implied capacity is
+        // `eps0 * eps_r * area / separation`.
+        parallel_plate: + <isa> ph.shape {}
+
+        // A uniform field inside a solenoid: `turns`, `area`, `length`.
+        // The conjugate effort is a current, so `H = turns * effort / length` and the implied
+        // capacity is `mu0 * turns^2 * area / length`.
+        solenoid: + <isa> ph.shape {}
+    }
+    regions {
+        // `(+ coordinate, ~ shape)` — which coordinate this region holds the energy of.
+        @occupies: + <isa> ph.structure {}
+    }
+
+    // === Layout: the circuit in space ===
+    //
+    // A region says where a coordinate's ENERGY sits. That is not the same as where the circuit is,
+    // and on a resistor network the difference matters: every store in such a model is a parasitic —
+    // a node's capacitance, a loop's inductance — while the components the design is about are
+    // resistors, which store nothing. A picture built from regions alone shows the parasitics and
+    // omits the circuit.
+    //
+    // So a model may also declare terminals and the conductors between them. A wire names the
+    // coordinate whose effort is the current through it, which is what lets a view show the current
+    // without being told what a current is; a resistor is found on that wire because its dissipation
+    // is attached to the same coordinate, structurally rather than by matching a name.
+    // A JUNCTION is a place branches meet; a BRANCH runs between two of them and carries one
+    // coordinate. That is the whole of the topology, and it is the same topology in both domains: a
+    // terminal and a body are one thing, a conductor and a link are one thing, and the walk that
+    // turns branch drops into node potentials turns spring extensions into body displacements
+    // without knowing which it is doing.
+    layout {
+        // `at [x, y, z]` — where this junction sits in a drawing. Presentation, like `centre` on a
+        // shape: it does not enter the dynamics, which is lumped and has no space in it.
+        //
+        // OPTIONAL. A terminal that declares no `at` is not a terminal at the origin: its position
+        // is derived, from the same incidence between terminals and conductors that the dynamics is
+        // assembled from. Declared positions are kept exactly and the derived ones arrange around
+        // them, so a model may place its rails by hand and let the rest follow.
+        junction: + <isa> ph.place {}
+        terminal: + <isa> layout.junction {}   // the electrical reading: a node
+        body:     + <isa> layout.junction {}   // the mechanical one: a rigid body
+
+        // `(+ junction)` — the one every potential, or every displacement, is measured against.
+        //
+        // Kirchhoff fixes node potentials only up to a constant, so "the voltage at A" is not yet a
+        // quantity: it becomes one when something says what it is a voltage above. That choice is a
+        // fact about the circuit and belongs in the circuit, not in whatever is reading it out. In
+        // the mechanical reading it is the ground everything else moves relative to, which is the
+        // same statement.
+        @reference: + <isa> ph.structure {}
+    }
+    routes {
+        // `(+ to, - from, ~ coordinate)`. The branch runs between two junctions and carries the
+        // named coordinate's effort as its current. An optional `via [x, y, z]` bends it, so two
+        // branches between the same pair of terminals do not lie on top of each other.
+        @branch: + <isa> ph.structure {}
+        @wire:   + <isa> routes.branch {}   // a conductor
+        @link:   + <isa> routes.branch {}   // a spring, a damper, a strut
+
+        // The same shape as `@wire`, and a different thing: a source, not a conductor. Two wires
+        // may carry the same coordinate — a source and the branch it drives are in series — and
+        // without the distinction a view puts a resistor on both, because both find the same
+        // dissipation attached to that coordinate. Which element is the supply is a fact about the
+        // circuit and belongs in the circuit.
+        @supply: + <isa> ph.structure {}
+
+        // `(+ coordinate)` — the power dissipated on this coordinate leaves as LIGHT rather than as
+        // heat alone. A declaration, not a rendering hint: an incandescent lamp radiates what it
+        // burns, and which element does that is a fact about the circuit.
+        @emits: + <isa> ph.structure {}
+    }
+
+    // === Readouts ===
+    //
+    // A trajectory is a table of numbers; a readout gives one of them a name, a unit and a stable
+    // declaration identity, so a plot axis and a test assertion refer to the same thing.
+    readouts {
+        @effort:        + <isa> ph.readout {}   // (+ quantity, - coordinate)  x / capacity
+        @store:         + <isa> ph.readout {}   // (+ quantity, - coordinate)  x
+        @stored_energy: + <isa> ph.readout {}   // (+ quantity, - coordinate)  x^2 / (2 capacity)
+        // `(+ quantity, - a, - b)` — the two coordinates' efforts multiplied. A Poynting flux is
+        // this and nothing more: `S = E x H`, one electric effort times one magnetic effort.
+        @product:       + <isa> ph.readout {}
+
+        // === Probes: readouts that name the CIRCUIT rather than a coordinate ===
+        //
+        // The four above are functions of one state variable. A probe is not: a potential lives on
+        // the nodes of a circuit while the state lives on its branches, so what a probe reads is
+        // found by walking the declared conductors from one lead to the other and adding up what
+        // each one drops — `xdot + R e` along a flow store, `e` across an effort store, and the
+        // drive itself across a supply.
+        //
+        // That the answer does not depend on WHICH walk is Kirchhoff's voltage law, and here it is
+        // not an assumption: the drawing and the interconnection are two separate declarations, and
+        // nothing forces them to agree. A model whose layout contradicts its dynamics gives two
+        // different answers for the same probe, which is a mistake that can now be caught.
+
+        // `(+ quantity, - terminal)` — that terminal's potential, above the declared reference.
+        @potential: + <isa> ph.readout {}
+        // `(+ quantity, - plus, - minus)` — between two terminals, which is what a probe with two
+        // leads actually reads. Needs no reference: a difference is already a number.
+        @across:    + <isa> ph.readout {}
+
+        // There is no probe that names a CONDUCTOR. An incidence may only name a node, so an edge
+        // cannot be pointed at from another edge, and `(- @wire_r1)` does not parse. It costs
+        // nothing here: a conductor already declares the coordinate it carries, and the current
+        // through it is that coordinate's `@effort` — the same number, reached by a name the
+        // language can write.
+    }
+}

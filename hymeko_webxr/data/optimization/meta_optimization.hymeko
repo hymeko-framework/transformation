@@ -1,0 +1,148 @@
+// meta_optimization.hymeko — declarative constrained-optimisation vocabulary.
+//
+// A model declares WHAT is being designed; a numerical backend owns only HOW it is searched. The
+// split this file draws is the same one meta_reward and meta_controller draw: the semantics live in
+// the .hymeko, and the Python (or Rust) side supplies execution strategy and nothing else.
+//
+// Two things ride on the hypergraph and it is worth naming them before reading further.
+//
+//   A RELATION IS A HYPEREDGE.  The language has no runtime expressions — the only computation in a
+//   source file is constant folding over `const` — so a quantity that depends on a DECISION variable
+//   cannot be written as `(a + b)`. It is written as an edge whose incidences are its operands:
+//
+//       @sum_1: ops.add { (+ result, - left, - right); }
+//
+//   `+` is the defined quantity, `-` are the operands. That is the same convention `nn.dataflow`
+//   already uses — `(+ in_tensor, ~ layer, - out_tensor)` — and the same one a kinematic joint uses.
+//
+//   A COEFFICIENT LIVES ON THE ARC.  As in meta_reward, where a term's weight is a property of the
+//   bundle's arc and not of the term: `(- P_R1 1.0, - P_R2 1.0)`. The node is the thing; the number
+//   is the relationship.
+//
+// Units are declared and are NOT checked by the language — HyMeKo has no type system beyond the
+// inheritance relation, so `unit units.volt;` is a fact the IR carries and a consumer enforces. The
+// canonical enforcement point is the typed projection, not a backend.
+
+meta_optimization {}
+
+opt {
+    // === Type roots ===
+    quantity   {}   // a named scalar carrying a unit
+    @relation   {}  // a hyperedge defining one quantity from others
+    @constraint {}  // a relation between quantities that the design must satisfy
+    @objective  {}  // the scalar being minimised
+    scenario_root {} // a named variant of the same base model
+    unit       {}   // a physical dimension
+    net_root   {}   // a set of ports at one potential
+
+    // === Units ===
+    //
+    // Named, referable, and deliberately not a string: `unit units.volt;` is a reference the IR
+    // resolves, so a typo is an unresolved reference rather than a silent mismatch. What the
+    // language cannot do is reject `volt == ohm`; that is the projection's job and it is stated as
+    // a limitation rather than pretended away.
+    units {
+        dimensionless: + <isa> opt.unit {}
+        volt:          + <isa> opt.unit {}
+        ampere:        + <isa> opt.unit {}
+        ohm:           + <isa> opt.unit {}
+        watt:          + <isa> opt.unit {}
+    }
+
+    // === Kinds of quantity ===
+    kinds {
+        // A quantity the solver may choose. Carries `lower`, `upper` and `start`.
+        //
+        // Distinct from `parameter` by TYPE and not by convention, so "is this a decision variable"
+        // is a question about the IR rather than about a naming habit.
+        decision:  + <isa> opt.quantity {}
+
+        // A quantity the model fixes. The solver may read it and may not move it.
+        parameter: + <isa> opt.quantity {}
+
+        // A quantity some relation defines. Exactly one relation may define each.
+        derived:   + <isa> opt.quantity {}
+    }
+
+    // === Relations: the expression graph ===
+    //
+    // Every one is `(+ defined, - operand, ...)`. Arity is fixed per operator and the projection
+    // rejects a wrong one rather than guessing.
+    ops {
+        @add:      + <isa> opt.relation {}   // (+ y, - a, - b, ...)   y = sum of operands x coefficient
+        @subtract: + <isa> opt.relation {}   // (+ y, - a, - b)        y = a - b
+        @multiply: + <isa> opt.relation {}   // (+ y, - a, - b)        y = a * b
+        @divide:   + <isa> opt.relation {}   // (+ y, - a, - b)        y = a / b
+        @square:   + <isa> opt.relation {}   // (+ y, - a)             y = a * a
+    }
+
+    // === Physical laws, as relations over a declared network ===
+    //
+    // These are not arithmetic: their equations are ASSEMBLED from the topology by the projection,
+    // which is what keeps a voltage divider out of the backend. A model declares the branches and
+    // the nets; the projection writes the nodal equations and solves them.
+    laws {
+        // A branch obeying `I = (V_a - V_b) / R`: (+ net_a, - net_b, ~ resistance).
+        @resistor:      + <isa> opt.relation {}
+
+        // An ideal source holding `V_a - V_b` at a value: (+ net_a, - net_b, ~ voltage).
+        @ideal_source:  + <isa> opt.relation {}
+
+        // The net whose potential is zero: (~ net).
+        @ground:        + <isa> opt.relation {}
+
+        // A named readout of a solved net potential: (+ quantity, - net).
+        @net_potential: + <isa> opt.relation {}
+
+        // A branch's dissipated power, assembled rather than written: (+ quantity, ~ branch).
+        @branch_power:  + <isa> opt.relation {}
+    }
+
+    // === Constraints ===
+    //
+    // Each is `(+ left, - right)` and the sense is the type. The projection turns them into the
+    // solver-neutral `h(x) = 0` and `g(x) >= 0`, and a reversed sense is a different declaration
+    // rather than a sign somebody has to remember.
+    constraints {
+        @equality: + <isa> opt.constraint {}   // left  = right
+        @at_most:  + <isa> opt.constraint {}   // left <= right
+        @at_least: + <isa> opt.constraint {}   // left >= right
+    }
+
+    // === Objective ===
+    //
+    // `(- term weight, ...)`, the weight on the arc as in meta_reward. A term carried at weight zero
+    // is an explicit choice to exclude it, and stays visible; dropping the arc would make the choice
+    // invisible.
+    goals {
+        @minimise: + <isa> opt.objective {}
+    }
+
+    // === Topology ===
+    //
+    // A net is solved for, not declared: it carries no value, and only a `ground` relation fixes one.
+    topology {
+        net: + <isa> opt.net_root {}
+    }
+
+    // === Scenarios ===
+    //
+    // A variant of one base model. The language has no overlay or profile mechanism, so a scenario
+    // is a NODE and participation is a hyperedge: `@participation { (+ scenario, - element); }`.
+    // Every element not named by any participation edge belongs to every scenario, which is what
+    // makes the shared topology shared rather than copied.
+    scenarios {
+        scenario:       + <isa> opt.scenario_root {}
+        @participation: + <isa> opt.relation {}   // (+ scenario, - element, ...)
+    }
+
+    // === Provenance ===
+    //
+    // An approximation is a claim, and a claim needs a source. `@approximation` records that a
+    // quantity stands in for something it is not: (+ derived_quantity, - evidence, ...), with the
+    // reason on the node. The projection REFUSES a quantity whose declaration says it is an
+    // approximation and which carries no provenance edge.
+    provenance {
+        @approximation: + <isa> opt.relation {}
+    }
+}

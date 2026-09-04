@@ -6,10 +6,11 @@
 #   hymeko_optimize: IR -> constrained-optimisation problem (MNA, duals, replaceable backends)
 #   hymeko_dynamics: IR -> port-Hamiltonian system (J from signed incidence, modal analysis)
 #   hymeko_sources : a SourceProvider over strings, so a model compiles where there is no disk
+#   hymeko_webxr  : WebXR/spatial vocabulary, validation and borrowed queries over the canonical IR
 # `core` and `parser` are external repos, pulled as git dependencies.
 [workspace]
 resolver = "2"
-members = ["hymeko_emitter", "hymeko_query", "hymeko_geometry", "hymeko_formats", "hymeko_optimize", "hymeko_dynamics", "hymeko_sources"]
+members = ["hymeko_emitter", "hymeko_query", "hymeko_geometry", "hymeko_formats", "hymeko_optimize", "hymeko_dynamics", "hymeko_sources", "hymeko_webxr"]
 
 [workspace.dependencies]
 # Pinned to the revision this repository actually builds against. core@main has since replaced the

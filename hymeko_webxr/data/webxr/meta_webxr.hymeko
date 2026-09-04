@@ -1,0 +1,66 @@
+// meta_webxr — WebXR specialisation of meta_spatial. Imports it and adds WebXR session semantics.
+// Not a second model: both lower into the one canonical Ir. Source describes INTENT + fallback only;
+// it never asserts device support (that is runtime-reported). Enum strings are the WebXR Device API
+// (W3C Candidate Recommendation) values; anchors and layers are Immersive-Web editor drafts.
+meta_webxr {
+    @"meta_spatial.hymeko";
+    using meta_spatial.spatial as s;
+}
+
+webxr {
+    // XRSessionMode (stable)
+    session_modes {
+        inline {}
+        immersive_vr {}
+        immersive_ar {}
+    }
+
+    // XRReferenceSpaceType (stable)
+    reference_spaces {
+        viewer {}
+        local {}
+        local_floor {}
+        bounded_floor {}
+        unbounded {}
+    }
+
+    // Feature descriptors, tagged by standardisation maturity.
+    capabilities {
+        hit_test      { stability "standard"; }
+        hand_tracking { stability "standard"; }
+        dom_overlay   { stability "standard"; }
+        anchors       { stability "draft"; }
+        layers        { stability "draft"; }
+    }
+
+    // Input source roles specialise meta_spatial.input_role.
+    input {
+        gaze:              + <isa> s.kinds.input_role { target_ray "gaze"; }
+        screen_pointer:    + <isa> s.kinds.input_role { target_ray "screen"; }
+        transient_pointer: + <isa> s.kinds.input_role { target_ray "transient-pointer"; }
+        controller:        + <isa> s.kinds.input_role { target_ray "tracked-pointer"; }
+        left_hand:         + <isa> s.kinds.input_role { handedness "left"; }
+        right_hand:        + <isa> s.kinds.input_role { handedness "right"; }
+        any_hand:          + <isa> s.kinds.input_role { handedness "none"; }
+    }
+
+    // Hardware-independent interaction verbs specialise meta_spatial.action.
+    actions {
+        select:   + <isa> s.kinds.action {}
+        grab:     + <isa> s.kinds.action {}
+        release:  + <isa> s.kinds.action {}
+        activate: + <isa> s.kinds.action {}
+        move:     + <isa> s.kinds.action {}
+        rotate:   + <isa> s.kinds.action {}
+        inspect:  + <isa> s.kinds.action {}
+        place:    + <isa> s.kinds.action {}
+    }
+
+    // Session configuration relation archetypes.
+    session {
+        // a scene selects exactly one mode and one primary reference space by inheritance;
+        // capability requests are relations carrying a requirement level.
+        @session_config {}      // (+ primary session_mode, - primary reference_space, ~ fallback session_mode)
+        @capability_request {} // (+ scene, - capability) ; requirement "required"|"optional"
+    }
+}
