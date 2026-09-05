@@ -137,6 +137,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(debug_assertions)]
     #[should_panic(expected = "member index out of range")]
     fn member_index_out_of_range_panics_in_debug() {
         // Precondition violation: index 5 >= n_verts 3.
@@ -144,6 +145,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(debug_assertions)]
     #[should_panic(expected = "members/signs length mismatch")]
     fn members_signs_length_mismatch_panics_in_debug() {
         let _ = BinaryGraph::from_hyperedges(3, &[vec![0, 1], vec![1, 2]], &[1]);

@@ -62,7 +62,10 @@ pub fn try_variant_of(
     if !source.exists() {
         return None;
     }
-    let mut text = std::fs::read_to_string(&source).expect("readable");
+    // Fixture mutations use LF literals; Git may check out the same source with CRLF.
+    let mut text = std::fs::read_to_string(&source)
+        .expect("readable")
+        .replace("\r\n", "\n");
     for (from, to) in edits {
         assert!(text.contains(from), "the model no longer contains {from:?}");
         text = text.replace(from, to);
