@@ -244,6 +244,30 @@ impl<R: NameResolver> Fields<'_, R> {
             Err(format!("{key} must be positive"))
         }
     }
+    pub(super) fn integer(&self, key: &str, lo: u32, hi: u32) -> Result<u32, String> {
+        let n = self.number(key)?;
+        if n.fract() == 0.0 && n >= lo as f64 && n <= hi as f64 {
+            Ok(n as u32)
+        } else {
+            Err(format!("invalid {key}"))
+        }
+    }
+    pub(super) fn array<const N: usize>(&self, key: &str) -> Result<[f64; N], String> {
+        let ValueR::List(values) = self.value(key)? else {
+            return Err(format!("{key} must be a numeric vector"));
+        };
+        if values.len() != N {
+            return Err(format!("{key} requires {N} components"));
+        }
+        let mut result = [0.0; N];
+        for (out, value) in result.iter_mut().zip(values) {
+            match value {
+                ValueR::Num(n) if n.is_finite() => *out = *n,
+                _ => return Err(format!("{key} must be finite")),
+            }
+        }
+        Ok(result)
+    }
     fn xyz(&self) -> Result<[f64; 3], String> {
         Ok([self.number("x")?, self.number("y")?, self.number("z")?])
     }

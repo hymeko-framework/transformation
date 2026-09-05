@@ -29,3 +29,4 @@ log = { workspace = true }
 
 [dev-dependencies]
 parser = { workspace = true }
+hymeko_sources = { path = "../hymeko_sources" }
