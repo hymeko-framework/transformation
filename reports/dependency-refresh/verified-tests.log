@@ -1,0 +1,815 @@
+warning: function `find_child_ref_target` is never used
+   --> hymeko_geometry/src/kinematics/kinematic.rs:242:4
+    |
+242 | fn find_child_ref_target(ir: &Ir, did: DeclId) -> Option<DeclId> {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `extract_value_list` is never used
+   --> hymeko_geometry/src/kinematics/kinematic.rs:267:4
+    |
+267 | fn extract_value_list(ir: &Ir, did: DeclId) -> Option<Vec<f64>> {
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `extract_3vec_from_value` is never used
+   --> hymeko_geometry/src/kinematics/kinematic.rs:328:4
+    |
+328 | fn extract_3vec_from_value(val: Option<&ValueR>) -> Option<[f64; 3]> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `parent_link`, `child_link`, `axis`, `origin_xyz`, and `origin_rpy` are never read
+  --> hymeko_geometry/src/kinematics/joints.rs:89:5
+   |
+88 | pub struct JointTopology {
+   |            ------------- fields in this struct
+89 |     parent_link: String,
+   |     ^^^^^^^^^^^
+90 |     child_link: String,
+   |     ^^^^^^^^^^
+91 |     axis: Option<[f64; 3]>,
+   |     ^^^^
+92 |     origin_xyz: Option<[f64; 3]>,
+   |     ^^^^^^^^^^
+93 |     origin_rpy: Option<[f64; 3]>,
+   |     ^^^^^^^^^^
+
+warning: function `compile_at` is never used
+  --> hymeko_dynamics/tests/common/mod.rs:18:4
+   |
+18 | fn compile_at(path: &PathBuf) -> (Ir, Interner) {
+   |    ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `maxwell` is never used
+  --> hymeko_dynamics/tests/common/mod.rs:25:8
+   |
+25 | pub fn maxwell() -> Option<System> {
+   |        ^^^^^^^
+
+warning: function `variant` is never used
+  --> hymeko_dynamics/tests/common/mod.rs:39:8
+   |
+39 | pub fn variant(edits: &[(&str, &str)]) -> Option<System> {
+   |        ^^^^^^^
+
+warning: struct `Parameters` is never constructed
+   --> hymeko_dynamics/tests/common/mod.rs:108:12
+    |
+108 | pub struct Parameters {
+    |            ^^^^^^^^^^
+
+warning: associated items `DECLARED`, `normal_modes`, and `uncoupled` are never used
+   --> hymeko_dynamics/tests/common/mod.rs:119:15
+    |
+117 | impl Parameters {
+    | --------------- associated items in this implementation
+118 |     /// The simulator's defaults, which are also the model's.
+119 |     pub const DECLARED: Self = Self {
+    |               ^^^^^^^^
+...
+145 |     pub fn normal_modes(&self) -> (f64, f64) {
+    |            ^^^^^^^^^^^^
+...
+159 |     pub fn uncoupled(&self) -> (f64, f64) {
+    |            ^^^^^^^^^
+
+warning: `hymeko_geometry` (lib) generated 4 warnings
+warning: `hymeko_dynamics` (test "kirchhoff_limit") generated 5 warnings
+warning: `hymeko_geometry` (lib test) generated 4 warnings (4 duplicates)
+warning: unused variable: `sample`
+   --> hymeko_dynamics/tests/maxwell.rs:551:9
+    |
+551 |     for sample in &samples {
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `hymeko_dynamics` (test "maxwell") generated 1 warning (run `cargo fix --test "maxwell" -p hymeko_dynamics` to apply 1 suggestion)
+warning: `hymeko_dynamics` (test "kirchhoff_general") generated 5 warnings (5 duplicates)
+warning: `hymeko_dynamics` (test "many_body") generated 5 warnings (5 duplicates)
+warning: `hymeko_dynamics` (test "probes_and_layout") generated 5 warnings (5 duplicates)
+    Finished `release` profile [optimized] target(s) in 0.09s
+     Running unittests src/lib.rs (/target/release/deps/hymeko_dynamics-49a3d46a3795c0cb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/dynamics.rs (/target/release/deps/hymeko_dynamics-eb95902e53f77a20)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/kirchhoff_general.rs (/target/release/deps/kirchhoff_general-02f6c85622320ab9)
+
+running 5 tests
+test a_system_with_no_drawing_still_has_the_law ... ok
+test a_branch_turned_round_breaks_the_node_law ... ok
+test what_arrives_at_a_junction_is_what_the_store_takes ... ok
+test the_interconnection_graph_is_a_tree_and_that_is_why_nothing_is_conserved_twice ... ok
+test the_interconnection_moves_power_and_does_not_make_it ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/kirchhoff_limit.rs (/target/release/deps/kirchhoff_limit-610f3ebc62a6d0d6)
+
+running 4 tests
+test the_circuit_is_declared_in_space ... ok
+test the_transient_overshoots_what_the_network_predicts ... ok
+test what_kirchhoff_neglects_does_not_change_what_kirchhoff_says ... ok
+test the_steady_state_is_the_kirchhoff_answer ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+     Running tests/many_body.rs (/target/release/deps/many_body-2308facba1e6a053)
+
+running 11 tests
+test analytic_oscillators_preserve_zero_multiplicity ... ok
+test analytic_tiny_nonzero_frequency_is_not_a_zero_root ... ok
+test analytic_zero_matrices_have_only_exact_zero_roots ... ok
+test analytic_spectra_scale_and_permute_without_changing_modes ... ok
+test stiffening_moves_the_spectrum_and_not_its_shape ... ok
+test the_chain_reproduces_the_closed_form_spectrum ... ok
+test the_far_wall_is_still ... ok
+test the_energy_balance_holds_on_a_mechanism ... ok
+test a_probe_across_the_chain_is_the_difference_of_its_ends ... ok
+test a_probe_on_a_body_reads_what_its_momentum_holds ... ok
+test a_lossless_chain_left_alone_keeps_its_energy ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/maxwell.rs (/target/release/deps/maxwell-6c34aaae1b1764bb)
+
+running 17 tests
+test a_missing_source_is_reported_with_what_was_provided ... ok
+test the_assembled_interconnection_is_skew ... ok
+test a_coordinate_with_no_store_is_refused ... ok
+test the_assembled_structure_reproduces_the_hand_written_matrix ... ok
+test compiling_from_memory_gives_the_same_system ... ok
+test negative_dissipation_is_refused ... ok
+test the_geometry_implies_the_declared_capacity ... ok
+test the_declared_sweep_matches_recompiling_an_edited_model ... ok
+test the_normal_modes_match_the_closed_form ... ok
+test the_coupling_splits_the_modes_and_preserves_their_product ... ok
+test the_regions_sample_a_field_a_renderer_can_draw ... ok
+test the_study_is_part_of_the_model ... ok
+test the_poynting_readout_is_the_power_crossing_the_curl_port ... ok
+test the_balance_is_exact_for_the_structure_preserving_step ... ok
+test the_field_energy_is_the_stored_energy ... ok
+test the_lossless_system_conserves_its_energy ... ok
+test the_analysis_predicts_the_transient ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.36s
+
+     Running tests/probes_and_layout.rs (/target/release/deps/probes_and_layout-67e83513a0fd3c9a)
+
+running 13 tests
+test a_cycle_is_drawn_as_a_cycle ... ok
+test a_potential_without_a_reference_is_refused ... ok
+test a_derived_layout_is_reproducible ... ok
+test declared_positions_are_kept_exactly ... ok
+test a_probe_whose_leads_are_not_joined_is_refused ... ok
+test parallel_conductors_do_not_lie_on_top_of_each_other ... ok
+test pinned_terminals_carry_the_derived_ones_with_them ... ok
+test the_drops_around_every_loop_sum_to_zero ... ok
+test the_parasitics_follow_the_circuit_they_belong_to ... ok
+test a_probe_across_the_supply_reads_the_source ... ok
+test a_probe_reads_what_the_state_already_holds ... ok
+test a_drawing_that_contradicts_the_dynamics_is_caught ... ok
+test a_model_with_no_positions_still_draws_the_same_circuit ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running unittests src/lib.rs (/target/release/deps/hymeko_emitter-69a9638e80bdac47)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/fault_mutants.rs (/target/release/deps/fault_mutants-441fc2d9adb77df3)
+
+running 5 tests
+test mutant_duplicate_incidence_not_deduped ... ok
+test mutant_emit_does_not_mutate_input_ir ... ok
+test mutant_emitter_reads_the_passed_ir ... ok
+test mutant_wrong_bind_caught_by_accessor_bijection ... ok
+test mutant_sign_loss_flips_output ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/migration_oracles.rs (/target/release/deps/migration_oracles-f6534d87cfca1e2c)
+
+running 11 tests
+test batch_delta_should_be_atomic ... ignored, DEFECT: IRDelta::Batch doc claims 'succeeds-or-fails as one unit' but apply() is non-atomic (partial apply persists). Un-ignore when the unified-IR transaction API makes Batch atomic. See docs/unified-ir-construction-seam.md.
+test dump_oracle_constants ... ignored, run with --ignored to (re)harvest the frozen fingerprint constants
+test editor_layout_metadata_survives_roundtrip ... ignored, LIMITATION: editor layout metadata (position, level, weight) has no arena-side home at 15223bc, so it is dropped on the editor->arena->editor round-trip. Un-ignore when the canonical IR carries editor attributes.
+test bridge_built_ir_has_flat_parent_hierarchy ... ok
+test bridge_makes_exactly_one_arc_per_edge ... ok
+test bridge_writes_and_the_four_emitters_only_read ... ok
+test fnv_known_answer_vector_is_stable ... ok
+test node_for_decl_rejects_a_corrupted_backlink_where_raw_would_mislead ... ok
+test hymeko_source_is_the_resident_serialization ... ok
+test accessor_equivalence_holds_for_every_decl_on_a_real_ir ... ok
+test emitter_output_fingerprints_are_frozen ... ok
+
+test result: ok. 8 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/test_bridge.rs (/target/release/deps/test_bridge-c0a5e09899c3a869)
+
+running 6 tests
+test editor_roundtrips_through_compiler_ir ... ok
+test editor_with_multiple_edges_preserves_per_edge_signs ... ok
+test empty_editor_roundtrips_to_empty_arena ... ok
+test incident_vertices_that_are_edges_in_arena_are_filtered_on_reverse ... ok
+test arena_editor_arena_roundtrip_preserves_node_and_edge_counts ... ok
+test mini_arm_compile_ir_projects_into_editor_and_back ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/test_editor_ir.rs (/target/release/deps/test_editor_ir-7518b24c099feb06)
+
+running 10 tests
+test apply_add_vertex_increments_slotmap ... ok
+test apply_attach_detach_attribute_roundtrip ... ok
+test apply_batch_runs_deltas_in_order ... ok
+test apply_batch_short_circuits_on_first_error ... ok
+test apply_detach_missing_attribute_errors ... ok
+test apply_move_vertex_updates_position ... ok
+test apply_remove_vertex_also_prunes_incident_edges ... ok
+test apply_update_sign_flips_arc_sign ... ok
+test apply_update_sign_out_of_range_errors ... ok
+test apply_update_weight_updates_hyperedge_weight ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/test_emitters.rs (/target/release/deps/test_emitters-7a619e7c521da92d)
+
+running 14 tests
+test emit_hymeko_preserves_inline_numeric_values ... ok
+test emit_hymeko_is_insertion_order_stable ... ok
+test emit_hymeko_emits_signed_ref_arcs_with_correct_signs ... ok
+test emit_hymeko_produces_non_empty_bracketed_output ... ok
+test emit_hymeko_roundtrips_through_the_parser ... ok
+test emit_hymeko_is_deterministic ... ok
+test emit_lean4_generates_trivial_theorem_per_node ... ok
+test emit_rust_stubs_generates_pascal_case_traits ... ok
+test emit_sysml_contains_hyperedge_arcs_with_sign_vectors ... ok
+test emit_sysml_emits_connection_def_per_arc ... ok
+test emit_sysml_includes_part_def_for_every_ir_node ... ok
+test emit_sysml_inlines_node_scalar_attributes ... ok
+test emit_sysml_metadata_profile_includes_joint_origin ... ok
+test emit_sysml_opens_and_closes_package ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/target/release/deps/hymeko_formats-ed921e3cfb272819)
+
+running 10 tests
+test binary_graph::tests::arity_below_two_yields_no_edges ... ok
+test binary_graph::tests::arity_four_clique_has_six_edges ... ok
+test binary_graph::tests::mock_emit_length_monotone_in_edge_count ... ok
+test binary_graph::tests::triangle_clique_has_three_edges ... ok
+test transforms::mjcf_emit_tests::mjcf_emits_parent_child_contact_excludes ... ok
+test xml_util::tests::ampersand_first_no_double_escape ... ok
+test transforms::mjcf_emit_tests::mjcf_skips_world_rooted_contact_exclude ... ok
+test xml_util::tests::escapes_all_five ... ok
+test xml_util::tests::escapes_ampersand ... ok
+test transforms::mjcf_emit_tests::mjcf_emits_deep_serial_chain_without_stack_overflow ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/target/release/deps/hymeko_geometry-2f093f3100c207f7)
+
+running 14 tests
+test forward::tests::a_closed_loop_is_reported_as_a_cycle ... ok
+test forward::tests::a_branching_tree_resolves_every_limb ... ok
+test forward::tests::a_disconnected_model_is_rejected_rather_than_silently_posed ... ok
+test forward::tests::a_fixed_joint_ignores_its_value ... ok
+test forward::tests::a_joint_naming_an_undeclared_parent_is_reported ... ok
+test forward::tests::a_joint_to_a_frame_anchors_the_root ... ok
+test forward::tests::a_joint_to_nothing_is_not_an_anchor ... ok
+test forward::tests::a_link_with_two_parent_joints_is_rejected ... ok
+test forward::tests::a_model_with_no_links_is_rejected ... ok
+test forward::tests::a_prismatic_joint_extends_along_its_axis ... ok
+test forward::tests::a_revolute_joint_swings_everything_below_it ... ok
+test forward::tests::a_single_link_is_its_own_root_at_the_identity ... ok
+test forward::tests::at_zero_the_chain_lies_along_its_origins ... ok
+test forward::tests::joint_values_compose_down_the_chain ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/articulated.rs (/target/release/deps/articulated-ae5b6be18b76c0df)
+
+running 18 tests
+test a_joint_with_no_inertia_about_its_own_axis_is_simply_free ... ok
+test a_pendulum_obeys_the_equation_lagrange_wrote_for_it ... ok
+test a_pendulums_holding_torque_is_the_one_statics_gives ... ok
+test a_reach_is_a_path_that_ends_at_the_root ... ok
+test a_torque_on_a_pendulum_at_rest_divides_by_its_moment_of_inertia ... ok
+test gravity_is_the_gradient_of_the_potential_energy ... ok
+test a_contact_reaches_only_the_joints_between_it_and_the_root ... ok
+test the_dynamics_plan_poses_the_mechanism_the_same_way_the_kinematics_does ... ok
+test a_force_at_a_point_produces_the_torques_virtual_work_demands ... ok
+test inverse_dynamics_undoes_forward_dynamics_exactly ... ok
+test the_mass_matrix_from_torques_inverts_the_one_from_accelerations ... ok
+test a_double_pendulum_keeps_its_energy_for_a_thousand_steps ... ok
+test the_gravity_compensation_torque_holds_a_mechanism_still ... ok
+test the_factorised_solve_gives_what_the_full_one_does ... ok
+test a_chain_of_wildly_mismatched_masses_stays_finite ... ok
+test a_free_mechanism_in_zero_gravity_conserves_energy_too ... ok
+test the_restricted_sweep_agrees_with_the_full_one_everywhere_it_claims_to ... ok
+test the_mobility_matrix_is_symmetric_and_positive_definite ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/collide.rs (/target/release/deps/collide-b4fcb22029711b9a)
+
+running 7 tests
+test a_shape_always_collides_with_itself_at_the_same_pose ... ok
+test a_sphere_and_a_box_agree_with_the_point_to_box_distance ... ok
+test a_sphere_and_a_capsule_agree_with_the_point_to_segment_distance ... ok
+test two_spheres_touch_exactly_when_their_radii_reach ... ok
+test a_reported_contact_is_never_contradicted_by_a_separating_plane ... ok
+test two_capsules_agree_with_the_segment_to_segment_distance ... ok
+test sliding_two_shapes_apart_switches_the_answer_exactly_once ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/contact.rs (/target/release/deps/contact-6a00b5cd768e4e50)
+
+running 12 tests
+test a_body_above_the_ground_generates_no_constraints_at_all ... ok
+test a_resting_body_receives_exactly_its_own_weight_from_the_ground ... ok
+test a_box_pushed_below_the_friction_limit_does_not_move ... ok
+test the_delassus_operator_is_the_inverse_mass_the_contact_actually_feels ... ok
+test a_contact_never_adds_energy ... ok
+test a_dropped_box_lands_and_stays_on_the_ground ... ok
+test two_contacts_on_one_coordinate_carry_the_weight_between_them_and_the_split_is_free ... ok
+test the_dense_solve_is_the_size_of_the_contact_set_not_the_mechanism ... ok
+test friction_only_removes_energy ... ok
+test the_tangent_impulse_never_leaves_the_cone ... ok
+test a_sliding_box_comes_to_rest_after_the_time_coulomb_predicts ... ok
+test a_box_pushed_past_the_limit_accelerates_by_exactly_the_excess ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/end_to_end.rs (/target/release/deps/end_to_end-37a8d4f05088d509)
+
+running 4 tests
+test the_compiled_source_yields_the_declared_links_and_joints ... ok
+test poses_come_out_of_a_file_the_cli_compiles ... ok
+test the_signed_arc_is_read_as_parent_child_and_axis ... ok
+test driving_the_declared_joint_moves_the_declared_link ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/engine.rs (/target/release/deps/engine-056842b03f52b019)
+
+running 6 tests
+test a_resting_body_is_held_at_the_right_height_by_the_engine_as_a_whole ... ok
+test a_mechanism_with_no_ground_never_leaves_free_flight ... ok
+test the_engine_takes_big_steps_while_falling_and_small_ones_once_it_lands ... ok
+test turning_free_flight_off_changes_the_speed_and_not_the_answer ... ok
+test a_big_free_step_never_lets_a_body_through_the_floor ... ok
+test free_flight_at_a_thirtieth_beats_contact_stepping_at_a_two_hundred_and_fortieth ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/fk_allocation.rs (/target/release/deps/fk_allocation-4b160d3b9c7e1869)
+
+running 2 tests
+test resolving_a_pose_through_the_plan_allocates_nothing_for_bookkeeping ... ok
+test the_se3_walk_allocates_nothing_at_all ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/fk_plan.rs (/target/release/deps/fk_plan-8eac29e50ca6b5e7)
+
+running 5 tests
+test a_plan_reports_the_same_structural_failures ... ok
+test a_plan_built_without_handles_still_resolves ... ok
+test the_handles_and_the_names_name_the_same_links ... ok
+test the_plan_reproduces_the_shipped_solver_exactly ... ok
+test the_se3_walk_is_bit_identical_to_the_heap_one ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (/target/release/deps/hymeko_optimize-9f385e2f51fbae83)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/solve.rs (/target/release/deps/hymeko_optimize-bc8ad550f003bc2f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/authority.rs (/target/release/deps/authority-150244cf0c538e2b)
+
+running 10 tests
+test verdict_clean_checkout_qualification ... ok
+test verdict_core_ir_change_not_required ... ok
+test verdict_no_duplicate_editable_semantics ... ok
+test verdict_scenario_identity_parity ... ok
+test verdict_typed_projection_parity ... ok
+test verdict_hymeko_semantic_owner ... ok
+test verdict_one_editable_declaration ... ok
+test verdict_optimization_oracle_parity ... ok
+test verdict_deterministic_multistart ... ok
+test infeasible_contract_is_reported ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.26s
+
+     Running tests/oracle.rs (/target/release/deps/oracle-5b20679fd364f8ea)
+
+running 6 tests
+test gradients_survive_the_linear_solve ... ok
+test evaluation_matches_the_oracle ... ok
+test external_backend_agrees ... ok
+test augmented_lagrangian_finds_the_optimum ... ok
+test result_is_traceable_to_the_model ... ok
+test deterministic_multistart ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/projection.rs (/target/release/deps/projection-0a5ca9351aa7f5ed)
+
+running 7 tests
+test objective_carries_its_zero_weight_term ... ok
+test approximation_carries_provenance ... ok
+test decisions_are_the_typed_ones ... ok
+test constraints_keep_their_sense ... ok
+test network_is_a_topology_not_a_formula ... ok
+test dump ... ok
+test scenarios_share_one_topology ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/target/release/deps/hymeko_query-c87baa6682b80341)
+
+running 19 tests
+test entropy::tests::empty_ir_returns_zero ... ok
+test entropy::tests::hierarchical_visits_nested_scope_exactly_once ... ok
+test entropy::tests::outer_dataflow_mirrors_hand_calc ... ok
+test entropy::tests::single_edge_all_plus_has_zero_sign_entropy ... ok
+test entropy::tests::single_vertex_no_edges_is_zero ... ok
+test entropy::tests::three_way_mixed_sign_edge_is_ln_three ... ok
+test rewrite::regen::tests::clean_split_produces_two_nonempty_scopes_and_no_cross_section ... ok
+test rewrite::regen::tests::cross_edges_land_in_cross_bucket ... ok
+test rewrite::split::tests::determinism_two_calls_produce_identical_proposal ... ok
+test rewrite::split::tests::scope_with_no_edges_rejected ... ok
+test rewrite::split::tests::scope_with_one_vertex_rejected ... ok
+test rewrite::split::tests::shared_vertex_produces_cross_edge ... ok
+test rewrite::split::tests::two_disjoint_edges_split_cleanly ... ok
+test rewrite::split::tests::weight_aggregation_default_is_l2 ... ok
+test rewrite::split::tests::weight_aggregation_metrics_differ_on_vector_weights ... ok
+test rewrite::split::tests::weights_affect_inertia ... ok
+test rewrite::template::tests::test_parse_each_block ... ok
+test rewrite::template::tests::test_parse_nested ... ok
+test rewrite::template::tests::test_parse_simple_template ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mod.rs (/target/release/deps/integration-a89744d05fae4206)
+
+running 230 tests
+test codegen::test_query_meta::test_query_meta::controllers_by_inheritance ... ok
+test codegen::test_query_meta::test_query_meta::find_all_edges ... ok
+test codegen::test_query_meta::test_query_meta::find_all_nodes ... ok
+test codegen::test_query_meta::test_query_meta::find_axes_by_inheritance ... ok
+test codegen::test_query_meta::test_query_meta::not_predicate ... ok
+test codegen::test_query_meta::test_query_meta::or_predicate ... ok
+test codegen::test_query_meta::test_query_meta::sensors_by_inheritance ... ok
+test codegen::test_query_meta::test_query_meta::transitive_inheritance_meta_element ... ok
+test codegen::test_query_meta::test_query_meta::transitive_inheritance_joint_types ... ok
+test codegen::test_query_robot::test_query_robot::batch_query_all_urdf ... ok
+test codegen::test_query_robot::test_query_robot::bindings_carry_weight_annotations ... ok
+test codegen::test_query_robot::test_query_robot::bindings_have_parent_child_axis ... ok
+test codegen::test_query_robot::test_query_robot::continuous_joints_specifically ... ok
+test codegen::test_query_robot::test_query_robot::find_robot_joints_transitive ... ok
+test codegen::test_query_robot::test_query_robot::find_robot_links ... ok
+test codegen::test_query_robot::test_query_robot::fixed_joints ... ok
+test codegen::test_query_robot::test_query_robot::heavy_links ... ok
+test codegen::test_query_robot::test_query_robot::joints_with_minus_ref_to_link ... ok
+test codegen::test_query_robot::test_query_robot::joints_with_plus_ref_to_link ... ok
+test codegen::test_query_robot::test_query_robot::name_prefix_wheels ... ok
+test codegen::test_query_robot::test_query_robot::query_first_finds_base_link ... ok
+test codegen::test_query_robot::test_query_robot::schema_validation_passes ... ok
+test codegen::test_query_robot::test_query_robot::query_iter_lazy_count ... ok
+test codegen::test_query_robot::test_query_robot::query_first_returns_none ... ok
+test codegen::test_urdf::test_urdf::axis_on_continuous_not_fixed ... ok
+test codegen::test_urdf::test_urdf::degree_to_radian_conversion ... ok
+test codegen::test_urdf::test_urdf::generate_urdf_structure ... ok
+test codegen::test_urdf::test_urdf::geometry_types ... ok
+test codegen::test_urdf::test_urdf::joint_types_correct ... ok
+test sphf::every_role_the_ir_can_state_reads_back_as_its_own_sign ... ok
+test codegen::test_urdf::test_urdf::link_and_joint_counts ... ok
+test codegen::test_urdf::test_urdf::xml_well_formed ... ok
+test sphf::restricting_to_nothing_leaves_nothing_and_to_everything_leaves_everything ... ok
+test sphf::a_joint_reads_out_as_a_ternary_edge_over_parent_child_and_axis ... ok
+test sphf::a_patch_can_be_read_on_its_own ... ok
+test sphf::no_effort_does_work_against_the_interconnection ... ok
+test sphf::the_incidence_matrix_agrees_with_the_edges_it_was_built_from ... ok
+test sphf::the_axis_declarations_are_shared_and_that_is_where_the_cycles_come_from ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::base_link_is_heaviest_link ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::each_link_appears_as_child_at_most_once ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::dot_has_one_edge_per_joint ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::fixture_declares_seven_joints_one_fixed_six_revolute ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::fixture_declares_seven_robot_links ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::gazebo_sim_system_edge_is_queryable ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::j1_has_ninety_degree_twist_about_z ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::joint0_limit_node_carries_expected_values ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::j_fix_connects_world_to_base ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::joint_trajectory_controller_node_is_queryable ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::mjcf_body_hierarchy_matches_chain_depth ... ok
+test sphf::the_ports_build_a_skew_interconnection_whatever_the_source_looked_like ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::mjcf_emit_is_loadable_and_articulable_b004_b005 ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::mjcf_has_one_actuator_per_revolute_joint ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::mjcf_validator_passes_for_moveo_serial_chain ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::per_joint_axes_match_the_source_b005 ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::per_joint_limits_resolved_through_the_limit_ref ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::revolute_joints_use_only_canonical_axes ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::model_extraction_is_deterministic_across_runs ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::sdf_contains_every_expected_link ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::sdf_reuses_revolute_type_for_all_non_fixed_joints ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::serial_chain_topology_parent_child_adjacency ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::sim_plugin_has_expected_filename_value ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::six_dof_axis_signature_matches_fixture ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::urdf_contains_every_expected_joint ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::urdf_contains_every_expected_link ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::urdf_and_sdf_agree_on_joint_count ... ok
+test test_const_resolve::test_const_resolve::const_fixture_compiles_with_forward_reference ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::urdf_joint_types_split_fixed_vs_revolute ... ok
+test test_const_resolve::test_const_resolve::const_fixture_emits_same_sdf_as_literal_fixture ... ok
+test test_anthropomorphic_generation::test_anthropomorphic_generation::urdf_generation_is_deterministic_across_runs ... ok
+test test_const_resolve::test_const_resolve::const_fixture_emits_same_urdf_as_literal_fixture ... ok
+test test_entropy::test_entropy_on_simple_net::hierarchical_walk_covers_expected_scopes ... ok
+test test_entropy::test_entropy_on_simple_net::determinism_two_compiles_match_bit_for_bit ... ok
+test test_entropy::test_entropy_on_simple_net::layer_0_scope_matches_design_note ... ok
+test test_entropy::test_entropy_on_simple_net::outer_scope_matches_design_note ... ok
+test test_gazebo_sim_launch::test_gazebo_sim_launch::launch_targets_new_gazebo_not_classic ... ok
+test test_gazebo_world::test_gazebo_world::gazebo_world_does_not_inline_robot_model ... ok
+test test_gazebo_world::test_gazebo_world::gazebo_world_includes_ground_plane ... ok
+test test_gazebo_sim_launch::test_gazebo_sim_launch::bundle_files_are_referentially_consistent ... ok
+test test_gazebo_world::test_gazebo_world::gazebo_world_for_diff_robot_generates_non_empty_content ... ok
+test test_gazebo_sim_launch::test_gazebo_sim_launch::generate_gz_sim_launch_bundle_for_moveo ... ok
+test test_gazebo_world::test_gazebo_world::gazebo_world_injects_extracted_control_plugin ... ok
+test test_gazebo_world::test_gazebo_world::gazebo_world_is_sdf_1_8 ... ok
+test test_gazebo_world::test_gazebo_world::gazebo_world_includes_standard_physics_plugin_triple ... ok
+test test_gazebo_world::test_gazebo_world::gazebo_world_injects_extracted_sim_plugin ... ok
+test test_gazebo_world::test_gazebo_world::gazebo_world_wraps_named_world_tag ... ok
+test test_gazebo_world::test_gazebo_world::gazebo_world_is_deterministic_across_runs ... ok
+test test_gazebo_world::test_gazebo_world::plugin_extractor_finds_sim_and_control_plugins_on_moveo ... ok
+test test_gazebo_world::test_gazebo_world::registry_exposes_gazebo_transform ... ok
+test test_gazebo_world::test_gazebo_world::plugin_extractor_populates_plugin_class_and_filename ... ok
+test test_gazebo_world::test_gazebo_world::plugin_extractor_works_on_diff_robot_too ... ok
+test test_gazebo_world::test_gazebo_world::registry_emit_returns_stub_with_physics_plugins ... ok
+test test_gazebo_world::test_gazebo_world::registry_gazebo_validator_passes_for_serial_chain ... ok
+test test_generation_engine::test_generation_engine::cross_format::kinematic_model_identical_source ... ok
+test test_generation_engine::test_generation_engine::cross_format::urdf_and_sdf_same_link_count ... ok
+test test_generation_engine::test_generation_engine::cross_format::urdf_and_sdf_same_joint_count ... ok
+test test_generation_engine::test_generation_engine::cross_format::both_robots_generate_without_panic ... ok
+test test_generation_engine::test_generation_engine::kinematic_extraction::diff_robot_joints_count ... ok
+test test_generation_engine::test_generation_engine::kinematic_extraction::diff_robot_links_count ... ok
+test test_generation_engine::test_generation_engine::kinematic_extraction::moveo_joint_axes ... ok
+test test_generation_engine::test_generation_engine::kinematic_extraction::moveo_joint_origins ... ok
+test test_generation_engine::test_generation_engine::kinematic_extraction::moveo_joint_types ... ok
+test test_generation_engine::test_generation_engine::kinematic_extraction::moveo_kinematic_chain_topology ... ok
+test test_generation_engine::test_generation_engine::kinematic_extraction::moveo_link_geometries ... ok
+test test_generation_engine::test_generation_engine::kinematic_extraction::moveo_link_masses ... ok
+test test_generation_engine::test_generation_engine::kinematic_extraction::moveo_links_count ... ok
+test test_generation_engine::test_generation_engine::query_edge_cases::query_combined_predicates ... ok
+test test_generation_engine::test_generation_engine::query_edge_cases::query_nonexistent_type_returns_empty ... ok
+test test_generation_engine::test_generation_engine::query_edge_cases::query_or_predicate ... ok
+test test_generation_engine::test_generation_engine::query_edge_cases::query_not_predicate ... ok
+test test_generation_engine::test_generation_engine::query_edge_cases::query_signed_refs_on_joints ... ok
+test test_generation_engine::test_generation_engine::sdf_generation::moveo_sdf_geometry_types ... ok
+test test_generation_engine::test_generation_engine::sdf_generation::moveo_sdf_joints_present ... ok
+test test_generation_engine::test_generation_engine::sdf_generation::moveo_sdf_links_present ... ok
+test test_generation_engine::test_generation_engine::sdf_generation::moveo_sdf_inertial_diagonal ... ok
+test test_generation_engine::test_generation_engine::sdf_generation::moveo_sdf_pose_relative_to ... ok
+test test_generation_engine::test_generation_engine::sdf_generation::moveo_sdf_revolute_type ... ok
+test test_generation_engine::test_generation_engine::urdf_generation::moveo_urdf_all_joints_present ... ok
+test test_generation_engine::test_generation_engine::sdf_generation::moveo_sdf_wellformed ... ok
+test test_generation_engine::test_generation_engine::urdf_generation::moveo_urdf_axes_present ... ok
+test test_generation_engine::test_generation_engine::urdf_generation::moveo_urdf_all_links_present ... ok
+test test_generation_engine::test_generation_engine::urdf_generation::moveo_urdf_color_material ... ok
+test test_generation_engine::test_generation_engine::urdf_generation::moveo_urdf_geometry_correct ... ok
+test test_generation_engine::test_generation_engine::urdf_generation::moveo_urdf_joint_types_correct ... ok
+test test_generation_engine::test_generation_engine::urdf_generation::moveo_urdf_link_count_matches_joint_refs ... ok
+test test_generation_engine::test_generation_engine::urdf_generation::moveo_urdf_origin_with_rpy_conversion ... ok
+test test_generation_engine::test_generation_engine::urdf_generation::moveo_urdf_mass_elements ... ok
+test test_generation_engine::test_generation_engine::urdf_generation::moveo_urdf_parent_child_correct ... ok
+test test_geom_extension::test_geom_extension::absent_collision_block_is_none ... ok
+test test_generation_engine::test_generation_engine::urdf_generation::moveo_urdf_schema_valid ... ok
+test test_geom_extension::test_geom_extension::capsule_parses_with_dimensions_and_collision ... ok
+test test_geom_extension::test_geom_extension::box_geometry_parses_unchanged ... ok
+test test_generation_engine::test_generation_engine::urdf_generation::moveo_urdf_xml_wellformed ... ok
+test test_ir_migration_oracle::arc_dto_target_id_is_the_raw_declid ... ok
+test test_ir_migration_oracle::regenerate_wire_fixture ... ignored, run with --ignored to (re)write tests/data/wire/minimal_edge_snapshot.json
+test test_geom_extension::test_geom_extension::unknown_shape_hard_fails_not_silent - should panic ... ok
+test test_ir_migration_oracle::production_query_paths_do_not_mutate_the_ir ... ok
+test test_ir_migration_oracle::wire_snapshot_json_is_deterministic ... ok
+test test_ir_migration_oracle::wire_snapshot_json_is_frozen ... ok
+test test_mermaid::test_mermaid::mermaid_axis_letter_appears_in_joint_label ... ok
+test test_mermaid::test_mermaid::mermaid_declares_classdef_for_links_and_roots ... ok
+test test_mermaid::test_mermaid::mermaid_diff_robot_emits_continuous_label ... ok
+test test_mermaid::test_mermaid::mermaid_emits_dashed_arrow_for_fixed_joint ... ok
+test test_mermaid::test_mermaid::mermaid_emits_one_arrow_per_joint ... ok
+test test_mermaid::test_mermaid::mermaid_emit_is_deterministic ... ok
+test test_mermaid::test_mermaid::mermaid_emits_one_node_per_link_with_mass_label ... ok
+test test_mermaid::test_mermaid::mermaid_mini_arm_has_single_continuous_joint_arrow ... ok
+test test_mermaid::test_mermaid::mermaid_registered_with_mmd_extension ... ok
+test test_mermaid::test_mermaid::mermaid_emits_solid_arrow_for_revolute_joint ... ok
+test test_mermaid::test_mermaid::mermaid_emits_world_as_a_root_frame_for_moveo ... ok
+test test_mermaid::test_mermaid::mermaid_output_opens_with_flowchart_directive ... ok
+test test_prop_witnesses::test_prop_witnesses::prop2_content::const_resolution_is_content_addressable ... ok
+test test_imported_real::test_imported_real::imported_real_fixtures_compile_and_emit_six_formats ... ok
+test test_prop_witnesses::test_prop_witnesses::prop4_storage::high_arity_fixed_pool_witnesses_asymptote ... ok
+test test_prop_witnesses::test_prop_witnesses::prop4_storage::high_arity_overhead_ratio_is_bounded_and_non_increasing ... ok
+test test_split::test_split_on_simple_net::auto_picks_scope_with_highest_h_sign ... ok
+test test_prop_witnesses::test_prop_witnesses::prop2_content::distinct_robots_produce_distinct_doc_digests ... ok
+test test_split::test_split_on_simple_net::proposes_split_of_layer_0 ... ok
+test test_prop_witnesses::test_prop_witnesses::prop3_commute::six_emitters_share_one_compiled_ir ... ok
+test test_split::test_split_on_simple_net::determinism_on_real_ir ... ok
+test test_prop_witnesses::test_prop_witnesses::prop2_content::alias_variants_produce_equal_doc_digest ... ok
+test test_split::test_split_on_simple_net::regen_emits_nonempty_hymeko_source_with_both_cluster_scopes ... ok
+test test_sysml_emit::test_sysml_emit::ids_are_sysml_safe ... ok
+test test_sysml_emit::test_sysml_emit::mini_arm_emits_package_with_links_and_connection ... ok
+test test_sysml_emit::test_sysml_emit::mini_arm_links_carry_mass ... ok
+test test_split::test_split_on_simple_net::regen_is_deterministic_across_recompiles ... ok
+test test_template_driven::test_template_driven::every_shipped_transform_exposes_a_template_dir ... ok
+test test_prop_witnesses::test_prop_witnesses::prop1_alias::alias_invariance_holds_across_six_formats ... ok
+test test_sysml_emit::test_sysml_emit::output_is_deterministic_across_runs ... ok
+test test_sysml_emit::test_sysml_emit::wam_emits_seven_revolute_joints ... ok
+test test_template_driven::test_template_driven::dot_template_opens_digraph_and_has_arrows ... ok
+test test_template_driven::test_template_driven::gazebo_template_picks_up_sim_plugin_from_fixture ... ok
+test test_template_driven::test_template_driven::gazebo_template_wraps_world_with_plugins ... ok
+test test_template_driven::test_template_driven::mermaid_template_emits_dashed_arrow_for_fixed_joint ... ok
+test test_template_driven::test_template_driven::mermaid_template_opens_flowchart ... ok
+test test_template_driven::test_template_driven::mjcf_template_wraps_mujoco_model ... ok
+test test_template_driven::test_template_driven::render_from_templates_returns_none_for_unknown_transform ... ok
+test test_template_driven::test_template_driven::sdf_template_wraps_model ... ok
+test test_template_driven::test_template_driven::urdf_template_renders_robot_header ... ok
+test test_template_driven::test_template_driven::urdf_template_renders_each_link ... ok
+test test_template_driven::test_template_driven::render_from_templates_is_deterministic ... ok
+test test_torch_dataflow::test_torch_dataflow::emits_both_layer_constructors_with_correct_dims ... ok
+test test_torch_dataflow::test_torch_dataflow::emits_dataflow_forward_in_declaration_order ... ok
+test test_template_driven::test_template_driven::mini_arm_renders_every_format_non_empty ... ok
+test test_torch_dataflow::test_torch_dataflow::python_forward_pass_round_trip ... ignored
+test test_torch_dataflow::test_torch_dataflow::emits_return_for_terminal_output_tensor ... ok
+test test_torch_dataflow::test_torch_dataflow::emits_inheritance_branched_ggk_specs ... ok
+test test_torch_dataflow::test_torch_dataflow::emits_module_class_with_configured_name ... ok
+test test_torch_dataflow::test_torch_dataflow::no_meta_type_pollution_in_constructor ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::diff_robot_using_has_same_joint_count_as_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::diff_robot_using_has_same_link_count_as_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::diff_robot_using_link_names_match_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::diff_robot_using_joint_names_match_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::diff_robot_using_sdf_link_count_matches_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::moveo_using_dot_edge_count_matches_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::diff_robot_using_urdf_structure_matches_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::moveo_using_has_same_link_count_as_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::moveo_using_has_same_joint_count_as_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::moveo_using_joint_names_match_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::moveo_using_link_name_masses_match_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::moveo_using_link_names_match_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::moveo_using_mjcf_body_count_matches_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::moveo_using_sdf_link_count_matches_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::moveo_using_mjcf_hinge_count_matches_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::dot::moveo_dot_fixed_joints_dashed ... ok
+test test_transform_ecosystem::test_transform_ecosystem::dot::diff_robot_dot_generates ... ok
+test test_transform_ecosystem::test_transform_ecosystem::dot::moveo_dot_axis_labels ... ok
+test test_transform_ecosystem::test_transform_ecosystem::dot::moveo_dot_has_all_links_as_nodes ... ok
+test test_transform_ecosystem::test_transform_ecosystem::alias_parity::moveo_using_urdf_structure_matches_baseline ... ok
+test test_transform_ecosystem::test_transform_ecosystem::dot::moveo_dot_has_edges_with_joint_names ... ok
+test test_transform_ecosystem::test_transform_ecosystem::dot::moveo_dot_wellformed ... ok
+test test_transform_ecosystem::test_transform_ecosystem::mjcf::moveo_mjcf_half_extents_for_box ... ok
+test test_transform_ecosystem::test_transform_ecosystem::dot::moveo_dot_revolute_joints_bold ... ok
+test test_transform_ecosystem::test_transform_ecosystem::mjcf::moveo_mjcf_has_actuators ... ok
+test test_transform_ecosystem::test_transform_ecosystem::mjcf::moveo_mjcf_has_bodies ... ok
+test test_transform_ecosystem::test_transform_ecosystem::mjcf::moveo_mjcf_has_materials ... ok
+test test_transform_ecosystem::test_transform_ecosystem::mjcf::moveo_mjcf_has_joints ... ok
+test test_transform_ecosystem::test_transform_ecosystem::mjcf::moveo_mjcf_nested_body_hierarchy ... ok
+test test_transform_ecosystem::test_transform_ecosystem::mjcf::moveo_mjcf_radians_not_degrees ... ok
+test test_transform_ecosystem::test_transform_ecosystem::registry::default_registry_has_all_formats ... ok
+test test_transform_ecosystem::test_transform_ecosystem::registry::lookup_by_extension ... ok
+test test_transform_ecosystem::test_transform_ecosystem::registry::lookup_by_name ... ok
+test test_transform_ecosystem::test_transform_ecosystem::requirements_trace::registry_has_requirements_transforms_without_regressing_others ... ok
+test test_transform_ecosystem::test_transform_ecosystem::requirements_trace::dot_emits_trace_nodes_and_stereotyped_edges ... ok
+test test_transform_ecosystem::test_transform_ecosystem::requirements_trace::sysml_emits_requirement_defs_satisfy_allocate_derive ... ok
+test test_transform_ecosystem::test_transform_ecosystem::mjcf::moveo_mjcf_wellformed ... ok
+test test_transform_ecosystem::test_transform_ecosystem::registry::generate_all_formats ... ok
+test test_transform_ecosystem::test_transform_ecosystem::validation::moveo_validates_clean_for_all_formats ... ok
+test test_transform_ecosystem::test_transform_ecosystem::validation::mjcf_validates_tree_topology ... ok
+test test_transform_ecosystem::test_transform_ecosystem::registry::generate_all_for_both_robots ... ok
+test bench_workflow::bench_workflow::bench_end_to_end_workflow ... ok
+
+test result: ok. 228 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running unittests src/lib.rs (/target/release/deps/hymeko_sources-ce7282ff763c5b64)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/target/release/deps/hymeko_webxr-54bf36f25773a8c7)
+
+running 1 test
+test query::tests::spatial_query_exposes_frames_placements_and_fiducial_identity ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mod.rs (/target/release/deps/integration-24647dab7ae58a6c)
+
+running 29 tests
+test bench_compile_vs_validate ... ignored, measurement bench; run with --release --ignored --nocapture
+test anchoring_without_anchor_is_wrong_role ... ok
+test capability_required_optional_conflict ... ok
+test dangling_reference_is_rejected ... ok
+test anchoring_non_entity_subject_is_wrong_kind ... ok
+test bad_capability_requirement ... ok
+test error_display_is_non_empty_and_ids_only ... ok
+test asset_uri_not_string ... ok
+test import_alias_change_is_invariant ... ok
+test inf_orientation_is_rejected ... ok
+test interaction_missing_input ... ok
+test demo_validates_clean ... ok
+test frame_cycle ... ok
+test declaration_order_permutation_is_invariant ... ok
+test minimal_valid_scene_validates_clean ... ok
+test missing_reference_space ... ok
+test missing_session_mode ... ok
+test placement_two_subjects_is_wrong_role ... ok
+test nan_position_is_rejected ... ok
+test placement_frame_not_a_frame ... ok
+test runtime_handle_field_rejected ... ok
+test position_wrong_length ... ok
+test vocabulary_missing_when_not_imported ... ok
+test two_session_modes ... ok
+test scale_non_positive ... ok
+test unknown_action ... ok
+test unknown_capability ... ok
+test zero_quaternion ... ok
+test latest_maxwell_fiducial_demo_compiles_and_queries ... ok
+
+test result: ok. 28 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests hymeko_dynamics
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests hymeko_emitter
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests hymeko_formats
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests hymeko_geometry
+
+running 2 tests
+test hymeko_geometry/src/transforms/model_view.rs - transforms::model_view::extract (line 73) ... ignored
+test hymeko_geometry/src/transforms/transform_engine.rs - transforms::transform_engine::TransformEngine (line 22) ... ignored
+
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 0.12s; merged doctests compilation took 0.11s
+   Doc-tests hymeko_optimize
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests hymeko_query
+
+running 1 test
+test hymeko_query/src/predicate.rs - predicate::Predicate (line 102) ... ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 0.11s; merged doctests compilation took 0.11s
+   Doc-tests hymeko_sources
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests hymeko_webxr
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+resource stage=workspace-verified elapsed_s=5.32 max_rss_kib=125032 exit=0

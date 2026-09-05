@@ -1,0 +1,157 @@
+[
+  {
+    "path": "reports/dependency-refresh/container-final.json",
+    "bytes": 12077,
+    "sha256": "607b6f862189705459b9121f2cac8b53a57b530a0ddf45f2d3e1f25de3afd40b"
+  },
+  {
+    "path": "reports/dependency-refresh/container-start.json",
+    "bytes": 12234,
+    "sha256": "d9e8806858861d687c2b4c85851628f944a7d34ffaeecf545241c07102f46f6a"
+  },
+  {
+    "path": "reports/dependency-refresh/final-container.json",
+    "bytes": 12313,
+    "sha256": "3c63bf577b6ec4280a33cc6aadf8b146fe56b86856776a021e5b246b8ae9dc6f"
+  },
+  {
+    "path": "reports/dependency-refresh/final-memory-peak.txt",
+    "bytes": 10,
+    "sha256": "44d38286f965d0742cc641c576a31f6edccf97fad224ff68a8a10a84205ee210"
+  },
+  {
+    "path": "reports/dependency-refresh/final-tests.log",
+    "bytes": 93986,
+    "sha256": "7f7b1b7589046de8fe190a86baffee35ae900a18505f5ad6406a9fc8492d50ad"
+  },
+  {
+    "path": "reports/dependency-refresh/fixtures-container-final.json",
+    "bytes": 12399,
+    "sha256": "38617adfab0731fe879ab7839b92c569398dffe9d0adc47d8be8ce0667cae08e"
+  },
+  {
+    "path": "reports/dependency-refresh/fixtures-memory-peak.txt",
+    "bytes": 9,
+    "sha256": "955e8908d21de541d9f35c9a1555050cde0a2130162c962377f714bbfb42f15a"
+  },
+  {
+    "path": "reports/dependency-refresh/fixtures-tests.log",
+    "bytes": 52303,
+    "sha256": "459280fb9810e5582497c09289c6f0e598289d716edb7e455f7122d4df59b505"
+  },
+  {
+    "path": "reports/dependency-refresh/memory-peak.txt",
+    "bytes": 11,
+    "sha256": "4b9fa78eda398c5ab61d7407a3be1b27513f81636bf0db3eafc01c4fc04f97a8"
+  },
+  {
+    "path": "reports/dependency-refresh/metadata.json",
+    "bytes": 711072,
+    "sha256": "a709458ce66c2e787087b6d3982ae3d5aa9cc08adc913f34cb89ff02e1026ba7"
+  },
+  {
+    "path": "reports/dependency-refresh/modal-diagnostic.log",
+    "bytes": 4787,
+    "sha256": "bbc0eab55bf7fd567b1d27a7e6e297cf3d0a5ca6320fa06383ac12a931cb7922"
+  },
+  {
+    "path": "reports/dependency-refresh/modal-fixtures-repeat.log",
+    "bytes": 13539,
+    "sha256": "ecfcd3631233624531e20193ba3967e872db03dae70db8ca0a24b4d34e922ffa"
+  },
+  {
+    "path": "reports/dependency-refresh/modal-instrumentation.patch",
+    "bytes": 737,
+    "sha256": "2fbf27e7a4c07b35719f1c550c54239226d33d127781bb770fc911634362ec62"
+  },
+  {
+    "path": "reports/dependency-refresh/modal-red-container-final.json",
+    "bytes": 11782,
+    "sha256": "ad68509db5365f698578472f0e5a5c827bc66b1b8d08486d999066a8935cd14d"
+  },
+  {
+    "path": "reports/dependency-refresh/modal-red.log",
+    "bytes": 4535,
+    "sha256": "a42bf20828a6e30d47ea2d16868a55d67b48c0872b4cad6b3b05065c3e118e20"
+  },
+  {
+    "path": "reports/dependency-refresh/modal-repeat-invalid.log",
+    "bytes": 3798,
+    "sha256": "75ba516e4d3bc382767078252d40d4e0bae9dd4dbda0da7d787b7c32b9b3872d"
+  },
+  {
+    "path": "reports/dependency-refresh/modal-tests-before-fix.patch",
+    "bytes": 4507,
+    "sha256": "70661ba903b9caa4c5f264e94407289cf558311e0f923324cb5f7778ef0ab970"
+  },
+  {
+    "path": "reports/dependency-refresh/results.json",
+    "bytes": 685,
+    "sha256": "95859122593e7771d19eae8425bc2826383f5f61afe13219900a69c53dfb25cb"
+  },
+  {
+    "path": "reports/dependency-refresh/revision.txt",
+    "bytes": 41,
+    "sha256": "62130609824293853818e33d076cab39d85f2aa0e7f886ecb43f6c07a564c524"
+  },
+  {
+    "path": "reports/dependency-refresh/robot-fixtures.sha256",
+    "bytes": 2156,
+    "sha256": "bfb1a4df951d8114379f7299361f006b638cd1e01e37f734be779993534dcadd"
+  },
+  {
+    "path": "reports/dependency-refresh/source-status.txt",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "reports/dependency-refresh/tests.log",
+    "bytes": 54139,
+    "sha256": "84f6ccccca19a7d7eb9abc7fad3f669b548d687efc68b64134efb255f89bc159"
+  },
+  {
+    "path": "reports/dependency-refresh/updates.json",
+    "bytes": 84,
+    "sha256": "54860ac4ec9929670e377a8f0e437f534bdee042e073f808c83bfa221246c06d"
+  },
+  {
+    "path": "reports/dependency-refresh/verified-container-final.json",
+    "bytes": 11881,
+    "sha256": "c55726497691772f4402c44042f8e4464ed464e83d4ada7776c4fda8fe432af1"
+  },
+  {
+    "path": "reports/dependency-refresh/verified-memory-peak.txt",
+    "bytes": 9,
+    "sha256": "bcb8b8cd1faeb4e897b6d475cf17c374aba8d214bd4c07c568cc9ab752680650"
+  },
+  {
+    "path": "reports/dependency-refresh/verified-results.json",
+    "bytes": 508,
+    "sha256": "55baef8996537168b282fcb6b1b9ec9237a22c2a21ddcf9304e0f78cb58661d5"
+  },
+  {
+    "path": "reports/dependency-refresh/verified-revision.txt",
+    "bytes": 41,
+    "sha256": "2ea677b8679b1eaa5a8adff7f42ecead4934953b8d308fa3129aaab215008cb6"
+  },
+  {
+    "path": "reports/dependency-refresh/verified-source-status.txt",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "reports/dependency-refresh/verified-tests.log",
+    "bytes": 48947,
+    "sha256": "64570d3741f667258f659771722a5739e12334968ecc44007742e248a4ca57f7"
+  },
+  {
+    "path": "reports/dependency-refresh/workspace-update-alias-failed.log",
+    "bytes": 5179,
+    "sha256": "05bd6c399923224adaa1bfa14664a3f4b72ee84bc31e409064368e64b17a8f17"
+  },
+  {
+    "path": "reports/dependency-refresh/workspace-update.log",
+    "bytes": 708,
+    "sha256": "929fb2b5122c7b660bd787e0bb69143384f512c13c36fec416836c65b212f062"
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "revision": "24cfb59440c91801459937c7dcf6f8149a7f7723",
+  "test_counts": {
+    "passed": 470,
+    "failed": 0,
+    "ignored": 9
+  },
+  "resources": [
+    "resource stage=workspace-verified elapsed_s=5.32 max_rss_kib=125032 exit=0"
+  ],
+  "memory_peak_bytes": 86106112,
+  "exit_code": 0,
+  "oom": false,
+  "fixture_source": "Core SDK image 1886f17, /workspace/core linked at /core",
+  "source_status": "clean",
+  "target_cache": "reused after recorded fresh build and modal correction"
+}

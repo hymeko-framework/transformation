@@ -1,0 +1,262 @@
+[
+    {
+        "Id": "e472537ef88ab5a748f3a8d046739fcf3d4b32654726cb34155edf8cf0af5ae0",
+        "Created": "2026-09-05T19:20:14.244754648Z",
+        "Path": "bash",
+        "Args": [
+            "-c",
+            "set -eu; trap \"cat /sys/fs/cgroup/memory.peak > /evidence/fixtures-memory-peak.txt\" EXIT; ln -s /workspace/core /core; sha256sum /core/data/robotics/robots/*.hymeko > /evidence/robot-fixtures.sha256; /usr/bin/time -f \"resource stage=articulated-fixtures elapsed_s=%e max_rss_kib=%M exit=%x\" cargo test -p hymeko_geometry --test articulated --release --locked --offline; /usr/bin/time -f \"resource stage=workspace-with-fixtures elapsed_s=%e max_rss_kib=%M exit=%x\" cargo test --workspace --release --locked --offline --no-fail-fast"
+        ],
+        "State": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 101,
+            "Error": "",
+            "StartedAt": "2026-09-05T19:20:14.274719582Z",
+            "FinishedAt": "2026-09-05T19:20:19.834675154Z"
+        },
+        "Image": "sha256:c825ade5a9b80d45648ef5175398707cffe5b028b251015d69c39b9abc8a1308",
+        "ResolvConfPath": "/var/lib/docker/containers/e472537ef88ab5a748f3a8d046739fcf3d4b32654726cb34155edf8cf0af5ae0/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/e472537ef88ab5a748f3a8d046739fcf3d4b32654726cb34155edf8cf0af5ae0/hostname",
+        "HostsPath": "/var/lib/docker/containers/e472537ef88ab5a748f3a8d046739fcf3d4b32654726cb34155edf8cf0af5ae0/hosts",
+        "LogPath": "/var/lib/docker/containers/e472537ef88ab5a748f3a8d046739fcf3d4b32654726cb34155edf8cf0af5ae0/e472537ef88ab5a748f3a8d046739fcf3d4b32654726cb34155edf8cf0af5ae0-json.log",
+        "Name": "/hymeko-consumer-transformation-fixtures-20260905",
+        "RestartCount": 0,
+        "Driver": "overlay2",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "docker-default",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": null,
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "none",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 17179869184,
+            "NanoCpus": 6000000000,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": [],
+            "BlkioDeviceReadBps": [],
+            "BlkioDeviceWriteBps": [],
+            "BlkioDeviceReadIOps": [],
+            "BlkioDeviceWriteIOps": [],
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [],
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 17179869184,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": [],
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "Mounts": [
+                {
+                    "Type": "volume",
+                    "Source": "hymeko-consumer-cargo-20260905",
+                    "Target": "/usr/local/cargo"
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/home/kyberszittya/hymeko-distributed-admission-fix-20260905/dependency-refresh/consumers/transformation",
+                    "Target": "/consumer"
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/home/kyberszittya/hymeko-distributed-admission-fix-20260905/dependency-refresh/transformation-results",
+                    "Target": "/evidence"
+                },
+                {
+                    "Type": "volume",
+                    "Source": "hymeko-consumer-transformation-target-20260905",
+                    "Target": "/target"
+                }
+            ],
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "GraphDriver": {
+            "Data": {
+                "ID": "e472537ef88ab5a748f3a8d046739fcf3d4b32654726cb34155edf8cf0af5ae0",
+                "LowerDir": "/var/lib/docker/overlay2/367289875de2a63e13174f90b0a23f42952db3d36fec6f05fbe93542f6fe2f06-init/diff:/var/lib/docker/overlay2/7ded14a8c47ebff6a6135c673682bd88434dbb6dc1339e32a459e4050cf7d02c/diff:/var/lib/docker/overlay2/cee6a22817a6b1e63c55037719ef66a88a093c124ed359624f3f234f429401e7/diff:/var/lib/docker/overlay2/c5963cc43059131f4b7b5c92b794653d621e2f665a222d6aeca739a53764d769/diff:/var/lib/docker/overlay2/00948fee4d15fa72a5cfde25f0e817b83570bf59e2ccf219e21787c24e4674de/diff:/var/lib/docker/overlay2/f09d47a3e726a753326a8e7ed147bb30c4af01a07c06de9ef713fde0eb3bebea/diff:/var/lib/docker/overlay2/07175d0b3a733283a8ecb61d02b2efd756ff05a6f861db5d95f893424aea4948/diff:/var/lib/docker/overlay2/c364dd34c62a6bc90788eff90836483a489969b19d83dddd7c3126eb8e63d197/diff:/var/lib/docker/overlay2/77fe3b251129bb2c05081f10e99e563992c0cfd46c81ab5354e5d2bfe5bd06d8/diff:/var/lib/docker/overlay2/f962c81294ad2e4acc64f33c6aa4828627cf865bca3d5a955f512bd7cd573b1b/diff:/var/lib/docker/overlay2/8037a0cd7cf9258d67ceaf5e7dbf22ebd54f9d0f1f1a45d8b26adc69b34284cf/diff:/var/lib/docker/overlay2/88eedcc0941867d5bf6fe4e01a29a8b96c8159e89b8de4b608744b7148789f45/diff:/var/lib/docker/overlay2/6e88d459bd6344e10673316e71fbfe1234d7c1f3f010e2b3f11442bfaa02735c/diff:/var/lib/docker/overlay2/98e5ef19e9b6c4d1114149d1f6b7a9995f6c49874142ac31c94e10a90201f76b/diff:/var/lib/docker/overlay2/30a62c2f6b8a09608e05f94f9b3121359c5b382297719a58f0164bb89f0f99a5/diff:/var/lib/docker/overlay2/7a4227fa5961f88e6bb891349783d44beb9553a5faf7a73e62a6debfb42edb8c/diff",
+                "MergedDir": "/var/lib/docker/overlay2/367289875de2a63e13174f90b0a23f42952db3d36fec6f05fbe93542f6fe2f06/merged",
+                "UpperDir": "/var/lib/docker/overlay2/367289875de2a63e13174f90b0a23f42952db3d36fec6f05fbe93542f6fe2f06/diff",
+                "WorkDir": "/var/lib/docker/overlay2/367289875de2a63e13174f90b0a23f42952db3d36fec6f05fbe93542f6fe2f06/work"
+            },
+            "Name": "overlay2"
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "hymeko-consumer-cargo-20260905",
+                "Source": "/var/lib/docker/volumes/hymeko-consumer-cargo-20260905/_data",
+                "Destination": "/usr/local/cargo",
+                "Driver": "local",
+                "Mode": "z",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "bind",
+                "Source": "/home/kyberszittya/hymeko-distributed-admission-fix-20260905/dependency-refresh/consumers/transformation",
+                "Destination": "/consumer",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/home/kyberszittya/hymeko-distributed-admission-fix-20260905/dependency-refresh/transformation-results",
+                "Destination": "/evidence",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "volume",
+                "Name": "hymeko-consumer-transformation-target-20260905",
+                "Source": "/var/lib/docker/volumes/hymeko-consumer-transformation-target-20260905/_data",
+                "Destination": "/target",
+                "Driver": "local",
+                "Mode": "z",
+                "RW": true,
+                "Propagation": ""
+            }
+        ],
+        "Config": {
+            "Hostname": "e472537ef88a",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "CARGO_TARGET_DIR=/target",
+                "PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "RUSTUP_HOME=/usr/local/rustup",
+                "CARGO_HOME=/usr/local/cargo",
+                "RUST_VERSION=1.97.1",
+                "CARGO_BUILD_JOBS=6",
+                "RAYON_NUM_THREADS=6",
+                "CARGO_TERM_COLOR=never",
+                "CARGO_NET_GIT_FETCH_WITH_CLI=true",
+                "CARGO_NET_OFFLINE=true"
+            ],
+            "Cmd": [
+                "-c",
+                "set -eu; trap \"cat /sys/fs/cgroup/memory.peak > /evidence/fixtures-memory-peak.txt\" EXIT; ln -s /workspace/core /core; sha256sum /core/data/robotics/robots/*.hymeko > /evidence/robot-fixtures.sha256; /usr/bin/time -f \"resource stage=articulated-fixtures elapsed_s=%e max_rss_kib=%M exit=%x\" cargo test -p hymeko_geometry --test articulated --release --locked --offline; /usr/bin/time -f \"resource stage=workspace-with-fixtures elapsed_s=%e max_rss_kib=%M exit=%x\" cargo test --workspace --release --locked --offline --no-fail-fast"
+            ],
+            "Image": "hymeko-core:1886f17a42d7a3430e4044129f81955615efd583",
+            "Volumes": null,
+            "WorkingDir": "/consumer",
+            "Entrypoint": [
+                "bash"
+            ],
+            "Labels": {
+                "org.opencontainers.image.revision": "1886f17a42d7a3430e4044129f81955615efd583",
+                "org.opencontainers.image.source": "https://github.com/rust-lang/docker-rust",
+                "org.opencontainers.image.title": "HyMeKo Core SDK and verification"
+            }
+        },
+        "NetworkSettings": {
+            "SandboxID": "",
+            "SandboxKey": "",
+            "Ports": {},
+            "Networks": {
+                "none": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "ea309ccea73d92b0188166b7d043cc1020eecfafe5dbc0085762f1cee5f9569b",
+                    "EndpointID": "",
+                    "Gateway": "",
+                    "IPAddress": "",
+                    "MacAddress": "",
+                    "IPPrefixLen": 0,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": null
+                }
+            }
+        }
+    }
+]

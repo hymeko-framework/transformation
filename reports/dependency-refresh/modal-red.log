@@ -1,0 +1,84 @@
+   Compiling hymeko_dynamics v0.1.0 (/consumer/hymeko_dynamics)
+warning: function `compile_at` is never used
+  --> hymeko_dynamics/tests/common/mod.rs:18:4
+   |
+18 | fn compile_at(path: &PathBuf) -> (Ir, Interner) {
+   |    ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `maxwell` is never used
+  --> hymeko_dynamics/tests/common/mod.rs:25:8
+   |
+25 | pub fn maxwell() -> Option<System> {
+   |        ^^^^^^^
+
+warning: function `variant` is never used
+  --> hymeko_dynamics/tests/common/mod.rs:39:8
+   |
+39 | pub fn variant(edits: &[(&str, &str)]) -> Option<System> {
+   |        ^^^^^^^
+
+warning: struct `Parameters` is never constructed
+   --> hymeko_dynamics/tests/common/mod.rs:108:12
+    |
+108 | pub struct Parameters {
+    |            ^^^^^^^^^^
+
+warning: associated items `DECLARED`, `normal_modes`, and `uncoupled` are never used
+   --> hymeko_dynamics/tests/common/mod.rs:119:15
+    |
+117 | impl Parameters {
+    | --------------- associated items in this implementation
+118 |     /// The simulator's defaults, which are also the model's.
+119 |     pub const DECLARED: Self = Self {
+    |               ^^^^^^^^
+...
+145 |     pub fn normal_modes(&self) -> (f64, f64) {
+    |            ^^^^^^^^^^^^
+...
+159 |     pub fn uncoupled(&self) -> (f64, f64) {
+    |            ^^^^^^^^^
+
+warning: `hymeko_dynamics` (test "many_body") generated 5 warnings
+    Finished `release` profile [optimized] target(s) in 2.31s
+     Running tests/many_body.rs (/target/release/deps/many_body-4785fae501f58095)
+
+running 4 tests
+
+thread 'analytic_oscillators_preserve_zero_multiplicity' (154) panicked at hymeko_dynamics/tests/many_body.rs:135:9:
+assertion `left == right` failed: exact stationary roots at scale 1e0, order [0, 1, 2, 3, 4]: [Complex { re: -4.094544360589638e-14, im: 2.65831511943793e-14 }, Complex { re: -2.849632784904996e-15, im: -4.0544339103119195e-14 }, Complex { re: 0.0, im: -2.0 }, Complex { re: 0.0, im: 2.0 }, Complex { re: 3.068070595894354e-14, im: 1.4275505108256005e-14 }]
+  left: 0
+ right: 3
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test analytic_oscillators_preserve_zero_multiplicity ... FAILED
+
+thread 'analytic_spectra_scale_and_permute_without_changing_modes' (155) panicked at hymeko_dynamics/tests/many_body.rs:135:9:
+assertion `left == right` failed: exact stationary roots at scale 9.5367431640625e-7, order [0, 1, 2, 3, 4, 5, 6, 7, 8]: [Complex { re: -4.392169219163295e-20, im: 7.008652465631693e-20 }, Complex { re: -3.3336108337399054e-20, im: -6.02566174559576e-20 }, Complex { re: -1.2851596697042636e-36, im: 3.814697265625e-6 }, Complex { re: -2.8667979799738065e-37, im: 9.536743164062498e-7 }, Complex { re: -1.8813361743558363e-37, im: -3.814697265625e-6 }, Complex { re: -1.7917487374831675e-37, im: 1.9073486328125e-6 }, Complex { re: -1.7917487374812872e-37, im: -1.9073486328125e-6 }, Complex { re: 5.733595959937832e-37, im: -9.536743164062499e-7 }, Complex { re: 5.733351013451983e-20, im: 1.9676303873285517e-23 }]
+  left: 0
+ right: 3
+test analytic_spectra_scale_and_permute_without_changing_modes ... FAILED
+
+thread 'analytic_tiny_nonzero_frequency_is_not_a_zero_root' (156) panicked at hymeko_dynamics/tests/many_body.rs:135:9:
+assertion `left == right` failed: exact stationary roots at scale 1e0, order [0, 1, 2, 3]: [Complex { re: -7.050021511773325e-27, im: 8.122340412741135e-27 }, Complex { re: -9.72358792722448e-255, im: -9.094947017729282e-13 }, Complex { re: -4.446024142916651e-262, im: 9.094947017729282e-13 }, Complex { re: 4.357152915693831e-27, im: -5.01988244327087e-27 }]
+  left: 0
+ right: 2
+test analytic_tiny_nonzero_frequency_is_not_a_zero_root ... FAILED
+
+thread 'analytic_zero_matrices_have_only_exact_zero_roots' (157) panicked at hymeko_dynamics/tests/many_body.rs:129:9:
+finite analytic roots at scale 1e0: [Complex { re: NaN, im: NaN }, Complex { re: NaN, im: NaN }]
+test analytic_zero_matrices_have_only_exact_zero_roots ... FAILED
+
+failures:
+
+failures:
+    analytic_oscillators_preserve_zero_multiplicity
+    analytic_spectra_scale_and_permute_without_changing_modes
+    analytic_tiny_nonzero_frequency_is_not_a_zero_root
+    analytic_zero_matrices_have_only_exact_zero_roots
+
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p hymeko_dynamics --test many_body`
+Command exited with non-zero status 101
+resource stage=modal-red elapsed_s=2.33 max_rss_kib=275280 exit=101

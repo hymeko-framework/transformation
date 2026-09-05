@@ -1,0 +1,3 @@
+# Preserve the exact dependency-audit evidence bytes used by its SHA256 inventory.
+/reports/dependency-refresh/** -text
+/reports/2026-09-05-dependency-refresh.md -text

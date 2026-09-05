@@ -1,0 +1,12 @@
+diff --git a/hymeko_dynamics/src/analysis.rs b/hymeko_dynamics/src/analysis.rs
+index c2943f6..a1e2921 100644
+--- a/hymeko_dynamics/src/analysis.rs
++++ b/hymeko_dynamics/src/analysis.rs
+@@ -111,6 +111,7 @@ pub fn eigenvalues(a: &[f64], n: usize) -> Result<Vec<Complex>, AnalysisError> {
+         coefficients.push(Complex::new(-c[k], 0.0));
+     }
+     let roots = durand_kerner(&coefficients, n);
++    eprintln!("MODAL_DIAGNOSTIC n={n} constant_bits={:016x} matrix_bits={:?} roots={:?}", c[n].to_bits(), a.iter().map(|x| x.to_bits()).collect::<Vec<_>>(), roots);
+ 
+     // The two identities that catch a bad root set. `sum(lambda) = tr(A)` and
+     // `prod(lambda) = det(A)`, and `det(A) = (-1)^n * p(0) = c_n` for this normalisation.
