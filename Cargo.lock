@@ -521,7 +521,7 @@ source = "git+ssh://git@amaterasu.local:2222/hymeko/tensor.git?branch=main#b1d86
 [[package]]
 name = "hymeko_core"
 version = "0.1.0"
-source = "git+ssh://git@amaterasu.local:2222/hymeko/core.git?rev=044a7c306fa989099ed978b4650def52707a9e42#044a7c306fa989099ed978b4650def52707a9e42"
+source = "git+ssh://git@amaterasu.local:2222/hymeko/core.git?rev=70d0de270dcfb83e602430b42b3dcb2c6924a9f4#70d0de270dcfb83e602430b42b3dcb2c6924a9f4"
 dependencies = [
  "blake3",
  "ciborium",

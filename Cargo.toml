@@ -16,7 +16,7 @@ members = ["hymeko_emitter", "hymeko_query", "hymeko_geometry", "hymeko_formats"
 # three `decl_to_*` maps with a private dispatch slot (documented "option D", 2026-08-31); migrating the
 # ~20 IR-construction write sites in entropy.rs / rewrite/{regen,split}.rs to the public
 # `push_decl` / `bind_*_decl` API is a separate, owner-level change and is NOT done here.
-hymeko_core = { git = "ssh://git@amaterasu.local:2222/hymeko/core.git", rev = "044a7c306fa989099ed978b4650def52707a9e42" }
+hymeko_core = { git = "ssh://git@amaterasu.local:2222/hymeko/core.git", rev = "70d0de270dcfb83e602430b42b3dcb2c6924a9f4" }
 parser = { git = "ssh://git@amaterasu.local:2222/hymeko/parser.git", branch = "master" }
 # The Tensor pillar's geometric algebra — SE(n) rigid motions live there, not here.
 # NOTE: path only until `hymeko/tensor` is pushed with `hymeko_clifford::algebra::Se`.
