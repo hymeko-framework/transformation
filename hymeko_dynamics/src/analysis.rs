@@ -110,7 +110,22 @@ pub fn eigenvalues(a: &[f64], n: usize) -> Result<Vec<Complex>, AnalysisError> {
     for k in 1..=n {
         coefficients.push(Complex::new(-c[k], 0.0));
     }
-    let roots = durand_kerner(&coefficients, n);
+    // Factor exact zero roots out of the computed polynomial: p(x) = x^z q(x).
+    // Iterating those roots can leave tiny imaginary residues that look like
+    // oscillations. Never round a nonzero coefficient to zero here.
+    let mut degree = n;
+    while degree > 0 && coefficients[degree] == Complex::ZERO {
+        degree -= 1;
+    }
+    let mut roots = if degree == 0 {
+        Vec::new()
+    } else {
+        durand_kerner(&coefficients[..=degree], degree)
+    };
+    if degree < n {
+        roots.resize(n, Complex::ZERO);
+        roots.sort_by(|a, b| a.re.total_cmp(&b.re).then(a.im.total_cmp(&b.im)));
+    }
 
     // The two identities that catch a bad root set. `sum(lambda) = tr(A)` and
     // `prod(lambda) = det(A)`, and `det(A) = (-1)^n * p(0) = c_n` for this normalisation.
