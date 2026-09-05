@@ -95,6 +95,7 @@ fn generate(seed: u64, adversarial: bool) -> (KinematicModel, Shape) {
     let mut links = Vec::with_capacity(n);
     let mut joints = Vec::with_capacity(n - 1);
     links.push(LinkInfo {
+        inertia_com: None,
         did: DeclId::NONE,
         name: "l0".into(),
         mass: Some(1.0 + rng.f64()),
@@ -170,6 +171,7 @@ fn generate(seed: u64, adversarial: bool) -> (KinematicModel, Shape) {
         };
 
         links.push(LinkInfo {
+            inertia_com: None,
             did: DeclId::NONE,
             name: format!("l{i}"),
             mass,
@@ -207,6 +209,7 @@ fn generate(seed: u64, adversarial: bool) -> (KinematicModel, Shape) {
 
     (
         KinematicModel {
+            actuation: Default::default(),
             name: format!("fuzz{seed}"),
             links,
             joints,

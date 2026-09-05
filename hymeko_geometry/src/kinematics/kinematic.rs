@@ -48,6 +48,9 @@ pub struct LinkInfo {
     pub geometry: Option<GeometryInfo>,
     pub origin: Option<Vec<f64>>,
     pub color: Option<Vec<f64>>,
+    /// COM inertia in the link axes, kg m^2: xx, yy, zz, xy, xz, yz.
+    /// Absent retains the historical point-mass numerical model.
+    pub inertia_com: Option<[f64; 6]>,
 }
 
 
@@ -67,6 +70,8 @@ pub struct KinematicModel {
     /// another part of it. Kinematics has to be able to tell that apart from a joint that names a
     /// link which does not exist, and the only place that distinction is available is here.
     pub frames: Vec<String>,
+    /// Geometric force transmissions over the existing links and their DeclIds.
+    pub actuation: super::actuation::Actuation,
 }
 
 /// Extract a complete kinematic model from the IR.
@@ -87,6 +92,9 @@ pub fn extract_kinematic_model<R: NameResolver>(
         let geometry = extract_geometry(ir, res, m.id);
         let origin = find_child_list(ir, res, m.id, "origin");
         let color = find_child_ref_value_list(ir, res, m.id, "color");
+        let inertia_com = ir.decl_children(m.id).find(|c| res.resolve(ir.decl_nodes[c.raw()].name) == "inertia_com")
+            .map(|c| ["xx", "yy", "zz", "xy", "xz", "yz"].map(|key|
+                find_child_num(ir, res, c, key).unwrap_or(f64::NAN)));
 
         LinkInfo {
             did: m.id,
@@ -95,6 +103,7 @@ pub fn extract_kinematic_model<R: NameResolver>(
             geometry,
             origin,
             color,
+            inertia_com,
         }
     }).collect();
 
@@ -181,11 +190,13 @@ pub fn extract_kinematic_model<R: NameResolver>(
         }
     }
 
+    let actuation = super::actuation::Actuation::extract(engine, robot_name, &links, &joints);
     KinematicModel {
         name: robot_name.to_string(),
         links,
         joints,
         frames,
+        actuation,
     }
 }
 
@@ -457,5 +468,21 @@ fn extract_joint_limits<R: NameResolver>(
             velocity: velocity.unwrap_or(0.0),
         }),
         _ => None,
+    }
+}
+
+impl LinkInfo {
+    /// A physical inertia has positive principal moments and satisfies their triangle inequalities.
+    pub fn valid_inertia(&self) -> bool {
+        let Some([xx, yy, zz, xy, xz, yz]) = self.inertia_com else { return true; };
+        if ![xx, yy, zz, xy, xz, yz].iter().all(|x| x.is_finite())
+            || self.mass.is_none_or(|m| !m.is_finite() || m <= 0.0) { return false; }
+        let determinant = xx * yy * zz + 2.0 * xy * xz * yz - xx * yz * yz - yy * xz * xz - zz * xy * xy;
+        if xx <= 0.0 || xx * yy <= xy * xy || determinant <= 0.0 { return false; }
+        // S = trace(I)/2 E - I is the second moment matrix; it must be positive semidefinite.
+        let [a,b,c] = [(yy+zz-xx)/2.0, (xx+zz-yy)/2.0, (xx+yy-zz)/2.0];
+        let eps = 1e-12 * (xx+yy+zz).powi(3);
+        a >= 0.0 && b >= 0.0 && c >= 0.0 && a*b >= xy*xy && a*c >= xz*xz && b*c >= yz*yz
+            && a*b*c - 2.0*xy*xz*yz - a*yz*yz - b*xz*xz - c*xy*xy >= -eps
     }
 }

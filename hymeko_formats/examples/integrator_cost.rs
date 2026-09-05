@@ -43,6 +43,7 @@ const GRAVITY: [f64; 3] = [0.0, 0.0, -9.80665];
 
 fn double_pendulum() -> KinematicModel {
     let link = |name: &str, mass: Option<f64>, com: [f64; 3]| LinkInfo {
+        inertia_com: None,
         did: DeclId::NONE,
         name: name.into(),
         mass,
@@ -64,6 +65,7 @@ fn double_pendulum() -> KinematicModel {
         limits: None,
     };
     KinematicModel {
+        actuation: Default::default(),
         name: "double".into(),
         links: vec![
             link("base", None, [0.0; 3]),

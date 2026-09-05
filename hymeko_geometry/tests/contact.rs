@@ -30,8 +30,10 @@ const GRAV: [f64; 3] = [0.0, 0.0, -G];
 /// nobody has to derive.
 fn falling_box(mass: f64, half: [f64; 3]) -> KinematicModel {
     KinematicModel {
+        actuation: Default::default(),
         name: "falling".into(),
         links: vec![LinkInfo {
+            inertia_com: None,
             did: DeclId::NONE,
             name: "body".into(),
             mass: Some(mass),
@@ -428,9 +430,11 @@ fn sliding_box(mass: f64, half: [f64; 3]) -> KinematicModel {
         limits: None,
     };
     KinematicModel {
+        actuation: Default::default(),
         name: "sliding".into(),
         links: vec![
             LinkInfo {
+                inertia_com: None,
                 did: DeclId::NONE,
                 name: "carriage".into(),
                 mass: None,
@@ -439,6 +443,7 @@ fn sliding_box(mass: f64, half: [f64; 3]) -> KinematicModel {
                 color: None,
             },
             LinkInfo {
+                inertia_com: None,
                 did: DeclId::NONE,
                 name: "body".into(),
                 mass: Some(mass),

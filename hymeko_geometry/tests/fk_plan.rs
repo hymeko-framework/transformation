@@ -158,6 +158,7 @@ fn a_plan_built_without_handles_still_resolves() {
 fn a_plan_reports_the_same_structural_failures() {
     use hymeko_geometry::forward::FkError;
     let empty = KinematicModel {
+        actuation: Default::default(),
         name: "empty".into(),
         links: Vec::new(),
         joints: Vec::new(),

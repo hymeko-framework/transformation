@@ -43,6 +43,8 @@ pub type JointValues = HashMap<String, f64>;
 /// declaration responsible.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FkError {
+    /// A dynamics consumer was given a nonphysical declared COM inertia.
+    InvalidInertia(String),
     /// The model declares no links.
     NoLinks,
     /// A link is the child of more than one joint, so the path to it — and hence its pose — is not
@@ -69,6 +71,7 @@ pub enum FkError {
 impl core::fmt::Display for FkError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            Self::InvalidInertia(link) => write!(f, "invalid declared inertia on link {link:?}"),
             Self::NoLinks => write!(f, "model declares no links"),
             Self::MultipleParents { link, joints } => write!(
                 f,
@@ -576,6 +579,7 @@ mod tests {
 
     fn link(name: &str) -> LinkInfo {
         LinkInfo {
+            inertia_com: None,
             did: DeclId::NONE,
             name: name.to_string(),
             mass: None,
@@ -614,6 +618,7 @@ mod tests {
     /// base ──j1──▶ upper ──j2──▶ tool, both revolute about +z, each offset 1 along +x.
     fn two_link_arm() -> KinematicModel {
         KinematicModel {
+            actuation: Default::default(),
             name: "arm".into(),
             links: vec![link("base"), link("upper"), link("tool")],
             joints: vec![
@@ -704,6 +709,7 @@ mod tests {
     fn a_branching_tree_resolves_every_limb() {
         // base ──▶ left, base ──▶ right: two children of one parent is a tree, not an error.
         let m = KinematicModel {
+            actuation: Default::default(),
             name: "fork".into(),
             links: vec![link("base"), link("left"), link("right")],
             joints: vec![
@@ -770,6 +776,7 @@ mod tests {
     #[test]
     fn a_model_with_no_links_is_rejected() {
         let m = KinematicModel {
+            actuation: Default::default(),
             name: "empty".into(),
             links: vec![],
             joints: vec![],
@@ -784,6 +791,7 @@ mod tests {
     #[test]
     fn a_single_link_is_its_own_root_at_the_identity() {
         let m = KinematicModel {
+            actuation: Default::default(),
             name: "one".into(),
             links: vec![link("base")],
             joints: vec![],

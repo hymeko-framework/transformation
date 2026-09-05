@@ -1,0 +1,17 @@
+tp_fixture {}
+elements { meta_element {} link: + <isa> meta_element {} @joint {} }
+axes { axis_definition {} Y: + <isa> axis_definition { ax [0.0, 1.0, 0.0]; } }
+@rev_joint: + <isa> elements.joint {}
+@tp_chart {}
+robot: elements, axes {
+    base: elements.link { mass 1.0; }
+    a: elements.link { mass 1.0; }
+    b: elements.link { mass 1.0; }
+    c: elements.link { mass 1.0; }
+    @j1: rev_joint { (+ base, - a, - axes.Y); limit_lower -45; limit_upper 45; }
+    @j2: rev_joint { (+ base, - b, - axes.Y); }
+    @j3: rev_joint { (+ base, - c, - axes.Y); }
+    x { joint -> j1; lower_deg -20; upper_deg 20; }
+    y { joint -> j2; lower_deg -20; upper_deg 20; }
+    @chart: tp_chart { (+ x, + y); operator "rest_acceleration"; samples 11; rank 3; cr_grid 257; }
+}

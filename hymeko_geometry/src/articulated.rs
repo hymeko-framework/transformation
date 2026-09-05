@@ -163,6 +163,9 @@ impl AbaPlan {
     /// Whatever [`FkPlan::new`] rejects — a cycle, a joint naming a link that does not exist, a
     /// mechanism with no root.
     pub fn new(model: &KinematicModel) -> Result<Self, FkError> {
+        if let Some(link) = model.links.iter().find(|l| !l.valid_inertia()) {
+            return Err(FkError::InvalidInertia(link.name.clone()));
+        }
         let plan = FkPlan::new(model)?;
 
         let subspace: Vec<Option<Twist>> = model
@@ -192,10 +195,12 @@ impl AbaPlan {
                     .filter(|o| o.len() >= 3)
                     .map(|o| [o[0], o[1], o[2]])
                     .unwrap_or([0.0; 3]);
-                // A point mass, because that is all the declaration carries. Inventing a rotational
-                // inertia would be a physical claim the source never made; the moment a link
-                // declares one, `SpatialInertia::rigid` takes it here and nothing else changes.
-                SpatialInertia::point_mass(m, com)
+                // Use the declared full COM tensor. Legacy mass-only links retain their
+                // point-mass semantics rather than inventing a rotational inertia.
+                match l.inertia_com {
+                    Some([xx, yy, zz, xy, xz, yz]) => SpatialInertia::rigid(m, com, [xx, xy, xz, xy, yy, yz, xz, yz, zz]),
+                    None => SpatialInertia::point_mass(m, com),
+                }
             })
             .collect();
 

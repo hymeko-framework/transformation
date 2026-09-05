@@ -29,6 +29,7 @@ const GRAV: [f64; 3] = [0.0, 0.0, -G];
 
 fn link(name: &str, mass: Option<f64>, com: [f64; 3]) -> LinkInfo {
     LinkInfo {
+        inertia_com: None,
         did: DeclId::NONE,
         name: name.to_string(),
         mass,
@@ -57,6 +58,7 @@ fn hinge(name: &str, parent: &str, child: &str, at: [f64; 3]) -> JointInfo {
 
 fn model(name: &str, links: Vec<LinkInfo>, joints: Vec<JointInfo>) -> KinematicModel {
     KinematicModel {
+        actuation: Default::default(),
         name: name.to_string(),
         links,
         joints,
@@ -75,6 +77,19 @@ fn pendulum(l: f64, m: f64) -> KinematicModel {
         ],
         vec![hinge("hinge", "base", "bob", [0.0; 3])],
     )
+}
+
+#[test]
+fn explicit_com_inertia_contributes_to_the_physical_pendulum() {
+    let mut m = pendulum(0.7, 2.0);
+    m.links[1].inertia_com = Some([0.2, 0.3, 0.4, 0.01, 0.02, 0.03]);
+    let plan = AbaPlan::new(&m).unwrap();
+    let mut scratch = plan.scratch();
+    let mut acceleration = [0.0];
+    plan.accelerations(&m, &[0.0], &[0.0], &[1.0], [0.0; 3], &mut scratch, &mut acceleration);
+    assert!((acceleration[0] - 1.0 / (2.0 * 0.7 * 0.7 + 0.3)).abs() < 1e-10);
+    m.links[1].inertia_com = Some([0.2, 3.0, 0.4, 0.0, 0.0, 0.0]);
+    assert!(AbaPlan::new(&m).is_err());
 }
 
 /// Two point masses in series — chaotic, strongly coupled, and with a velocity-product term that a
