@@ -33,6 +33,7 @@ pub mod collide;
 pub mod contact;
 pub mod engine;
 pub mod forward;
+pub mod force_field;
 pub mod kinematics;
 pub mod transforms;
 

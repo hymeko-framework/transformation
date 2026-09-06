@@ -245,6 +245,8 @@ pub struct Wire {
 /// A declared port-Hamiltonian system, ready to analyse or to run.
 #[derive(Debug, Clone, PartialEq)]
 pub struct System {
+    /// Sealed source subsystems and their exported power ports.
+    pub hierarchy: crate::hierarchy::Hierarchy,
     /// The declaration this came from, for a result file.
     pub name: String,
     pub coordinates: Vec<Coordinate>,
@@ -574,6 +576,7 @@ impl System {
             .collect();
 
         Self {
+            hierarchy: self.hierarchy.clone(),
             name: self.name.clone(),
             coordinates,
             port_hamiltonian: PortHamiltonian::new(

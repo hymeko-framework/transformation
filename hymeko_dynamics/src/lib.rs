@@ -21,6 +21,7 @@
 pub mod analysis;
 pub mod field;
 pub mod kirchhoff;
+pub mod hierarchy;
 pub mod layout;
 pub mod read;
 pub mod run;
