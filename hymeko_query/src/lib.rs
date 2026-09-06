@@ -28,7 +28,6 @@ pub mod predicate;
 pub mod predicate_expr;
 pub mod engine;
 pub mod entropy;
-pub mod sphf;
 
 #[cfg(feature = "interpret")]
 pub mod interpret;
@@ -41,6 +40,5 @@ pub mod traits;
 // Re-exports for convenience
 pub use predicate::{NamedQuery, Predicate, ValuePredicate};
 pub use engine::{ArcBinding, QueryConfig, QueryEngine, QueryMatch};
-pub use sphf::{Hyperedge, Incidence, Role, SignedHypergraph};
 pub use entropy::{compute_entropy, compute_entropy_hierarchical, StructuralEntropy};
 pub use traits::NameResolver;

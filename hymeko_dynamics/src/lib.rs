@@ -19,6 +19,7 @@
 //! must equal the declared one — and does, to zero.
 
 pub mod analysis;
+pub mod diffusion;
 pub mod field;
 pub mod kirchhoff;
 pub mod hierarchy;

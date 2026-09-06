@@ -30,6 +30,8 @@ hymeko_numerics = { git = "ssh://git@amaterasu.local:2222/hymeko/tensor.git", br
 # The shared in-memory SourceProvider, so a model compiles where there is no disk.
 hymeko_sources = { path = "../hymeko_sources" }
 
+hymeko_graph = { path = "../../graph/hymeko_graph" }
+
 [dev-dependencies]
 # The network reading of the same circuit, so the quasi-static limit can be checked against it.
 hymeko_optimize = { path = "../hymeko_optimize" }

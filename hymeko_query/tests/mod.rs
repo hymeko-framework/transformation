@@ -15,7 +15,6 @@
 
 mod bench_workflow;
 mod codegen;
-mod sphf;
 mod test_anthropomorphic_generation;
 mod test_const_resolve;
 mod test_entropy;
