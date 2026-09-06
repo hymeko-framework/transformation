@@ -1,0 +1,26 @@
+linear_drive_fixture {}
+elements {
+    meta_element {}
+    link: + <isa> meta_element {}
+    attachment: + <isa> meta_element {}
+    @joint {}
+}
+axes { axis_definition {} AXIS_Y: + <isa> axis_definition { ax [0.0, 1.0, 0.0]; } }
+@rev_joint: + <isa> elements.joint {}
+@linear_drive {}
+@hydraulic_drive: + <isa> linear_drive {}
+robot: elements, axes {
+    upper: elements.link {
+        mass 2.0; origin [0.0, 0.0, 0.0];
+        inertia_com { xx 0.2; yy 0.3; zz 0.4; xy 0.01; xz 0.02; yz 0.03; }
+        mount: elements.attachment { x 0.08; y 0.0; z -0.2; }
+    }
+    lower: elements.link {
+        mass 1.0; origin [0.0, 0.0, -0.1];
+        rod: elements.attachment { x 0.06; y 0.0; z -0.1; }
+    }
+    @hinge: rev_joint { (+ upper [[0.0, 0.0, -0.3], [0.0, 0.0, 0.0]], - lower, - axes.AXIS_Y); }
+    cylinder { law "hydraulic"; area_m2 0.00045; pressure_pa 8000000.0;
+        response_s 0.04; damping_ns_m 60.0; length_min_m 0.1; length_max_m 0.4; radius_m 0.02; }
+    @drive: hydraulic_drive { (+ upper.mount, - lower.rod); joint -> hinge; parameters -> cylinder; }
+}

@@ -576,6 +576,7 @@ dependencies = [
  "hymeko_clifford",
  "hymeko_core",
  "hymeko_query",
+ "hymeko_sources",
  "log",
  "parser",
 ]

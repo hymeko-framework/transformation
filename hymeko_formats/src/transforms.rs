@@ -19,6 +19,7 @@ use std::fmt::Write;
 use std::collections::{HashMap, HashSet};
 
 use hymeko_geometry::kinematics::joints::{JointInfo, JointType};
+use hymeko_geometry::kinematics::actuation::{Attachment, DriveLaw};
 use hymeko_geometry::kinematics::kinematic::{GeometryShape, KinematicModel, LinkInfo};
 use hymeko_geometry::transforms::{
     Diagnostic, DomainTransform, ModelKind, ModelView, TransformConfig,
@@ -92,6 +93,7 @@ impl DomainTransform for MjcfTransform {
     }
 
     fn emit(&self, model: &ModelView, config: &TransformConfig) -> Option<String> {
+        if self.validate(model).iter().any(Diagnostic::is_error) { return None; }
         let km = model.as_kinematic()?;
         Some(emit_mjcf(km, config))
     }
@@ -102,6 +104,22 @@ impl DomainTransform for MjcfTransform {
     fn validate(&self, model: &ModelView) -> Vec<Diagnostic> {
         let mut diags = Vec::new();
         if let Some(km) = model.as_kinematic() {
+            diags.extend(km.actuation.errors.iter().map(Diagnostic::error));
+            for link in &km.links {
+                if !link.valid_inertia() { diags.push(Diagnostic::error(format!("invalid inertia on {}", link.name))); }
+            }
+            for drive in &km.actuation.drives {
+                if let Some([guide, side]) = drive.wrapping {
+                    if !km.actuation.attachments.iter().any(|a| a.did == guide && a.radius_m.is_some())
+                        || !km.actuation.attachments.iter().any(|a| a.did == side) {
+                        diags.push(Diagnostic::error(format!("dangling tendon guide {}", drive.name)));
+                    }
+                }
+                if ![drive.origin, drive.insertion].iter().all(|id| km.actuation.attachments.iter().any(|s| s.did == *id))
+                    || !km.joints.iter().any(|j| j.did == drive.joint) {
+                    diags.push(Diagnostic::error(format!("dangling force connection {}", drive.name)));
+                }
+            }
             let mut child_counts: std::collections::HashMap<&str, usize> =
                 std::collections::HashMap::new();
             for j in &km.joints {
@@ -467,9 +485,31 @@ fn emit_mjcf(model: &KinematicModel, config: &TransformConfig) -> String {
         out.push_str("  </contact>\n\n");
     }
 
+    if !model.actuation.drives.is_empty() {
+        out.push_str("  <tendon>\n");
+        for drive in &model.actuation.drives {
+            let name = xml_escape(&drive.name);
+            let color = match drive.law { DriveLaw::Muscle { .. } => "0.75 0.12 0.1 1", _ => "0.15 0.3 0.55 1" };
+            let [lo,hi] = drive.length_range_m;
+            out.push_str(&format!("    <spatial name=\"{name}\" width=\"{}\" rgba=\"{color}\" limited=\"true\" range=\"{lo} {hi}\">\n", drive.radius_m));
+            for id in [drive.origin, drive.insertion] {
+                let site = model.actuation.attachments.iter().find(|s| s.did == id).unwrap();
+                out.push_str(&format!("      <site site=\"{}\"/>\n", xml_escape(&site.name)));
+                if id == drive.origin {
+                    if let Some([guide, side]) = drive.wrapping {
+                        let guide = model.actuation.attachments.iter().find(|s| s.did == guide).unwrap();
+                        let side = model.actuation.attachments.iter().find(|s| s.did == side).unwrap();
+                        out.push_str(&format!("      <geom geom=\"guide.{}\" sidesite=\"{}\"/>\n", xml_escape(&guide.name), xml_escape(&side.name)));
+                    }
+                }
+            }
+            out.push_str("    </spatial>\n");
+        }
+        out.push_str("  </tendon>\n");
+    }
     out.push_str("  <actuator>\n");
     for j in &model.joints {
-        if j.joint_type != JointType::Fixed {
+        if j.joint_type != JointType::Fixed && !model.actuation.drives.iter().any(|d| d.joint == j.did) {
             // Bound the torque to the joint's declared effort limit (N·m); an unlimited
             // joint leaves ctrlrange off (the consumer supplies its own default).
             let ctrl = j
@@ -484,6 +524,19 @@ fn emit_mjcf(model: &KinematicModel, config: &TransformConfig) -> String {
             ));
         }
     }
+    for drive in &model.actuation.drives {
+        let name = xml_escape(&drive.name);
+        let [lo, hi] = drive.length_range_m;
+        match drive.law {
+            DriveLaw::Muscle { force, activation_s, deactivation_s } => {
+                out.push_str(&format!("    <muscle name=\"act_{name}\" tendon=\"{name}\" force=\"{force}\" timeconst=\"{activation_s} {deactivation_s}\" lengthrange=\"{lo} {hi}\" ctrlrange=\"0 1\"/>\n"));
+            }
+            DriveLaw::Hydraulic { area_m2, pressure_pa, response_s, damping_ns_m } => {
+                let force = area_m2 * pressure_pa;
+                out.push_str(&format!("    <general name=\"act_{name}\" tendon=\"{name}\" dyntype=\"filterexact\" dynprm=\"{response_s}\" gaintype=\"fixed\" gainprm=\"{area_m2}\" biastype=\"affine\" biasprm=\"0 0 -{damping_ns_m}\" ctrllimited=\"true\" ctrlrange=\"-{pressure_pa} {pressure_pa}\" forcelimited=\"true\" forcerange=\"-{force} {force}\"/>\n"));
+            }
+        }
+    }
     out.push_str("  </actuator>\n");
     out.push_str("</mujoco>\n");
     out
@@ -491,6 +544,7 @@ fn emit_mjcf(model: &KinematicModel, config: &TransformConfig) -> String {
 
 /// Pre-built O(1) lookup tables for the MJCF body walk.
 struct MjcfCtx<'a> {
+    attachments: HashMap<&'a str, Vec<&'a Attachment>>,
     /// child_link → its single incoming joint (URDF/MJCF require tree
     /// topology, so each link has at most one).
     incoming: HashMap<&'a str, &'a JointInfo>,
@@ -521,7 +575,14 @@ impl<'a> MjcfCtx<'a> {
         for l in &model.links {
             link.insert(l.name.as_str(), l);
         }
+        let mut attachments: HashMap<&str, Vec<&Attachment>> = HashMap::new();
+        for site in &model.actuation.attachments {
+            if let Some(body) = model.links.iter().find(|l| l.did == site.link) {
+                attachments.entry(body.name.as_str()).or_default().push(site);
+            }
+        }
         Self {
+            attachments,
             incoming,
             link,
             children,
@@ -550,6 +611,15 @@ fn emit_mjcf_body_open(out: &mut String, ctx: &MjcfCtx<'_>, link_name: &str, ind
     }
     out.push_str(">\n");
 
+    if let Some(sites) = ctx.attachments.get(link_name) {
+        for site in sites {
+            let [x,y,z] = site.position;
+            out.push_str(&format!("{pad2}<site name=\"{}\" pos=\"{x} {y} {z}\" size=\"0.005\"/>\n", xml_escape(&site.name)));
+            if let Some(radius) = site.radius_m {
+                out.push_str(&format!("{pad2}<geom name=\"guide.{}\" type=\"sphere\" pos=\"{x} {y} {z}\" size=\"{radius}\" mass=\"0\" contype=\"0\" conaffinity=\"0\" rgba=\"0.3 0.3 0.32 1\"/>\n", xml_escape(&site.name)));
+            }
+        }
+    }
     if let Some(link) = ctx.link.get(link_name).copied() {
         // The link's geometry centroid (its `origin [x y z]` offset) — used for both the COM and
         // the geom pos, so the mass sits at the rod's centre and the geom spans from the joint.
@@ -563,10 +633,12 @@ fn emit_mjcf_body_open(out: &mut String, ctx: &MjcfCtx<'_>, link_name: &str, ind
             let i = mass * 0.01;
             // <inertial> COM at the geometry centroid (not the joint), so a link's mass is centred
             // on its rod. A richer inertia tensor can refine the diaginertia later.
-            out.push_str(&format!(
+            if let Some([xx,yy,zz,xy,xz,yz]) = link.inertia_com {
+                out.push_str(&format!("{pad2}<inertial mass=\"{mass}\" pos=\"{centroid}\" fullinertia=\"{xx} {yy} {zz} {xy} {xz} {yz}\"/>\n"));
+            } else { out.push_str(&format!(
                 "{}<inertial mass=\"{}\" pos=\"{}\" diaginertia=\"{} {} {}\"/>\n",
                 pad2, mass, centroid, i, i, i
-            ));
+            )); }
         }
         if let Some(ref geom) = link.geometry {
             // Explicit MuJoCo collision categories (additive): omitted entirely when None (historical default).
@@ -962,6 +1034,7 @@ mod mjcf_emit_tests {
         let mut links = Vec::with_capacity(n);
         for i in 0..n {
             links.push(LinkInfo {
+                inertia_com: None,
                 did: DeclId::new(i),
                 name: format!("L{i}"),
                 mass: Some(1.0),
@@ -991,6 +1064,7 @@ mod mjcf_emit_tests {
             });
         }
         KinematicModel {
+            actuation: Default::default(),
             name: "deep".to_string(),
             links,
             joints,

@@ -17,8 +17,10 @@ const G: f64 = 9.80665;
 /// A box on a prismatic joint along world `z`: it falls, it lands, and nothing else happens.
 fn falling_box(mass: f64, half_height: f64) -> KinematicModel {
     KinematicModel {
+        actuation: Default::default(),
         name: "falling".into(),
         links: vec![LinkInfo {
+            inertia_com: None,
             did: DeclId::NONE,
             name: "body".into(),
             mass: Some(mass),
@@ -50,6 +52,7 @@ fn falling_box(mass: f64, half_height: f64) -> KinematicModel {
 /// A double pendulum with nothing to collide with — the smooth regime, undiluted.
 fn double_pendulum() -> KinematicModel {
     let link = |name: &str, mass: Option<f64>, com: [f64; 3]| LinkInfo {
+        inertia_com: None,
         did: DeclId::NONE,
         name: name.into(),
         mass,
@@ -71,6 +74,7 @@ fn double_pendulum() -> KinematicModel {
         limits: None,
     };
     KinematicModel {
+        actuation: Default::default(),
         name: "double".into(),
         links: vec![
             link("base", None, [0.0; 3]),
