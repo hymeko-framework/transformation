@@ -223,7 +223,7 @@ impl<R: NameResolver> Fields<'_, R> {
             .decl_children(self.did)
             .any(|c| self.res.resolve(self.ir.decl_nodes[c.raw()].name) == key)
     }
-    fn value(&self, key: &str) -> Result<&ValueR, String> {
+    pub(super) fn value(&self, key: &str) -> Result<&ValueR, String> {
         self.ir
             .decl_children(self.did)
             .find(|c| self.res.resolve(self.ir.decl_nodes[c.raw()].name) == key)
@@ -253,7 +253,16 @@ impl<R: NameResolver> Fields<'_, R> {
         }
     }
     pub(super) fn array<const N: usize>(&self, key: &str) -> Result<[f64; N], String> {
-        let ValueR::List(values) = self.value(key)? else {
+        let mut value = self.value(key)?;
+        if let ValueR::Ref(target) = value {
+            value = self
+                .ir
+                .decl_nodes
+                .get(target.raw())
+                .and_then(|d| d.anno.value.as_ref())
+                .ok_or_else(|| format!("{key} references no value"))?;
+        }
+        let ValueR::List(values) = value else {
             return Err(format!("{key} must be a numeric vector"));
         };
         if values.len() != N {
