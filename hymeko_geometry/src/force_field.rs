@@ -114,3 +114,69 @@ mod tests {
         assert!(f.validate().is_err());
     }
 }
+
+/// Spherical celestial gravity. SI units; no rotation or oblateness correction.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SphericalGravity {
+    pub mu_m3_s2: f64,
+    pub radius_m: f64,
+}
+impl SphericalGravity {
+    /// Prefer measured GM when supplied; otherwise use mass and CODATA 2018 G.
+    pub fn from_parameters(
+        mu: Option<f64>,
+        mass_kg: Option<f64>,
+        radius_m: f64,
+    ) -> Result<Self, &'static str> {
+        if mu
+            .iter()
+            .chain(mass_kg.iter())
+            .any(|v| !v.is_finite() || *v <= 0.0)
+        {
+            return Err("mass and GM must be finite and positive");
+        }
+        let out = Self {
+            mu_m3_s2: mu
+                .or_else(|| mass_kg.map(|m| 6.67430e-11 * m))
+                .ok_or("mass or GM is required")?,
+            radius_m,
+        };
+        out.acceleration(0.0)?;
+        Ok(out)
+    }
+    pub fn acceleration(&self, altitude_m: f64) -> Result<f64, &'static str> {
+        if !self.mu_m3_s2.is_finite()
+            || self.mu_m3_s2 <= 0.0
+            || !self.radius_m.is_finite()
+            || self.radius_m <= 0.0
+            || !altitude_m.is_finite()
+            || altitude_m < 0.0
+        {
+            return Err(
+                "gravity requires positive finite GM/radius and nonnegative finite altitude",
+            );
+        }
+        let r = self.radius_m + altitude_m;
+        let g = self.mu_m3_s2 / r / r;
+        if !r.is_finite() || !g.is_finite() {
+            return Err("gravity calculation overflow");
+        }
+        Ok(g)
+    }
+}
+#[cfg(test)]
+mod celestial_tests {
+    use super::SphericalGravity;
+    #[test]
+    fn spherical_gravity_obeys_inverse_square_and_mass_equivalence() {
+        let body = SphericalGravity::from_parameters(Some(40.0), None, 2.0).unwrap();
+        assert_eq!(body.acceleration(0.0).unwrap(), 10.0);
+        assert_eq!(body.acceleration(2.0).unwrap(), 2.5);
+        let mass = SphericalGravity::from_parameters(None, Some(40.0 / 6.67430e-11), 2.0).unwrap();
+        assert!((mass.acceleration(0.0).unwrap() - 10.0).abs() < 1e-12);
+        assert!(body.acceleration(-1.0).is_err());
+        assert!(body.acceleration(f64::NAN).is_err());
+        assert!(SphericalGravity::from_parameters(None, None, 1.0).is_err());
+        assert!(SphericalGravity::from_parameters(Some(1.0), None, 0.0).is_err());
+    }
+}
