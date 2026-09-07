@@ -14,6 +14,39 @@ use hymeko_geometry::kinematics::kinematic::{
 
 const G: f64 = 9.80665;
 
+#[test]
+fn impending_plane_crossing_is_constrained_before_penetration() {
+    // Sphere avoids coupling this regression to the separate box-size bug.
+    for step in [1.0 / 60.0, 1.0 / 240.0, 1.0 / 960.0] {
+        for speed in [1.0, 10.0, 100.0] {
+            for fraction in [0.15, 0.5, 0.95, 1.5] {
+                let mut model = falling_box(2.0, 0.1);
+                model.links[0].geometry = Some(GeometryInfo {
+                    shape: GeometryShape::Sphere,
+                    dimensions: vec![0.1],
+                    collision: None,
+                });
+                let mut e = Engine::new(model).unwrap();
+                e.gravity = [0.0; 3];
+                e.contact.friction = 0.0;
+                e.free_flight = FreeFlight::Never;
+                e.contact_step = step;
+                let gap = speed * step * fraction;
+                e.q[0] = 0.1 + gap;
+                e.qd[0] = -speed;
+                e.advance(step);
+                let expected = 0.1 + (gap - speed * step).max(0.0);
+                assert!(
+                    (e.q[0] - expected).abs() < 1e-10,
+                    "dt={step}, speed={speed}, phase={fraction}: z={} expected={expected}",
+                    e.q[0],
+                );
+                assert!(e.qd[0] <= 1e-10, "zero restitution must not add a rebound");
+            }
+        }
+    }
+}
+
 /// A box on a prismatic joint along world `z`: it falls, it lands, and nothing else happens.
 fn falling_box(mass: f64, half_height: f64) -> KinematicModel {
     KinematicModel {
@@ -26,7 +59,7 @@ fn falling_box(mass: f64, half_height: f64) -> KinematicModel {
             mass: Some(mass),
             geometry: Some(GeometryInfo {
                 shape: GeometryShape::Box,
-                dimensions: vec![0.2, 0.2, half_height],
+                dimensions: vec![0.4, 0.4, 2.0 * half_height],
                 collision: None,
             }),
             origin: Some(vec![0.0; 3]),
@@ -109,16 +142,12 @@ fn a_big_free_step_never_lets_a_body_through_the_floor() {
         for _ in 0..600 {
             e.advance(1.0 / 60.0);
             lowest = lowest.min(e.q[0] - half);
+            assert!(e.qd[0] <= 1e-10, "a zero-restitution landing must not bounce");
         }
-        // The bound is one contact step's travel at the impact speed, plus the slop. Some
-        // penetration is not a failure and cannot be avoided by a discrete scheme: the body crosses
-        // the plane inside a step and the impulse acts at its end. Going deeper than a whole step's
-        // travel WOULD be a failure, because it would mean the contact was not seen when it happened.
-        let impact = (2.0 * G * (height - half)).max(0.0).sqrt();
-        let allowed = impact * e.contact_step + e.contact.slop;
+        // Linear translation admits the contact before crossing, to roundoff accuracy.
         assert!(
-            lowest > -allowed,
-            "dropped from {height} m at {impact:.2} m/s, the lowest face reached {lowest} m;              one step's travel is {allowed:.2e}, so it was not caught when it crossed"
+            lowest >= -1e-10,
+            "dropped from {height} m, the lowest face reached {lowest} m"
         );
         assert!(
             (e.q[0] - half).abs() < 5e-3,

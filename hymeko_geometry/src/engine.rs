@@ -115,6 +115,7 @@ pub struct Engine {
     velocity: Vec<f64>,
     armature: Vec<f64>,
     poses: Vec<Se3>,
+    predicted_poses: Vec<Se3>,
     placed: Vec<Placement>,
     boxes: Vec<([f64; 3], [f64; 3])>,
     candidates: Vec<(usize, usize)>,
@@ -163,6 +164,7 @@ impl Engine {
             free: vec![0.0; n],
             velocity: vec![0.0; n],
             armature: vec![0.0; n],
+            predicted_poses: poses.clone(),
             poses,
             placed: Vec::new(),
             boxes: Vec::new(),
@@ -326,6 +328,7 @@ impl Engine {
                 self.contact.margin,
                 &mut self.contacts,
             );
+            self.predict_ground_contacts(height, h);
             if !self.contacts.is_empty() {
                 ground_constraints(
                     &self.aba,
@@ -357,6 +360,30 @@ impl Engine {
         self.armature.clear();
         self.armature.resize(n, 0.0);
         self.aba.set_armature(&self.armature);
+    }
+
+    /// Admit impending plane crossings using the free end pose, while the
+    /// constraint Jacobian and gap remain at the current pose. Exact for linear
+    /// translations; this is not continuous collision detection for rotations.
+    fn predict_ground_contacts(&mut self, height: f64, h: f64) {
+        if self.contacts.len() == self.colliders.len() {
+            return;
+        }
+        for ((next, &q), &velocity) in self.trial.0.iter_mut().zip(&self.q).zip(&self.velocity) {
+            *next = q + h * velocity;
+        }
+        self.plan.resolve_se3(&self.model, &self.trial.0, &mut self.predicted_poses);
+        for (collider, (shape, placed)) in self.colliders.iter().zip(&self.placed).enumerate() {
+            let point = placed.support(&shape.shape, [0.0, 0.0, -1.0]);
+            let separation = point[2] - height;
+            if separation <= self.contact.margin {
+                continue; // already admitted by ground_contacts, exactly once
+            }
+            let predicted = Placement::of(shape, &self.predicted_poses[shape.link]);
+            if predicted.support(&shape.shape, [0.0, 0.0, -1.0])[2] - height <= self.contact.margin {
+                self.contacts.push(GroundContact { collider, point, separation });
+            }
+        }
     }
 
     /// Dormand-Prince 5(4) at a fixed step, for an interval with nothing touching.

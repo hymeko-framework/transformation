@@ -39,7 +39,7 @@ fn falling_box(mass: f64, half: [f64; 3]) -> KinematicModel {
             mass: Some(mass),
             geometry: Some(GeometryInfo {
                 shape: GeometryShape::Box,
-                dimensions: half.to_vec(),
+                dimensions: half.iter().map(|v| 2.0 * v).collect(),
                 collision: None,
             }),
             origin: Some(vec![0.0, 0.0, 0.0]),
@@ -70,6 +70,7 @@ struct Engine {
     colliders: Vec<Collider>,
     solver: ConstraintSolver,
     parameters: ContactParameters,
+    ground_height: f64,
     q: Vec<f64>,
     qd: Vec<f64>,
     // scratch
@@ -104,6 +105,7 @@ impl Engine {
             colliders,
             solver: ConstraintSolver::new(),
             parameters: ContactParameters::default(),
+            ground_height: 0.0,
             q: vec![0.0; n],
             qd: vec![0.0; n],
             scratch,
@@ -138,7 +140,7 @@ impl Engine {
         ground_contacts(
             &self.colliders,
             &self.placed,
-            0.0,
+            self.ground_height,
             self.parameters.margin,
             &mut self.contacts,
         );
@@ -318,7 +320,12 @@ fn the_dense_solve_is_the_size_of_the_contact_set_not_the_mechanism() {
 
     let mut e = Engine::frictionless(model);
     let n = e.aba.slots();
-    // drop it onto the plane by lowering everything into contact
+    // Put the plane at the actual lowest support point of the authored geometry.
+    e.plan.resolve_se3(&e.model, &e.q, &mut e.poses);
+    place(&e.colliders, &e.poses, &mut e.placed);
+    e.ground_height = e.colliders.iter().zip(&e.placed)
+        .map(|(collider, placed)| placed.support(&collider.shape, [0.0, 0.0, -1.0])[2])
+        .fold(f64::INFINITY, f64::min);
     e.step(1.0 / 240.0, &vec![0.0; n]);
 
     let c = e.constraints.len();
@@ -449,7 +456,7 @@ fn sliding_box(mass: f64, half: [f64; 3]) -> KinematicModel {
                 mass: Some(mass),
                 geometry: Some(GeometryInfo {
                     shape: GeometryShape::Box,
-                    dimensions: half.to_vec(),
+                    dimensions: half.iter().map(|v| 2.0 * v).collect(),
                     collision: None,
                 }),
                 origin: Some(vec![0.0; 3]),

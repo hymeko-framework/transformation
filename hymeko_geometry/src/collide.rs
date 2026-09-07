@@ -32,8 +32,9 @@ use crate::kinematics::kinematic::{GeometryShape, KinematicModel};
 
 /// A convex body in its own frame, centred on the frame's origin.
 ///
-/// Dimensions follow the declaration's convention: a box's are HALF-extents, matching what the MJCF
-/// emitter writes, and a cylinder's and capsule's `half_height` is measured along local `+z`.
+/// Internal dimensions are half-extents. Authored boxes use full side lengths,
+/// and cylinders use [radius, full height], as in the MJCF/URDF projection.
+/// The legacy capsule convention is separate and still requires an axis/length audit.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Convex {
     Sphere {
@@ -68,11 +69,11 @@ impl Convex {
         match shape {
             GeometryShape::Sphere => dimensions.first().map(|&r| Self::Sphere { radius: r }),
             GeometryShape::Box => (dimensions.len() >= 3).then(|| Self::Cuboid {
-                half: [dimensions[0], dimensions[1], dimensions[2]],
+                half: [dimensions[0] * 0.5, dimensions[1] * 0.5, dimensions[2] * 0.5],
             }),
             GeometryShape::Cylinder => (dimensions.len() >= 2).then(|| Self::Cylinder {
                 radius: dimensions[0],
-                half_height: dimensions[1],
+                half_height: dimensions[1] * 0.5,
             }),
             GeometryShape::Capsule => (dimensions.len() >= 2).then(|| Self::Capsule {
                 radius: dimensions[0],

@@ -13,6 +13,22 @@
 use hymeko_clifford::Se3;
 use hymeko_geometry::collide::{intersects_at as intersects, Collider, Convex};
 
+#[test]
+fn declared_full_extents_match_the_mjcf_geometry_convention() {
+    use hymeko_geometry::kinematics::kinematic::GeometryShape;
+    for scale in [0.001, 0.1, 1.0, 10.0] {
+        let box_shape = Convex::from_declaration(
+            GeometryShape::Box, &[2.0 * scale, 4.0 * scale, 6.0 * scale],
+        ).unwrap();
+        let cylinder = Convex::from_declaration(GeometryShape::Cylinder, &[scale, 6.0 * scale]).unwrap();
+        assert_eq!(
+            box_shape.support([1.0, 1.0, 1.0]), [scale, 2.0 * scale, 3.0 * scale],
+        );
+        assert_eq!(cylinder.support([0.0, 0.0, 1.0])[2], 3.0 * scale);
+        assert_eq!(cylinder.support([1.0, 0.0, 0.0])[0], scale);
+    }
+}
+
 // --- reference geometry, computed without reference to the implementation ------------------------
 
 fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
