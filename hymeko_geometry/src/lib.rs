@@ -34,6 +34,7 @@ pub mod contact;
 pub mod engine;
 pub mod forward;
 pub mod mesh;
+pub mod material;
 pub mod force_field;
 pub mod kinematics;
 pub mod transforms;

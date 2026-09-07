@@ -7,6 +7,7 @@ pub struct MeshPart {
     pub mesh: Arc<TriangleMesh>,
     pub transforms: Vec<[[f32; 4]; 4]>,
     pub color: [f32; 4],
+    pub material: Arc<hymeko_geometry::material::PbrMaterial>,
 }
 
 pub struct MeshImport {
@@ -93,6 +94,7 @@ impl MeshImport {
             budget: [0; 2],
         };
         let mut visited = 0;
+        let mut materials = crate::texture::MaterialImport::default();
         let mut stack: Vec<_> = scene.nodes().map(|node| (node, Vec::new())).collect();
         while let Some((node, mut transforms)) = stack.pop() {
             visited += 1;
@@ -110,7 +112,12 @@ impl MeshImport {
                     }
                     let key = (mesh.index(), primitive.index());
                     let data = cache.get(key, &primitive)?;
+                    let material = materials.read(primitive.material(), blob)?;
+                    if material.textures.iter().any(Option::is_some) && data.uv.is_empty() {
+                        return Err("textured material requires TEXCOORD_0".into());
+                    }
                     out.parts.push(MeshPart {
+                        material,
                         name: node.name().unwrap_or("mesh").to_owned(),
                         mesh: data,
                         transforms: transforms.clone(),
@@ -165,6 +172,14 @@ impl MeshImport {
             .map(|r| r.into_u32().collect())
             .unwrap_or_else(|| (0..positions.len() as u32).collect());
         let mut mesh = TriangleMesh {
+            uv: reader
+                .read_tex_coords(0)
+                .map(|r| r.into_f32().collect())
+                .unwrap_or_default(),
+            tangents: reader
+                .read_tangents()
+                .map(Iterator::collect)
+                .unwrap_or_default(),
             positions,
             normals,
             lods: vec![MeshLod {

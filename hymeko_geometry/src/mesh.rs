@@ -28,11 +28,16 @@ pub struct TriangleMesh {
     pub positions: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
     pub lods: Vec<MeshLod>,
+    #[serde(default)]
+    pub uv: Vec<[f32; 2]>,
+    #[serde(default)]
+    pub tangents: Vec<[f32; 4]>,
 }
 
 impl TriangleMesh {
     pub fn validate(&self) -> Result<(), String> {
         let n = self.positions.len();
+        self.validate_attributes(n)?;
         if !(3..=1_000_000).contains(&n) || self.normals.len() != n {
             return Err("mesh requires 3..1000000 vertices and one normal per vertex".into());
         }
@@ -59,6 +64,31 @@ impl TriangleMesh {
         for lod in &self.lods {
             lod.validate(n, previous)?;
             previous = (lod.indices.len(), lod.error);
+        }
+        Ok(())
+    }
+
+    fn validate_attributes(&self, n: usize) -> Result<(), String> {
+        if !self.uv.is_empty() && self.uv.len() != n
+            || !self.tangents.is_empty() && self.tangents.len() != n
+        {
+            return Err("UV/tangent count must match vertices".into());
+        }
+        if self
+            .uv
+            .iter()
+            .flatten()
+            .chain(self.tangents.iter().flatten())
+            .any(|v| !v.is_finite())
+        {
+            return Err("nonfinite UV or tangent".into());
+        }
+        if self
+            .tangents
+            .iter()
+            .any(|t| t[3].abs() != 1.0 || t[..3].iter().map(|v| v * v).sum::<f32>() < 1e-12)
+        {
+            return Err("invalid tangent direction or handedness".into());
         }
         Ok(())
     }
@@ -141,6 +171,8 @@ mod tests {
             }
         }
         let mut mesh = TriangleMesh {
+            uv: Vec::new(),
+            tangents: Vec::new(),
             normals: vec![[0.0, 0.0, 1.0]; positions.len()],
             positions,
             lods: vec![MeshLod {
