@@ -26,9 +26,9 @@ cargo test  --workspace
 - Migrated from the `hymeko_framework_rust` monorepo (emitter + query + formats). `core`/`parser` kept external as git deps.
 - `test_mdsd_reuse` was gated out — it reaches into the sibling `hymeko_ros2_demo` crate (a demo, outside this layer).
 
-## Ryoshi physics engine
+## Kawakern physics engine
 
-**Ryoshi** names the existing HyMeKo physical engine family used by Kawamirai.
+**Kawakern** names the existing HyMeKo physical engine family used by Kawamirai.
 `hymeko_geometry::engine::Engine` owns articulated rigid dynamics and ground contact;
 `hymeko_dynamics` projects physical systems, including linear elasticity, into the
 existing Tensor numerical kernels. Graph owns signed incidence and octree structure.
