@@ -20,6 +20,7 @@
 
 pub mod analysis;
 pub mod diffusion;
+pub mod fluid;
 pub mod softbody;
 pub mod field;
 pub mod kirchhoff;

@@ -800,3 +800,40 @@ fn atom(r: &SignedRefR) -> &RefAtomR {
         SignedRefR::Plus(a) | SignedRefR::Minus(a) | SignedRefR::Neutral(a) => a,
     }
 }
+
+// Shared strict scalar/vector reads for continuum projections.
+pub(crate) fn number(
+    ir: &Ir,
+    it: &Interner,
+    decl: DeclId,
+    name: &str,
+    default: Option<f64>,
+) -> Result<f64, String> {
+    match hymeko_graph::octree::field(ir, it, decl, name) {
+        Some(ValueR::Num(v)) if v.is_finite() => Ok(*v),
+        None => default.ok_or_else(|| format!("missing {name}")),
+        _ => Err(format!("{name} must be finite numeric")),
+    }
+}
+pub(crate) fn vector(
+    ir: &Ir,
+    it: &Interner,
+    decl: DeclId,
+    name: &str,
+    default: Option<[f64; 3]>,
+) -> Result<[f64; 3], String> {
+    match hymeko_graph::octree::field(ir, it, decl, name) {
+        Some(ValueR::List(v)) if v.len() == 3 => {
+            let mut out = [0.0; 3];
+            for (i, x) in v.iter().enumerate() {
+                match x {
+                    ValueR::Num(n) if n.is_finite() => out[i] = *n,
+                    _ => return Err(format!("{name} must contain finite numbers")),
+                }
+            }
+            Ok(out)
+        }
+        None => default.ok_or_else(|| format!("missing {name}")),
+        _ => Err(format!("{name} must be a three-vector")),
+    }
+}
