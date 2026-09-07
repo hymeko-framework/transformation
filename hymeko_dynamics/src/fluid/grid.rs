@@ -2,6 +2,7 @@
 //! The iterative solver is Tensor's existing GMRES; this module supplies the fluid stencil.
 use super::{Controls, Marker};
 use hymeko_graph::octree::Octree;
+use hymeko_numerics::diffusion::Diffusion;
 use hymeko_numerics::{Operator, gmres};
 
 #[derive(Clone)]
@@ -161,8 +162,12 @@ impl Grid {
         g: f64,
         dt: f64,
         density: f64,
-    ) -> Result<(Vec<f64>, Vec<f64>, f64), String> {
+        viscosity: f64,
+    ) -> Result<(Vec<f64>, Vec<f64>, f64, f64), String> {
         let (mut velocity, liquid) = self.transfer(particles);
+        let viscous_loss = self.diffuse(&mut velocity, &liquid, viscosity, dt, controls.valve)?
+            * density
+            * self.dx.powi(3);
         let active = |cell: Option<usize>| cell.is_some_and(|i| liquid[i]);
         let mut rhs = vec![0.0; liquid.len()];
         let mut links = Vec::new();
@@ -224,7 +229,96 @@ impl Grid {
         for p in &mut pressure {
             *p *= density * self.dx / dt;
         }
-        Ok((velocity, pressure, residual))
+        Ok((velocity, pressure, residual, viscous_loss))
+    }
+
+    // Domain projection of nu*Laplacian on MAC dual volumes. Tensor owns both
+    // the conservative operator and solve. Missing air neighbours have zero flux;
+    // closed normal wall faces use a zero-velocity reservoir (wall reaction).
+    pub(super) fn diffuse(
+        &self,
+        velocity: &mut [f64],
+        liquid: &[bool],
+        nu: f64,
+        dt: f64,
+        valve: f64,
+    ) -> Result<f64, String> {
+        if nu == 0.0 {
+            return Ok(0.0);
+        }
+        let reservoir = velocity.len();
+        let mut present = vec![false; reservoir];
+        let mut wall = vec![false; reservoir];
+        for face in &self.faces {
+            present[face.slot] = [face.low, face.high]
+                .iter()
+                .any(|c| c.is_some_and(|i| liquid[i]));
+            wall[face.slot] = self.opening(face, valve) == 0.0;
+        }
+        let m = self.n + 1;
+        let mut links = Vec::new();
+        for face in &self.faces {
+            if !present[face.slot] {
+                continue;
+            }
+            let flat = face.slot % m.pow(3);
+            let c = [flat / (m * m), flat / m % m, flat % m];
+            for axis in 0..3 {
+                let mut neighbour = c;
+                neighbour[axis] += 1;
+                if neighbour[axis] >= self.n + usize::from(axis == face.axis) {
+                    continue;
+                }
+                let slot = self.slot(face.axis, neighbour);
+                if !present[slot] || (wall[slot] && wall[face.slot]) {
+                    continue;
+                }
+                let a = if wall[face.slot] {
+                    reservoir
+                } else {
+                    face.slot
+                };
+                let b = if wall[slot] { reservoir } else { slot };
+                links.push((a, b, nu / self.dx.powi(2)));
+            }
+        }
+        let op = ViscousBoundary(Diffusion::new(vec![1.0; reservoir + 1], links)?);
+        let mut rhs = velocity.to_vec();
+        for (i, value) in rhs.iter_mut().enumerate() {
+            if wall[i] {
+                *value = 0.0;
+            }
+        }
+        rhs.push(0.0);
+        let mut next = rhs.clone();
+        let report = gmres(&op, dt, &rhs, &mut next, 1e-10, 32, 160);
+        if !report.converged || next.iter().any(|v| !v.is_finite()) {
+            return Err(format!(
+                "fluid viscosity solve failed: residual {}",
+                report.residual
+            ));
+        }
+        let loss = 0.5
+            * rhs
+                .iter()
+                .zip(&next)
+                .map(|(a, b)| a * a - b * b)
+                .sum::<f64>();
+        velocity.copy_from_slice(&next[..reservoir]);
+        Ok(loss)
+    }
+}
+
+// The last coordinate is a fixed wall, with zero RHS and zero derivative.
+// On the free coordinates this is the symmetric dissipative Dirichlet stencil.
+struct ViscousBoundary(Diffusion);
+impl Operator for ViscousBoundary {
+    fn dim(&self) -> usize {
+        self.0.len()
+    }
+    fn apply(&self, x: &[f64], y: &mut [f64]) {
+        self.0.apply(x, y);
+        y[self.dim() - 1] = 0.0;
     }
 }
 

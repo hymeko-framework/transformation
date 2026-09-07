@@ -243,6 +243,107 @@ mod tests {
             assert!((a - b).abs() < 1e-12);
         }
     }
+
+    #[test]
+    fn viscosity_matches_discrete_shear_decay_for_signed_velocity() {
+        let fluid = compile(&fixture()).unwrap();
+        let grid = &fluid.grid;
+        let count = 3 * (grid.n + 1).pow(3);
+        let dt = 1.0 / 240.0;
+        let nu = 0.1;
+        let lambda =
+            8.0 / grid.dx.powi(2) * (std::f64::consts::PI / (2.0 * grid.n as f64)).sin().powi(2);
+        for amplitude in [-2.0, -0.1, 0.0, 0.3, 2.0] {
+            let mut velocity = vec![0.0; count];
+            for f in &grid.faces {
+                if f.axis == 0 {
+                    velocity[f.slot] = amplitude
+                        * (std::f64::consts::PI * f.centre[0]).sin()
+                        * (std::f64::consts::PI * f.centre[1]).cos();
+                }
+            }
+            let initial = velocity.clone();
+            let liquid = vec![true; grid.n.pow(3)];
+            assert_eq!(
+                grid.diffuse(&mut velocity, &liquid, 0.0, dt, 0.0).unwrap(),
+                0.0
+            );
+            assert_eq!(velocity, initial);
+            let loss = grid.diffuse(&mut velocity, &liquid, nu, dt, 0.0).unwrap();
+            assert!(loss >= -1e-12);
+            for (v, before) in velocity.iter().zip(&initial) {
+                assert!((v - before / (1.0 + dt * nu * lambda)).abs() < 1e-11);
+            }
+            assert!(velocity.iter().sum::<f64>().abs() < 1e-11);
+        }
+    }
+
+    #[test]
+    fn authored_viscosity_preserves_inventory_and_reports_dissipation() {
+        let source = fixture().replace(
+            "density 1000",
+            "density 1000;kinematic_viscosity 0.01;initial_velocity [0.2,-0.1,0]",
+        );
+        let mut fluid = compile(&source).unwrap();
+        let controls = Controls {
+            inlet_flow: 0.0,
+            valve: 0.0,
+            drag: 0.0,
+        };
+        for _ in 0..120 {
+            fluid.step(1.0 / 240.0, 9.81, controls).unwrap();
+        }
+        let s = fluid.observation();
+        assert_eq!(s.kinematic_viscosity, 0.01);
+        assert!(s.viscous_loss > 0.0 && s.viscous_loss.is_finite());
+        assert_eq!(s.volume, s.initial_volume);
+        assert!(s.divergence < 1e-5);
+        for invalid in ["-0.1", "1.01"] {
+            assert!(
+                compile(&source.replace(
+                    "kinematic_viscosity 0.01",
+                    &format!("kinematic_viscosity {invalid}")
+                ))
+                .is_err()
+            );
+        }
+        assert_eq!(
+            compile(&fixture())
+                .unwrap()
+                .observation()
+                .kinematic_viscosity,
+            0.0
+        );
+    }
+
+    #[test]
+    fn vanishing_viscosity_preserves_free_surface_transfer() {
+        let source = fixture().replace(
+            "density 1000",
+            "density 1000;initial_velocity [0.2,-0.1,0.1]",
+        );
+        let mut inviscid = compile(&source).unwrap();
+        let mut viscous = compile(&source.replace(
+            "density 1000",
+            "density 1000;kinematic_viscosity 0.000000000001",
+        ))
+        .unwrap();
+        let controls = Controls {
+            inlet_flow: 0.0,
+            valve: 0.5,
+            drag: 0.0,
+        };
+        for _ in 0..10 {
+            inviscid.step(1.0 / 240.0, 9.81, controls).unwrap();
+            viscous.step(1.0 / 240.0, 9.81, controls).unwrap();
+            for (a, b) in inviscid.markers().iter().zip(viscous.markers()) {
+                for axis in 0..3 {
+                    assert!((a.position[axis] - b.position[axis]).abs() < 1e-9);
+                    assert!((a.velocity[axis] - b.velocity[axis]).abs() < 1e-9);
+                }
+            }
+        }
+    }
 }
 /// Equal-volume material marker; volume accounting uses these actual particles.
 #[derive(Clone, Debug)]
@@ -353,6 +454,11 @@ pub struct Observation {
     pub energy: f64,
     pub divergence: f64,
     pub max_pressure: f64,
+    /// Authored kinematic viscosity, m2/s. Zero retains the inviscid prototype.
+    pub kinematic_viscosity: f64,
+    /// Cumulative MAC dual-grid kinetic-energy loss in the implicit viscosity
+    /// substep, J. Includes backward-Euler damping; excludes PIC/pressure losses.
+    pub viscous_loss: f64,
 }
 /// Bounded particle-in-cell liquid. Walls are fixed, free-slip and axis aligned.
 pub struct Fluid {
@@ -371,14 +477,19 @@ impl Fluid {
         let tree = Octree::from_ir(ir, it, scope)?;
         let boundary = Boundary::project(ir, it, scope, tree.cells[tree.root].decl)?;
         let density = number(ir, it, scope, "density", None)?;
+        let viscosity = number(ir, it, scope, "kinematic_viscosity", Some(0.0))?;
         let height = number(ir, it, scope, "initial_height", None)?;
         let initial_velocity = vector(ir, it, scope, "initial_velocity", Some([0.0; 3]))?;
         let grid = Grid::new(&tree, boundary.outlet_lo, boundary.outlet_hi)?;
         if !(1.0..=20000.0).contains(&density)
+            || !(0.0..=1.0).contains(&viscosity)
             || !(0.0..=(grid.hi[2] - grid.lo[2])).contains(&height)
             || initial_velocity.iter().any(|v| v.abs() > 2.0)
         {
-            return Err("invalid liquid density, fill height or initial velocity".into());
+            return Err(
+                "invalid liquid density, viscosity (0..1 m2/s), fill height or initial velocity"
+                    .into(),
+            );
         }
         boundary.validate(&grid)?;
         let marker_volume = (grid.dx * 0.5).powi(3);
@@ -416,6 +527,8 @@ impl Fluid {
                 energy: 0.0,
                 divergence: 0.0,
                 max_pressure: 0.0,
+                kinematic_viscosity: viscosity,
+                viscous_loss: 0.0,
             },
         })
     }
@@ -491,8 +604,15 @@ impl Fluid {
         let mut next = self.markers.clone();
         let mut state = self.observation;
         let injected = self.inject(&mut next, &mut state, controls, dt);
-        let (velocity, pressure, residual) =
-            self.grid.project(&next, controls, g, dt, self.density)?;
+        let (velocity, pressure, residual, viscous_loss) = self.grid.project(
+            &next,
+            controls,
+            g,
+            dt,
+            self.density,
+            state.kinematic_viscosity,
+        )?;
+        state.viscous_loss += viscous_loss;
         for p in &mut next {
             p.velocity = self
                 .grid

@@ -34,9 +34,10 @@ use crate::articulated::{AbaPlan, AbaScratch};
 use crate::collide::{colliders_of, place, BroadPhase, Collider, Placement};
 use crate::contact::{
     ground_constraints, ground_contacts, Constraint, ConstraintSolver, ContactParameters,
-    GroundContact,
+    GroundContact, Limit,
 };
 use crate::forward::{FkError, FkPlan};
+use crate::kinematics::joints::JointType;
 use crate::kinematics::kinematic::KinematicModel;
 
 /// How the engine advances between contacts.
@@ -121,6 +122,7 @@ pub struct Engine {
     candidates: Vec<(usize, usize)>,
     contacts: Vec<GroundContact>,
     constraints: Vec<Constraint>,
+    stops: Vec<(usize, f64, f64)>,
     stages: Vec<Vec<f64>>,
     rates: Vec<Vec<f64>>,
     trial: (Vec<f64>, Vec<f64>),
@@ -144,6 +146,19 @@ impl Engine {
         let n = aba.slots();
         let scratch = aba.scratch();
         let poses = plan.identity_poses_se3();
+        let mut stops = Vec::new();
+        for (slot, joint) in model.joints.iter().enumerate() {
+            if !matches!(joint.joint_type, JointType::Revolute | JointType::Prismatic) {
+                continue;
+            }
+            if let Some(limit) = &joint.limits {
+                if !limit.lower.is_finite() || !limit.upper.is_finite() || limit.lower > limit.upper
+                {
+                    return Err(FkError::InvalidJointLimits(joint.name.clone()));
+                }
+                stops.push((slot, limit.lower, limit.upper));
+            }
+        }
         Ok(Self {
             model,
             aba,
@@ -171,6 +186,7 @@ impl Engine {
             candidates: Vec::new(),
             contacts: Vec::new(),
             constraints: Vec::new(),
+            stops,
             stages: vec![vec![0.0; n]; 6],
             rates: vec![vec![0.0; n]; 6],
             trial: (vec![0.0; n], vec![0.0; n]),
@@ -256,6 +272,13 @@ impl Engine {
     ///
     /// Also refreshes the poses and placements, which the next step needs anyway.
     fn clearance_is_positive(&mut self) -> bool {
+        if self
+            .stops
+            .iter()
+            .any(|&(slot, lo, hi)| self.q[slot] <= lo || self.q[slot] >= hi)
+        {
+            return false;
+        }
         let Some(height) = self.ground else {
             return true;
         };
@@ -316,11 +339,17 @@ impl Engine {
         }
         self.free = free;
 
+        self.constraints.clear();
+        self.contacts.clear();
         if let Some(height) = self.ground {
             self.plan.resolve_se3(&self.model, &self.q, &mut self.poses);
             place(&self.colliders, &self.poses, &mut self.placed);
-            self.broad
-                .overlapping(&self.colliders, &self.placed, &mut self.boxes, &mut self.candidates);
+            self.broad.overlapping(
+                &self.colliders,
+                &self.placed,
+                &mut self.boxes,
+                &mut self.candidates,
+            );
             ground_contacts(
                 &self.colliders,
                 &self.placed,
@@ -341,16 +370,19 @@ impl Engine {
                     &mut self.scratch,
                     &mut self.constraints,
                 );
-                let mut velocity = std::mem::take(&mut self.velocity);
-                self.solver.solve(
-                    &self.aba,
-                    &self.constraints,
-                    &self.contact,
-                    &mut self.scratch,
-                    &mut velocity,
-                );
-                self.velocity = velocity;
             }
+        }
+        self.joint_constraints(h);
+        if !self.constraints.is_empty() {
+            let mut velocity = std::mem::take(&mut self.velocity);
+            self.solver.solve(
+                &self.aba,
+                &self.constraints,
+                &self.contact,
+                &mut self.scratch,
+                &mut velocity,
+            );
+            self.velocity = velocity;
         }
 
         for k in 0..n {
@@ -360,6 +392,24 @@ impl Engine {
         self.armature.clear();
         self.armature.resize(n, 0.0);
         self.aba.set_armature(&self.armature);
+    }
+
+    // Include both bounds in the SAME solve as ground contact. A ground impulse
+    // can activate a stop even when the unconstrained velocity would not cross it.
+    // Full tree reach retains inertia coupling to every other coordinate.
+    fn joint_constraints(&mut self, h: f64) {
+        for &(slot, lo, hi) in &self.stops {
+            for (sign, gap) in [(1.0, self.q[slot] - lo), (-1.0, hi - self.q[slot])] {
+                let mut force = vec![0.0; self.q.len()];
+                force[slot] = sign;
+                self.constraints.push(Constraint {
+                    force,
+                    reach: self.aba.order().iter().rev().copied().collect(),
+                    bias: gap / h,
+                    limit: Limit::Pushing,
+                });
+            }
+        }
     }
 
     /// Admit impending plane crossings using the free end pose, while the
@@ -372,7 +422,8 @@ impl Engine {
         for ((next, &q), &velocity) in self.trial.0.iter_mut().zip(&self.q).zip(&self.velocity) {
             *next = q + h * velocity;
         }
-        self.plan.resolve_se3(&self.model, &self.trial.0, &mut self.predicted_poses);
+        self.plan
+            .resolve_se3(&self.model, &self.trial.0, &mut self.predicted_poses);
         for (collider, (shape, placed)) in self.colliders.iter().zip(&self.placed).enumerate() {
             let point = placed.support(&shape.shape, [0.0, 0.0, -1.0]);
             let separation = point[2] - height;
@@ -380,8 +431,13 @@ impl Engine {
                 continue; // already admitted by ground_contacts, exactly once
             }
             let predicted = Placement::of(shape, &self.predicted_poses[shape.link]);
-            if predicted.support(&shape.shape, [0.0, 0.0, -1.0])[2] - height <= self.contact.margin {
-                self.contacts.push(GroundContact { collider, point, separation });
+            if predicted.support(&shape.shape, [0.0, 0.0, -1.0])[2] - height <= self.contact.margin
+            {
+                self.contacts.push(GroundContact {
+                    collider,
+                    point,
+                    separation,
+                });
             }
         }
     }
