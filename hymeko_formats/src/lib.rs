@@ -22,6 +22,7 @@
 pub mod binary_graph;
 pub mod codegen;
 pub mod gazebo;
+pub mod mesh;
 pub mod sdf;
 pub mod snapshot;
 pub mod transforms;

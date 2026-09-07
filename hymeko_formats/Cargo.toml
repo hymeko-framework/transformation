@@ -12,7 +12,8 @@ name = "hymeko_formats"
 [dependencies]
 hymeko_core = { workspace = true }
 hymeko_query = { path = "../hymeko_query" }
-hymeko_geometry = { path = "../hymeko_geometry" }
+hymeko_geometry = { path = "../hymeko_geometry", features = ["mesh-optimization"] }
+gltf = { version = "=1.4.1", default-features = false, features = ["utils", "names"] }
 hymeko_clifford = { workspace = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

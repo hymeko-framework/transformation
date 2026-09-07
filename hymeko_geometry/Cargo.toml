@@ -26,6 +26,11 @@ hymeko_query = { path = "../hymeko_query" }
 # `hymeko/tensor` repo is pushed with `hymeko_clifford::algebra::Se`; flip it to a git line then.
 hymeko_clifford = { workspace = true }
 log = { workspace = true }
+serde = { version = "1", features = ["derive"] }
+meshopt = { version = "=0.6.2", optional = true }
+
+[features]
+mesh-optimization = ["dep:meshopt"]
 
 [dev-dependencies]
 parser = { workspace = true }
