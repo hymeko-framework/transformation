@@ -1,3 +1,4 @@
+//! Ryoshi rigid-body engine: existing articulated dynamics and contact solver.
 //! A whole physics step: the tree, the contacts, and the choice of how to advance.
 //!
 //! # Why the integrator is a choice the engine makes and not the caller
