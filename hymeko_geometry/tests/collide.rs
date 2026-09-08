@@ -11,18 +11,20 @@
 //! * and every pair is swept through its own boundary, where the answer must switch exactly once.
 
 use hymeko_clifford::Se3;
-use hymeko_geometry::collide::{intersects_at as intersects, Collider, Convex};
+use hymeko_geometry::collide::{Collider, Convex, intersects_at as intersects};
 
 #[test]
 fn declared_full_extents_match_the_mjcf_geometry_convention() {
     use hymeko_geometry::kinematics::kinematic::GeometryShape;
     for scale in [0.001, 0.1, 1.0, 10.0] {
-        let box_shape = Convex::from_declaration(
-            GeometryShape::Box, &[2.0 * scale, 4.0 * scale, 6.0 * scale],
-        ).unwrap();
-        let cylinder = Convex::from_declaration(GeometryShape::Cylinder, &[scale, 6.0 * scale]).unwrap();
+        let box_shape =
+            Convex::from_declaration(GeometryShape::Box, &[2.0 * scale, 4.0 * scale, 6.0 * scale])
+                .unwrap();
+        let cylinder =
+            Convex::from_declaration(GeometryShape::Cylinder, &[scale, 6.0 * scale]).unwrap();
         assert_eq!(
-            box_shape.support([1.0, 1.0, 1.0]), [scale, 2.0 * scale, 3.0 * scale],
+            box_shape.support([1.0, 1.0, 1.0]),
+            [scale, 2.0 * scale, 3.0 * scale],
         );
         assert_eq!(cylinder.support([0.0, 0.0, 1.0])[2], 3.0 * scale);
         assert_eq!(cylinder.support([1.0, 0.0, 0.0])[0], scale);
@@ -50,7 +52,10 @@ fn point_segment(x: [f64; 3], p: [f64; 3], q: [f64; 3]) -> f64 {
     } else {
         (dot(sub(x, p), pq) / l2).clamp(0.0, 1.0)
     };
-    norm(sub(x, [p[0] + t * pq[0], p[1] + t * pq[1], p[2] + t * pq[2]]))
+    norm(sub(
+        x,
+        [p[0] + t * pq[0], p[1] + t * pq[1], p[2] + t * pq[2]],
+    ))
 }
 
 /// Distance between two segments, by dense sampling of one against the other.
@@ -267,11 +272,9 @@ fn a_sphere_and_a_box_agree_with_the_point_to_box_distance() {
         let xb = rng.pose();
 
         // the sphere's centre in the box's frame, where the distance is elementary
-        let local = xb.inverse().apply(&[
-            xa.translation[0],
-            xa.translation[1],
-            xa.translation[2],
-        ]);
+        let local = xb
+            .inverse()
+            .apply(&[xa.translation[0], xa.translation[1], xa.translation[2]]);
         let separation = point_box([local[0], local[1], local[2]], half) - sr;
         if separation.abs() < 1e-6 {
             continue;
@@ -309,8 +312,8 @@ fn widest_separating_gap(a: &Collider, xa: &Se3, b: &Collider, xb: &Se3) -> f64 
         let d = [r * theta.cos(), r * theta.sin(), z];
         // a reaches to `dot(pa, d)`; b begins at `dot(pb, d)`
         let pa = hymeko_geometry::collide::Placement::of(a, xa).support(&a.shape, d);
-        let pb = hymeko_geometry::collide::Placement::of(b, xb)
-            .support(&b.shape, [-d[0], -d[1], -d[2]]);
+        let pb =
+            hymeko_geometry::collide::Placement::of(b, xb).support(&b.shape, [-d[0], -d[1], -d[2]]);
         widest = widest.max(dot(pb, d) - dot(pa, d));
     }
     widest
@@ -397,5 +400,116 @@ fn a_shape_always_collides_with_itself_at_the_same_pose() {
             intersects(&collider(s), &x, &collider(s), &x),
             "case {case}: {s:?} does not overlap itself"
         );
+    }
+}
+
+// Deterministic projected fixtures; the compiler is not inside the timing window.
+fn broad_fixture(
+    n: usize,
+    dense: bool,
+) -> (
+    hymeko_geometry::kinematics::kinematic::KinematicModel,
+    Vec<Collider>,
+    Vec<hymeko_geometry::collide::Placement>,
+) {
+    use hymeko_geometry::kinematics::kinematic::KinematicModel;
+    let model = KinematicModel {
+        name: "bounds-probe".into(),
+        links: vec![],
+        joints: vec![],
+        frames: vec![],
+        actuation: Default::default(),
+    };
+    let colliders: Vec<_> = (0..n)
+        .map(|link| Collider {
+            link,
+            shape: Convex::Sphere { radius: 0.55 },
+            offset: [0.0; 3],
+        })
+        .collect();
+    let placements = colliders
+        .iter()
+        .enumerate()
+        .map(|(i, c)| {
+            let xyz = if dense {
+                [0.0; 3]
+            } else {
+                [(i % 23) as f64, ((i / 23) % 23) as f64, (i / 529) as f64]
+            };
+            hymeko_geometry::collide::Placement::of(c, &Se3::translation(&xyz))
+        })
+        .collect();
+    (model, colliders, placements)
+}
+
+#[test]
+#[ignore = "bounded release broad-phase operation timing, including construction"]
+fn broadphase_scaling_profile() {
+    use hymeko_geometry::collide::BroadPhase;
+    use std::{hint::black_box, time::Instant};
+    for (n, dense) in [(32, false), (1000, false), (10000, false), (1000, true)] {
+        let (model, colliders, placements) = broad_fixture(n, dense);
+        let calls = if n == 10000 { 3 } else { 20 };
+        for run in 0..6 {
+            let timer = Instant::now();
+            let broad = BroadPhase::new(&model, &colliders);
+            let construction = timer.elapsed().as_secs_f64();
+            let mut boxes = Vec::new();
+            let mut pairs = Vec::new();
+            broad.overlapping(&colliders, &placements, &mut boxes, &mut pairs);
+            let timer = Instant::now();
+            for _ in 0..calls {
+                broad.overlapping(&colliders, &placements, &mut boxes, &mut pairs);
+                black_box(&pairs);
+            }
+            let query = timer.elapsed().as_secs_f64() / calls as f64;
+            assert!(query < 2.0, "per-query budget {query}");
+            println!(
+                "BROAD_PROFILE,{n},{dense},{run},{calls},{construction:.9},{query:.9},{}",
+                pairs.len()
+            );
+            if run > 0 {
+                let timer = Instant::now();
+                let index = hymeko_graph::octree::BoundsIndex::new(&boxes);
+                let build = timer.elapsed().as_secs_f64();
+                pairs.clear();
+                let timer = Instant::now();
+                index.for_each_overlap(|i, j| pairs.push((i, j)));
+                let traversal = timer.elapsed().as_secs_f64();
+                let timer = Instant::now();
+                pairs.sort_unstable();
+                let sort = timer.elapsed().as_secs_f64();
+                println!("BROAD_SPLIT,{n},{dense},{run},{build:.9},{traversal:.9},{sort:.9}");
+            }
+        }
+    }
+}
+
+#[test]
+fn broadphase_preserves_ordered_inclusive_pairs_after_motion_and_exclusions() {
+    use hymeko_geometry::collide::BroadPhase;
+    let (model, mut colliders, mut placements) = broad_fixture(1000, false);
+    colliders[1].link = colliders[0].link;
+    let broad = BroadPhase::new(&model, &colliders);
+    let mut boxes = Vec::new();
+    let mut pairs = Vec::new();
+    for frame in 0..3 {
+        broad.overlapping(&colliders, &placements, &mut boxes, &mut pairs);
+        // Frozen inclusive predicate: transformation 90b3c79 collide.rs SHA256
+        // ebe250b56402fc71b4e5cce988586a60ccb3e87dbb465c6210f4aebae25fadb2.
+        let expected: Vec<_> = broad
+            .pairs()
+            .iter()
+            .copied()
+            .filter(|&(i, j)| {
+                let (a, b) = (boxes[i], boxes[j]);
+                (0..3).all(|k| a.0[k] <= b.1[k] && b.0[k] <= a.1[k])
+            })
+            .collect();
+        assert_eq!(pairs, expected, "frame {frame}");
+        assert!(!pairs.contains(&(0, 1)));
+        for (i, p) in placements.iter_mut().enumerate() {
+            p.centre[0] = ((i * 37 + frame * 101) % 43) as f64 * 0.2;
+        }
     }
 }

@@ -69,7 +69,11 @@ impl Convex {
         match shape {
             GeometryShape::Sphere => dimensions.first().map(|&r| Self::Sphere { radius: r }),
             GeometryShape::Box => (dimensions.len() >= 3).then(|| Self::Cuboid {
-                half: [dimensions[0] * 0.5, dimensions[1] * 0.5, dimensions[2] * 0.5],
+                half: [
+                    dimensions[0] * 0.5,
+                    dimensions[1] * 0.5,
+                    dimensions[2] * 0.5,
+                ],
             }),
             GeometryShape::Cylinder => (dimensions.len() >= 2).then(|| Self::Cylinder {
                 radius: dimensions[0],
@@ -107,13 +111,25 @@ impl Convex {
                 } else {
                     (0.0, 0.0)
                 };
-                [x, y, if d[2] >= 0.0 { half_height } else { -half_height }]
+                [
+                    x,
+                    y,
+                    if d[2] >= 0.0 {
+                        half_height
+                    } else {
+                        -half_height
+                    },
+                ]
             }
             Self::Capsule {
                 radius,
                 half_height,
             } => {
-                let tip = if d[2] >= 0.0 { half_height } else { -half_height };
+                let tip = if d[2] >= 0.0 {
+                    half_height
+                } else {
+                    -half_height
+                };
                 let r = scale_to(d, radius);
                 [r[0], r[1], r[2] + tip]
             }
@@ -263,16 +279,8 @@ impl Placement {
     pub fn aabb(&self, shape: &Convex) -> ([f64; 3], [f64; 3]) {
         let r = shape.bounding_radius();
         (
-            [
-                self.centre[0] - r,
-                self.centre[1] - r,
-                self.centre[2] - r,
-            ],
-            [
-                self.centre[0] + r,
-                self.centre[1] + r,
-                self.centre[2] + r,
-            ],
+            [self.centre[0] - r, self.centre[1] - r, self.centre[2] - r],
+            [self.centre[0] + r, self.centre[1] + r, self.centre[2] + r],
         )
     }
 }
@@ -280,11 +288,7 @@ impl Placement {
 /// Resolve every collider at the given link poses, into a caller-owned buffer.
 pub fn place(colliders: &[Collider], poses: &[Se3], out: &mut Vec<Placement>) {
     out.clear();
-    out.extend(
-        colliders
-            .iter()
-            .map(|c| Placement::of(c, &poses[c.link])),
-    );
+    out.extend(colliders.iter().map(|c| Placement::of(c, &poses[c.link])));
 }
 
 #[inline]
@@ -464,10 +468,12 @@ fn evolve(s: &mut [[f64; 3]; 4], n: &mut usize, dir: &mut [f64; 3]) -> Evolution
 /// Which pairs of colliders are worth an exact test.
 ///
 /// Built once from the model, because the answer does not depend on the pose: a joint's parent and
-/// child are excluded forever, and so is anything the declaration's collision mask separates.
+/// child and same-link colliders are excluded by the existing structural contract.
 #[derive(Debug, Clone)]
 pub struct BroadPhase {
-    pairs: Vec<(usize, usize)>,
+    links: Vec<usize>,
+    adjacent: Vec<(usize, usize)>,
+    pairs: std::sync::OnceLock<Vec<(usize, usize)>>,
 }
 
 impl BroadPhase {
@@ -481,34 +487,41 @@ impl BroadPhase {
     /// * **two colliders on the same link**, which are rigidly attached and cannot move relative to
     ///   each other, so whatever they do they do forever.
     pub fn new(model: &KinematicModel, colliders: &[Collider]) -> Self {
-        let adjacent = adjacency(model);
-        let mut pairs = Vec::new();
-        for i in 0..colliders.len() {
-            for j in (i + 1)..colliders.len() {
-                let (li, lj) = (colliders[i].link, colliders[j].link);
-                if li == lj {
-                    continue;
-                }
-                if adjacent.contains(&ordered(li, lj)) {
-                    continue;
-                }
-                pairs.push((i, j));
-            }
+        Self {
+            links: colliders.iter().map(|c| c.link).collect(),
+            adjacent: adjacency(model),
+            pairs: std::sync::OnceLock::new(),
         }
-        Self { pairs }
     }
 
     /// The candidate pairs, in a fixed order.
+    /// Explicit diagnostic: materializes O(n²) structural pairs on first call.
+    /// Normal collision queries never request this exhaustive list.
     pub fn pairs(&self) -> &[(usize, usize)] {
-        &self.pairs
+        self.pairs.get_or_init(|| {
+            let mut pairs = Vec::new();
+            for i in 0..self.links.len() {
+                for j in i + 1..self.links.len() {
+                    if self.allowed(i, j) {
+                        pairs.push((i, j));
+                    }
+                }
+            }
+            pairs
+        })
     }
 
-    /// The pairs whose bounding boxes overlap at this pose, appended to `out`.
+    fn allowed(&self, i: usize, j: usize) -> bool {
+        let (a, b) = (self.links[i], self.links[j]);
+        a != b && self.adjacent.binary_search(&ordered(a, b)).is_err()
+    }
+
+    /// Replace `out` with the overlapping, structurally allowed pairs in fixed order.
     ///
-    /// `out` is a caller-owned buffer so a frame allocates nothing. The AABBs are recomputed here
-    /// rather than cached because they depend on the pose and the pose changes every step; caching
-    /// them would be caching the thing that varies. The PLACEMENTS are shared with the narrow phase,
-    /// which is the part that does not vary within a step.
+    /// Output and AABB buffers are reused. Graph builds O(n) transient octree scratch
+    /// from current placements, so motion cannot leave a stale spatial index.
+    /// Placements remain shared with the narrow phase. Explicit `pairs()` diagnostics
+    /// are independent and are never materialized by this query.
     pub fn overlapping(
         &self,
         colliders: &[Collider],
@@ -521,29 +534,18 @@ impl BroadPhase {
         for (c, p) in colliders.iter().zip(placements) {
             boxes.push(p.aabb(&c.shape));
         }
-        for &(i, j) in &self.pairs {
-            let (lo_i, hi_i) = boxes[i];
-            let (lo_j, hi_j) = boxes[j];
-            if lo_i[0] <= hi_j[0]
-                && lo_j[0] <= hi_i[0]
-                && lo_i[1] <= hi_j[1]
-                && lo_j[1] <= hi_i[1]
-                && lo_i[2] <= hi_j[2]
-                && lo_j[2] <= hi_i[2]
-            {
+        hymeko_graph::octree::BoundsIndex::new(boxes).for_each_overlap(|i, j| {
+            if self.allowed(i, j) {
                 out.push((i, j));
             }
-        }
+        });
+        out.sort_unstable();
     }
 }
 
 #[inline]
 fn ordered(a: usize, b: usize) -> (usize, usize) {
-    if a < b {
-        (a, b)
-    } else {
-        (b, a)
-    }
+    if a < b { (a, b) } else { (b, a) }
 }
 
 /// The link pairs a joint connects, as an ordered set.
@@ -594,4 +596,40 @@ pub fn colliders_of(model: &KinematicModel) -> Vec<Collider> {
             })
         })
         .collect()
+}
+
+#[cfg(test)]
+mod broad_tests {
+    use super::*;
+    #[test]
+    fn spatial_queries_preserve_exclusions_without_materializing_diagnostic_pairs() {
+        fn send_sync<T: Send + Sync>() {}
+        send_sync::<BroadPhase>();
+        let broad = BroadPhase {
+            links: vec![0, 1, 2, 2],
+            adjacent: vec![(0, 1)],
+            pairs: std::sync::OnceLock::new(),
+        };
+        let colliders: Vec<_> = broad
+            .links
+            .iter()
+            .map(|&link| Collider {
+                link,
+                shape: Convex::Sphere { radius: 1.0 },
+                offset: [0.0; 3],
+            })
+            .collect();
+        let placements: Vec<_> = colliders
+            .iter()
+            .map(|c| Placement::of(c, &Se3::identity()))
+            .collect();
+        let mut boxes = Vec::new();
+        let mut pairs = Vec::new();
+        assert!(broad.pairs.get().is_none());
+        broad.overlapping(&colliders, &placements, &mut boxes, &mut pairs);
+        assert!(broad.pairs.get().is_none());
+        assert_eq!(pairs, [(0, 2), (0, 3), (1, 2), (1, 3)]);
+        assert_eq!(broad.pairs(), pairs);
+        assert!(broad.pairs.get().is_some());
+    }
 }
