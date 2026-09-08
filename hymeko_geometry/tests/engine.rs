@@ -428,3 +428,131 @@ fn a_resting_body_is_held_at_the_right_height_by_the_engine_as_a_whole() {
         e.qd[0]
     );
 }
+
+fn sphere_pair(masses: [f64; 2]) -> Engine {
+    let mut model = falling_box(masses[0], 0.1);
+    model.links[0].name = "a".into();
+    model.links[0].geometry.as_mut().unwrap().shape = GeometryShape::Sphere;
+    model.links[0].geometry.as_mut().unwrap().dimensions = vec![0.1];
+    model.joints[0].child_link = "a".into();
+    model.joints[0].axis = Some([1.0, 0.0, 0.0]);
+    let mut second = model.links[0].clone();
+    second.name = "b".into();
+    second.mass = Some(masses[1]);
+    model.links.push(second);
+    let mut joint = model.joints[0].clone();
+    joint.name = "second".into();
+    joint.child_link = "b".into();
+    model.joints.push(joint);
+    let mut anchor = model.links[0].clone();
+    anchor.name = "anchor".into();
+    anchor.mass = None;
+    anchor.geometry = None;
+    model.links.push(anchor);
+    for joint in &mut model.joints {
+        joint.parent_link = "anchor".into();
+    }
+    let mut e = Engine::new(model).unwrap();
+    e.ground = None;
+    e.gravity = [0.0; 3];
+    e.contact.friction = 0.0;
+    e.enable_sphere_collisions().unwrap();
+    e
+}
+
+#[test]
+fn sphere_impact_matches_mass_restitution_and_energy_oracles() {
+    for masses in [[1.0, 1.0], [1.0, 3.0], [5.0, 0.2]] {
+        for restitution in [0.0, 0.5, 1.0] {
+            for speed in [1.0, 100.0] {
+                for phase in [1e-8, 0.15, 0.5, 0.95] {
+                    let mut e = sphere_pair(masses);
+                    let dt = 1.0 / 240.0;
+                    e.q = vec![0.0, 0.2 + speed * dt * phase];
+                    e.qd = vec![speed, 0.0];
+                    e.contact.restitution = restitution;
+                    e.advance(2.0 * dt);
+                    let [a, b] = masses;
+                    let expected = [
+                        speed * (a - restitution * b) / (a + b),
+                        speed * (1.0 + restitution) * a / (a + b),
+                    ];
+                    for (actual, target) in e.qd.iter().zip(expected) {
+                        assert!(
+                            (actual - target).abs() < 1e-7,
+                            "{masses:?} e={restitution} v={speed} phase={phase}: {:?} expected {expected:?}",
+                            e.qd
+                        );
+                    }
+                    assert!(e.q[1] - e.q[0] >= 0.2 - 1e-9);
+                    assert!((a * e.qd[0] + b * e.qd[1] - a * speed).abs() < 1e-8);
+                    let after = 0.5 * (a * e.qd[0].powi(2) + b * e.qd[1].powi(2));
+                    let loss =
+                        0.5 * a * b / (a + b) * (1.0 - restitution * restitution) * speed * speed;
+                    assert!((0.5 * a * speed * speed - after - loss).abs() < 1e-6);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn sphere_pair_releases_and_unsupported_contact_models_reject() {
+    let mut e = sphere_pair([1.0, 2.0]);
+    e.q = vec![0.0, 0.2];
+    e.qd = vec![-1.0, 1.0];
+    e.advance(0.1);
+    assert_eq!(e.qd, vec![-1.0, 1.0]);
+    assert!(
+        Engine::new(falling_box(1.0, 0.1))
+            .unwrap()
+            .enable_sphere_collisions()
+            .is_err()
+    );
+    assert!(
+        Engine::new(double_pendulum())
+            .unwrap()
+            .enable_sphere_collisions()
+            .is_err()
+    );
+}
+
+#[test]
+fn pair_impulse_preserves_shared_parent_momentum_and_misses_offset_spheres() {
+    let base = sphere_pair([1.0, 3.0]);
+    let mut model = base.model().clone();
+    model
+        .links
+        .iter_mut()
+        .find(|l| l.name == "anchor")
+        .unwrap()
+        .mass = Some(2.0);
+    let mut joint = model.joints[0].clone();
+    joint.name = "base".into();
+    joint.parent_link = "world".into();
+    joint.child_link = "anchor".into();
+    model.joints.push(joint);
+    let mut e = Engine::new(model.clone()).unwrap();
+    e.ground = None;
+    e.gravity = [0.0; 3];
+    e.contact.friction = 0.0;
+    e.contact.restitution = 1.0;
+    e.enable_sphere_collisions().unwrap();
+    e.q = vec![0.0, 0.4, 0.0];
+    e.qd = vec![1.0, 0.0, 0.0];
+    e.advance(0.5);
+    assert!((e.qd[0] + 0.5).abs() < 1e-9 && (e.qd[1] - 0.5).abs() < 1e-9);
+    assert!(
+        e.qd[2].abs() < 1e-9,
+        "internal impulse must not accelerate the shared reference mass"
+    );
+    model.joints[1].origin_xyz = Some([0.0, 0.21, 0.0]);
+    let mut e = Engine::new(model).unwrap();
+    e.ground = None;
+    e.gravity = [0.0; 3];
+    e.enable_sphere_collisions().unwrap();
+    e.q = vec![0.0, 0.4, 0.0];
+    e.qd = vec![100.0, 0.0, 0.0];
+    e.advance(0.01);
+    assert_eq!(e.qd, vec![100.0, 0.0, 0.0]);
+}

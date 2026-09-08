@@ -56,23 +56,29 @@ impl SoftBody {
         }
         let mut particles = Vec::new();
         let mut positions = Vec::new();
+        let mut velocities = Vec::new();
         for &decl in &graph.vertices {
             if field(ir, it, decl, "position").is_none() {
                 continue;
             }
             let rest = vector(ir, it, decl, "position", None)?;
             let displacement = vector(ir, it, decl, "displacement", Some([0.0; 3]))?;
+            let velocity = vector(ir, it, decl, "velocity", Some([0.0; 3]))?;
             let mass = number(ir, it, decl, "mass", None)?;
             let fixed = number(ir, it, decl, "fixed", Some(0.0))?;
             if !(1e-6..=1e3).contains(&mass)
                 || (fixed != 0.0 && fixed != 1.0)
                 || rest.iter().any(|x| x.abs() > 1000.0)
                 || norm(displacement) > max_displacement
-                || (fixed == 1.0 && displacement != [0.0; 3])
+                || velocity.iter().any(|v| !v.is_finite() || v.abs() > 100.0)
+                || (fixed == 1.0 && (displacement != [0.0; 3] || velocity != [0.0; 3]))
             {
-                return Err("invalid particle mass, anchor, position or displacement".into());
+                return Err(
+                    "invalid particle mass, anchor, position, displacement or velocity".into(),
+                );
             }
             positions.push(std::array::from_fn(|k| rest[k] + displacement[k]));
+            velocities.push(velocity);
             particles.push(Particle {
                 decl,
                 name: it.resolve(ir.decl_nodes[decl.raw()].name).to_owned(),
@@ -202,12 +208,12 @@ impl SoftBody {
             energy.push(spring.stiffness);
         }
         let mut momentum = Vec::new();
-        for p in &particles {
+        for (p, velocity) in particles.iter().zip(velocities) {
             momentum.push(if p.fixed {
                 None
             } else {
                 let start = state.len();
-                state.extend([0.0; 3]);
+                state.extend(velocity.map(|v| p.mass * v));
                 energy.extend([1.0 / p.mass; 3]);
                 Some(start)
             });
@@ -363,18 +369,34 @@ mod tests {
         SoftBody::project(&p.ir, &store.it, scope)
     }
     #[test]
-    fn oscillator_matches_analytic_solution_and_keeps_anchor_and_energy() {
-        let mut body = read(MODEL).unwrap();
-        let energy = body.energy();
-        for _ in 0..240 {
-            body.step(1.0 / 240.0, [0.0; 3], 0.0, &[[0.0; 3]; 2])
-                .unwrap();
+    fn oscillator_matches_displacement_and_velocity_oracles_and_keeps_energy() {
+        for (initial, x, v) in [
+            (
+                "displacement [0.1,0,0]",
+                0.1 * 2.0_f64.cos(),
+                -0.2 * 2.0_f64.sin(),
+            ),
+            (
+                "velocity [0.2,0,0]",
+                0.1 * 2.0_f64.sin(),
+                0.2 * 2.0_f64.cos(),
+            ),
+        ] {
+            let mut body = read(&MODEL.replace("displacement [0.1,0,0]", initial)).unwrap();
+            assert!((body.energy() - 0.04).abs() < 1e-12);
+            for _ in 0..240 {
+                body.step(1.0 / 240.0, [0.0; 3], 0.0, &[[0.0; 3]; 2])
+                    .unwrap();
+            }
+            assert!((body.positions()[1][0] - (1.0 + x)).abs() < 2e-6);
+            assert!((body.velocity(1).unwrap()[0] - v).abs() < 3e-6);
+            assert_eq!(body.positions()[0], [0.0; 3]);
+            assert!((body.energy() - 0.04).abs() < 1e-10);
+            assert!(body.balance_error() < 1e-9);
+            assert!(body.velocity(99).is_none());
         }
-        assert!((body.positions()[1][0] - (1.0 + 0.1 * 2.0_f64.cos())).abs() < 2e-6);
-        assert_eq!(body.positions()[0], [0.0; 3]);
-        assert!((body.energy() - energy).abs() < 1e-10);
-        assert!(body.balance_error() < 1e-9);
-        assert!(body.velocity(99).is_none());
+        assert!(read(&MODEL.replace("fixed 1", "fixed 1; velocity [1,0,0]")).is_err());
+        assert!(read(&MODEL.replace("mass 2", "mass 2; velocity [101,0,0]")).is_err());
     }
     #[test]
     fn equilibrium_and_gravity_use_mass_and_stiffness() {

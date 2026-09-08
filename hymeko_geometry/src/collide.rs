@@ -21,9 +21,8 @@
 //!
 //! # What is here and what is not
 //!
-//! Detection: whether two colliders touch, how far apart they are when they do not, and how deep
-//! they overlap and along what normal when they do. Resolving that into forces is the dynamics'
-//! problem, not this module's.
+//! Boolean convex intersection through GJK. General signed distance, penetration depth and
+//! witness points are not implemented here; sphere contact geometry lives in the engine.
 
 use hymeko_clifford::Se3;
 
@@ -534,6 +533,16 @@ impl BroadPhase {
         for (c, p) in colliders.iter().zip(placements) {
             boxes.push(p.aabb(&c.shape));
         }
+        self.with_bounds(boxes, out);
+    }
+
+    /// Query caller-built (including swept) bounds with the same structural exclusions.
+    pub(crate) fn with_bounds(
+        &self,
+        boxes: &[([f64; 3], [f64; 3])],
+        out: &mut Vec<(usize, usize)>,
+    ) {
+        out.clear();
         hymeko_graph::octree::BoundsIndex::new(boxes).for_each_overlap(|i, j| {
             if self.allowed(i, j) {
                 out.push((i, j));
