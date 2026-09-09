@@ -512,9 +512,8 @@ mod tests {
             .map(|&(sign, target, weight)| {
                 let weights = weight.map(|w| vec![ValueR::Num(w)]);
                 let atom = RefAtomR {
-                    target,
-                    anno: AnnoR::default(),
                     weights,
+                    ..RefAtomR::plain(target)
                 };
                 match sign {
                     1 => SignedRefR::Plus(atom),
@@ -712,9 +711,8 @@ mod tests {
                     .as_ref()
                     .map(|ws| ws.iter().map(|n| ValueR::Num(*n)).collect());
                 let atom = RefAtomR {
-                    target,
-                    anno: AnnoR::default(),
                     weights,
+                    ..RefAtomR::plain(target)
                 };
                 match sign {
                     1 => SignedRefR::Plus(atom),

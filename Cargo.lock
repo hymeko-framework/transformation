@@ -627,7 +627,7 @@ checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 [[package]]
 name = "hymeko_clifford"
 version = "0.1.0"
-source = "git+ssh://git@amaterasu.local:2222/hymeko/tensor.git?branch=main#b1d869d24fb563ed7042f38a1272c1736fdfbea4"
+source = "git+https://github.com/hymeko-framework/tensor.git?rev=14c1d231897b48aac6fadef1fd4189af7260bc22#14c1d231897b48aac6fadef1fd4189af7260bc22"
 
 [[package]]
 name = "hymeko_core"
@@ -639,7 +639,7 @@ dependencies = [
  "nalgebra",
  "nalgebra-sparse",
  "num-traits",
- "parser 0.1.0 (git+https://github.com/hymeko-framework/parser.git?rev=0019eb0accdacb54c741524fae871793a0fac07c)",
+ "parser",
  "rayon",
  "rustc-hash",
  "serde",
@@ -651,6 +651,7 @@ version = "0.1.0"
 dependencies = [
  "ciborium",
  "hymeko_core",
+ "hymeko_geometry",
  "hymeko_graph",
  "hymeko_numerics",
  "hymeko_optimize",
@@ -666,7 +667,7 @@ version = "0.1.0"
 dependencies = [
  "hymeko_core",
  "log",
- "parser 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/parser.git?branch=master)",
+ "parser",
  "serde",
  "slotmap",
  "thiserror 1.0.69",
@@ -697,7 +698,7 @@ dependencies = [
  "hymeko_sources",
  "log",
  "meshopt",
- "parser 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/parser.git?branch=master)",
+ "parser",
  "serde",
 ]
 
@@ -735,7 +736,7 @@ dependencies = [
  "hymeko_formats",
  "hymeko_geometry",
  "log",
- "parser 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/parser.git?branch=master)",
+ "parser",
 ]
 
 [[package]]
@@ -1097,15 +1098,6 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "windows-link",
-]
-
-[[package]]
-name = "parser"
-version = "0.1.0"
-source = "git+ssh://git@amaterasu.local:2222/hymeko/parser.git?branch=master#284c490d68232973a006bcba974279fed6f89ce8"
-dependencies = [
- "lalrpop",
- "lalrpop-util",
 ]
 
 [[package]]

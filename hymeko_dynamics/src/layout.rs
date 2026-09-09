@@ -24,6 +24,53 @@ const MIN_GAP: f64 = 0.30;
 /// decides this.
 const COMPONENT_GAP: f64 = 2.8;
 
+/// Bounded diagram layout in pixels, following positive-to-negative connections.
+/// O(V+E) work and storage; stable input order breaks ties and cyclic components.
+/// Cycles may have backward bonds; this is not a topological-order certificate.
+/// Returns None above 500 nodes/2000 bonds or for an out-of-range endpoint.
+pub fn layered(count: usize, edges: &[(usize, usize)]) -> Option<Vec<[f64; 2]>> {
+    if count > 500 || edges.len() > 2000 || edges.iter().any(|&(a, b)| a >= count || b >= count) {
+        return None;
+    }
+    let mut next = vec![Vec::new(); count];
+    let mut incoming = vec![0usize; count];
+    for &(a, b) in edges {
+        next[a].push(b);
+        incoming[b] += 1;
+    }
+    let mut layer = vec![None; count];
+    let mut queue = std::collections::VecDeque::new();
+    let roots = (0..count).filter(|&i| incoming[i] == 0).chain(0..count);
+    for root in roots {
+        if layer[root].is_some() {
+            continue;
+        }
+        layer[root] = Some(0usize);
+        queue.push_back(root);
+        while let Some(a) = queue.pop_front() {
+            let depth = layer[a].unwrap_or(0);
+            for &b in &next[a] {
+                if layer[b].is_none() {
+                    layer[b] = Some(depth + 1);
+                    queue.push_back(b);
+                }
+            }
+        }
+    }
+    let mut rows = vec![0usize; count.max(1)];
+    Some(
+        layer
+            .into_iter()
+            .map(|depth| {
+                let depth = depth.unwrap_or(0);
+                let row = rows[depth];
+                rows[depth] += 1;
+                [40.0 + depth as f64 * 320.0, 40.0 + row as f64 * 190.0]
+            })
+            .collect(),
+    )
+}
+
 /// Positions for every terminal: the declared ones exactly, the rest derived from the graph.
 ///
 /// `edges` are terminal index pairs, one per conductor; parallel edges and self-loops are tolerated

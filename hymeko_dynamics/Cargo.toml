@@ -19,6 +19,7 @@ default = []
 web = ["dep:wasm-bindgen"]
 
 [dependencies]
+hymeko_geometry = { path = "../hymeko_geometry" }
 wasm-bindgen = { version = "0.2.127", optional = true }
 hymeko_core = { workspace = true }
 # The Tensor pillar's numerics. Dependency-free by contract, so pulling it in by path adds nothing

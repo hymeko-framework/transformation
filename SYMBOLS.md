@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**12 package(s), 567 public symbol(s).**
+**12 package(s), 583 public symbol(s).**
 
 ## generated (python)
 
@@ -41,6 +41,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Cause` — `hymeko_dynamics/src/scenario/model.rs`
 - `Complex` — `hymeko_dynamics/src/analysis.rs`
 - `Conductor` — `hymeko_dynamics/src/layout.rs`
+- `Connection` — `hymeko_dynamics/src/power.rs`
 - `Controls` — `hymeko_dynamics/src/fluid.rs`
 - `Coordinate` — `hymeko_dynamics/src/system.rs`
 - `Declared` — `hymeko_dynamics/src/system.rs`
@@ -49,6 +50,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Effect` — `hymeko_dynamics/src/scenario/model.rs`
 - `Element` — `hymeko_dynamics/src/scenario/model.rs`
 - `ElementState` — `hymeko_dynamics/src/scenario/model.rs`
+- `Equation` — `hymeko_dynamics/src/power.rs`
 - `Event` — `hymeko_dynamics/src/scenario/model.rs`
 - `EventLog` — `hymeko_dynamics/src/scenario/model.rs`
 - `Fluid` — `hymeko_dynamics/src/fluid.rs`
@@ -64,13 +66,16 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Marker` — `hymeko_dynamics/src/fluid.rs`
 - `Mode` — `hymeko_dynamics/src/analysis.rs`
 - `MutationResult` — `hymeko_dynamics/src/scenario/model.rs`
+- `Node` — `hymeko_dynamics/src/power.rs`
 - `Observable` — `hymeko_dynamics/src/system.rs`
 - `Observation` — `hymeko_dynamics/src/fluid.rs`
 - `Observer` — `hymeko_dynamics/src/scenario/model.rs`
 - `ObserverValue` — `hymeko_dynamics/src/scenario/model.rs`
 - `OpenOptions` — `hymeko_dynamics/src/scenario/model.rs`
 - `Particle` — `hymeko_dynamics/src/softbody.rs`
+- `Port` — `hymeko_dynamics/src/power.rs`
 - `PortSource` — `hymeko_dynamics/src/system.rs`
+- `PowerGraph` — `hymeko_dynamics/src/power.rs`
 - `PublicPort` — `hymeko_dynamics/src/hierarchy.rs`
 - `Refusal` — `hymeko_dynamics/src/scenario/model.rs`
 - `Region` — `hymeko_dynamics/src/field.rs`
@@ -112,6 +117,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `add` — `hymeko_dynamics/src/analysis.rs`
 - `amplitude` — `hymeko_dynamics/src/run.rs`
 - `arrange` — `hymeko_dynamics/src/layout.rs`
+- `arrangement` — `hymeko_dynamics/src/power.rs`
 - `at` — `hymeko_dynamics/src/system.rs`
 - `balance_error` — `hymeko_dynamics/src/softbody.rs`
 - `bends` — `hymeko_dynamics/src/layout.rs`
@@ -123,12 +129,15 @@ docstring are all excluded for a stated reason rather than by luck.
 - `component_of` — `hymeko_dynamics/src/layout.rs`
 - `contains` — `hymeko_dynamics/src/hierarchy.rs`
 - `coordinate_of` — `hymeko_dynamics/src/system.rs`
+- `diffusion` — `hymeko_dynamics/src/power/continuum.rs`
 - `diffusivity` — `hymeko_dynamics/src/diffusion.rs`
 - `dim` — `hymeko_dynamics/src/system.rs`
 - `div` — `hymeko_dynamics/src/analysis.rs`
 - `drive_direction` — `hymeko_dynamics/src/system.rs`
 - `effort` — `hymeko_dynamics/src/system.rs`
 - `eigenvalues` — `hymeko_dynamics/src/analysis.rs`
+- `elastic` — `hymeko_dynamics/src/power/continuum.rs`
+- `electromagnetic` — `hymeko_dynamics/src/power/electromagnetic.rs`
 - `enable_adaptivity` — `hymeko_dynamics/src/diffusion.rs`
 - `energy` — `hymeko_dynamics/src/diffusion.rs`
 - `energy` — `hymeko_dynamics/src/field.rs`
@@ -154,10 +163,15 @@ docstring are all excluded for a stated reason rather than by luck.
 - `is_outlet` — `hymeko_dynamics/src/fluid/grid.rs`
 - `junction_of` — `hymeko_dynamics/src/kirchhoff.rs`
 - `junction_states` — `hymeko_dynamics/src/system.rs`
+- `kinematics` — `hymeko_dynamics/src/power/mechanical.rs`
 - `kirchhoff` — `hymeko_dynamics/src/kirchhoff.rs`
 - `kirchhoff_residual` — `hymeko_dynamics/src/system.rs`
+- `layered` — `hymeko_dynamics/src/layout.rs`
+- `liquid` — `hymeko_dynamics/src/power/continuum.rs`
 - `log_bytes` — `hymeko_dynamics/src/scenario/session.rs`
 - `markers` — `hymeko_dynamics/src/fluid.rs`
+- `mechanical` — `hymeko_dynamics/src/power/mechanical.rs`
+- `mechanism` — `hymeko_dynamics/src/power/mechanical.rs`
 - `model` — `hymeko_dynamics/src/scenario/session.rs`
 - `modes` — `hymeko_dynamics/src/analysis.rs`
 - `mul` — `hymeko_dynamics/src/analysis.rs`
@@ -211,6 +225,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `store_at` — `hymeko_dynamics/src/kirchhoff.rs`
 - `sub` — `hymeko_dynamics/src/analysis.rs`
 - `subsystem_balance` — `hymeko_dynamics/src/hierarchy.rs`
+- `system` — `hymeko_dynamics/src/power.rs`
 - `time` — `hymeko_dynamics/src/diffusion.rs`
 - `time` — `hymeko_dynamics/src/softbody.rs`
 - `to_cbor` — `hymeko_dynamics/src/scenario/wire.rs`
@@ -458,6 +473,7 @@ _No public symbols._
 - `kind` — `hymeko_geometry/src/transforms/model_view.rs`
 - `kinematics` — `hymeko_geometry/src/articulated.rs`
 - `kinematics_parent` — `hymeko_geometry/src/articulated.rs`
+- `kinetic_energy_by_link` — `hymeko_geometry/src/articulated.rs`
 - `len` — `hymeko_geometry/src/forward.rs`
 - `links` — `hymeko_geometry/src/articulated.rs`
 - `model` — `hymeko_geometry/src/engine.rs`
