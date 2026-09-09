@@ -52,6 +52,10 @@ impl PowerGraph {
                 n.value = None;
             }
         }
+        for equation in &mut out.equations {
+            equation.value = None;
+        }
+        out.equation_note.push_str(" Kinematikai nézet: sebesség és fizikai gravitáció nélkül T/V/L/H értéke nem mért adat.");
         out.note="Structural mechanical power projection; velocity, gravity and effort measurements require the physical producer.".into();
         Some(out)
     }
@@ -69,7 +73,8 @@ impl PowerGraph {
         scope: Option<usize>,
     ) -> Option<Self> {
         let (gravity, time) = environment;
-        if !time.is_finite() || gravity.iter().any(|v| !v.is_finite())
+        if !time.is_finite()
+            || gravity.iter().any(|v| !v.is_finite())
             || scope.is_some_and(|i| i >= model.links.len())
             || q.len() != plan.slots()
             || q.iter().any(|v| !v.is_finite())
@@ -107,6 +112,53 @@ impl PowerGraph {
             .map(|i| kinetic[i] + potential[i])
             .unwrap_or_else(|| kinetic.iter().chain(&potential).sum());
         let mut out = Self::new(model.name.clone(), scope, time, velocity.map(|_| h));
+        let t = scope
+            .map(|i| kinetic[i])
+            .unwrap_or_else(|| kinetic.iter().sum());
+        let v = scope
+            .map(|i| potential[i])
+            .unwrap_or_else(|| potential.iter().sum());
+        out.equations = vec![
+            Equation::new(
+                "Mozgási energia",
+                "T = ½ Σᵢ (mᵢ vᵢ·vᵢ + ωᵢ·Iᵢωᵢ)",
+                velocity.map(|_| t),
+                "J",
+            ),
+            Equation::new("Gravitációs energia", "V(q) = −Σᵢ mᵢ g·rᵢ(q)", Some(v), "J"),
+            Equation::new(
+                "Lagrange-függvény",
+                "L(q,q̇) = T(q,q̇) − V(q)",
+                velocity.map(|_| t - v),
+                "J",
+            ),
+            Equation::new("Hamilton-energia", "H = T + V", velocity.map(|_| h), "J"),
+        ];
+        if scope.is_none() {
+            out.equations.extend([
+                Equation::new(
+                    "Legendre-kapcsolat",
+                    "p = ∂L/∂q̇ = M(q)q̇;  H(q,p) = ½ pᵀM(q)⁻¹p + V(q)",
+                    None,
+                    "",
+                ),
+                Equation::new(
+                    "Euler–Lagrange-egyenlet",
+                    "d/dt (∂L/∂q̇ᵢ) − ∂L/∂qᵢ = Qᵢ",
+                    None,
+                    "",
+                ),
+                Equation::new(
+                    "Hamilton-egyenletek",
+                    "q̇ = ∂H/∂p;  ṗ = −∂H/∂q + Q",
+                    None,
+                    "",
+                ),
+            ]);
+            out.equation_note = "A T/V/L/H értékek a meglévő testtehetetlenségből, tömegközéppontból és élő állapotból jönnek; Iᵢ és ωᵢ azonos koordinátarendszerben értendő. Az M(q)⁻¹ és a kanonikus Hamilton-alak feltétele: független, reguláris koordináták, invertálható tömegmátrix és időben rögzített kényszerek. E feltételeket ez a megfigyelés nem bizonyítja. Q az összes nem gravitációs általánosított erő, beleértve a hajtást, csillapítást és reakciókat. Az ütközési impulzus külön esemény, nem sima Euler–Lagrange-lépés. A képletek az owner mechanikai modellcsaládját írják le; ez nem modellenként kifejtett szimbolikus deriválás.".into();
+        } else {
+            out.equation_note = "A Σ csak a kijelölt testre vonatkozik; T/V/L/H a teljes rendszerhez adott hozzájárulás. A test sebessége a kapcsolt rendszer koordinátáitól függ. Ez nem önálló kanonikus alrendszer: a reakcióportok nélkül külön Euler–Lagrange- vagy Hamilton-egyenletet nem állítunk elő.".into();
+        }
         if let Some(i) = scope {
             let body = &model.links[i];
             out.name = body.name.clone();
@@ -190,4 +242,3 @@ impl PowerGraph {
         Some(out)
     }
 }
-

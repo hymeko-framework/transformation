@@ -11,6 +11,30 @@ pub struct Port {
     pub decl: DeclId,
     pub name: String,
 }
+/// Display-only physical law supplied by its domain owner, not an expression IR.
+/// `value` observes the current state; None means unavailable, not zero.
+#[derive(Clone, Debug)]
+pub struct Equation {
+    pub label: &'static str,
+    pub expression: &'static str,
+    pub value: Option<f64>,
+    pub unit: &'static str,
+}
+impl Equation {
+    fn new(
+        label: &'static str,
+        expression: &'static str,
+        value: Option<f64>,
+        unit: &'static str,
+    ) -> Self {
+        Self {
+            label,
+            expression,
+            value,
+            unit,
+        }
+    }
+}
 /// A visible storage, dissipation, boundary or encapsulated subsystem.
 #[derive(Clone, Debug)]
 pub struct Node {
@@ -53,6 +77,8 @@ pub struct PowerGraph {
     pub time: f64,
     pub note: String,
     pub truncated: bool,
+    pub equations: Vec<Equation>,
+    pub equation_note: String,
 }
 impl PowerGraph {
     fn new(name: String, scope: Option<usize>, time: f64, energy: Option<f64>) -> Self {
@@ -70,6 +96,8 @@ impl PowerGraph {
             time,
             note: String::new(),
             truncated: false,
+            equations: vec![],
+            equation_note: "Ehhez a projekcióhoz még nincs egyenletmegfigyelés. A gráf topológiája önmagában nem határoz meg Lagrange-függvényt.".into(),
         }
     }
     fn push(&mut self, node: Node) {
@@ -108,6 +136,27 @@ impl PowerGraph {
         let mut out = Self::new(system.name.clone(), scope, time, Some(balance.energy));
         out.supplied_power = Some(balance.supplied_power + balance.boundary_power);
         out.dissipated_power = Some(balance.dissipated_power);
+        out.equations.push(Equation::new(
+            "Hamilton-függvény",
+            "Hₛ(x) = Σ[k ∈ S] xₖ² / (2cₖ)",
+            Some(balance.energy),
+            "J",
+        ));
+        out.equation_note = "S a kiválasztott rendszer összes tárolója, a beágyazott alrendszerekkel együtt; cₖ a modellben deklarált kapacitás. A tárolókoordinátákból nincs deklarált kanonikus (q,p) pár: Euler–Lagrange-alakot ebből nem képezünk automatikusan.".into();
+        if scope.is_none() {
+            out.equations.push(Equation::new(
+                "Port-Hamiltoni dinamika",
+                "ẋ = (J − R)∇H + Gu;  y = Gᵀ∇H",
+                None,
+                "",
+            ));
+            out.equations.push(Equation::new(
+                "Teljesítménymérleg",
+                "dH/dt = uᵀy − (∇H)ᵀR∇H",
+                None,
+                "W",
+            ));
+        }
         if let Some(i) = scope {
             let g = &system.hierarchy.systems[i];
             out.name = g.name.clone();
@@ -168,9 +217,9 @@ impl PowerGraph {
     }
 }
 
+mod continuum;
 mod electromagnetic;
 mod mechanical;
-mod continuum;
 
 #[cfg(test)]
 mod tests {
@@ -223,6 +272,18 @@ mod tests {
         assert!((root.energy.unwrap() - (9.0 - 2.0 * 9.80665 * 0.4_f64.cos())).abs() < 1e-10);
         assert_eq!(root.supplied_power, Some(6.0));
         assert_eq!(root.dissipated_power, Some(4.5));
+        let lagrangian = root
+            .equations
+            .iter()
+            .find(|e| e.label == "Lagrange-függvény")
+            .unwrap();
+        assert!((lagrangian.value.unwrap() - (9.0 + 2.0 * 9.80665 * 0.4_f64.cos())).abs() < 1e-10);
+        assert!(
+            root.equations
+                .iter()
+                .any(|e| e.label == "Euler–Lagrange-egyenlet")
+        );
+        assert!(root.equation_note.contains("invertálható"));
         let part = PowerGraph::mechanism(&engine, 1.0, Some(0)).unwrap();
         assert_eq!(part.selection, Some(DeclId::new(1)));
         assert!(
@@ -239,6 +300,8 @@ mod tests {
         );
         assert_eq!(root.energy, part.energy);
         assert!(part.supplied_power.is_none());
+        assert_eq!(part.equations.len(), 4);
+        assert!(part.equation_note.contains("nem önálló"));
         assert_eq!(
             before,
             (engine.q.clone(), engine.qd.clone(), engine.regime_counts())
@@ -246,6 +309,7 @@ mod tests {
         assert!(PowerGraph::mechanism(&engine, 1.0, Some(99)).is_none());
         let structural = PowerGraph::kinematics(engine.model(), &engine.q, None).unwrap();
         assert!(structural.energy.is_none() && structural.nodes.iter().all(|n| n.energy.is_none()));
+        assert!(structural.equations.iter().all(|e| e.value.is_none()));
         assert!(PowerGraph::kinematics(engine.model(), &[], None).is_none());
     }
     #[test]

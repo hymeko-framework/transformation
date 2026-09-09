@@ -1,7 +1,7 @@
 //! Continuous Maxwell power structure derived from a resolved field declaration.
 //! The constitutive law and boundary integrals stay symbolic until supplied by
 //! the physical model. An analytic display alone is not an energy measurement.
-use super::{Node, Port, PowerGraph};
+use super::{Equation, Node, Port, PowerGraph};
 use hymeko::{
     common::ids::DeclId,
     ir::ir::{Ir, ValueR},
@@ -43,6 +43,25 @@ impl PowerGraph {
         };
         let mut graph = Self::new(interner.resolve(declaration.name).into(), scope, time, None);
         graph.selection = Some(root);
+        graph.equation_note = "Szimbolikus Maxwell-összefüggések. A mért energia kiszámításához anyagtörvény, tartomány és mezőállapot kell. Lagrange-sűrűséghez további mezőváltozók, potenciálok, forrás- és peremfeltételek szükségesek; a pH-gráf önmagában nem elég.".into();
+        if scope.is_none() {
+            graph.equations = vec![
+                Equation::new("Hamilton-funkcionál", "H[D,B] = ∫Ω w(D,B) dV", None, "J"),
+                Equation::new("Konjugált mezők", "E = ∂w/∂D;  Hₘ = ∂w/∂B", None, ""),
+                Equation::new(
+                    "Maxwell-dinamika",
+                    "∂D/∂t = ∇×Hₘ − J;  ∂B/∂t = −∇×E",
+                    None,
+                    "",
+                ),
+                Equation::new(
+                    "Poynting-mérleg",
+                    "dH/dt = −∫Ω E·J dV − ∮∂Ω (E×Hₘ)·n dA",
+                    None,
+                    "W",
+                ),
+            ];
+        }
         graph.note = format!(
             "HyMeKo-derived continuous Maxwell structure: {law}. H = integral w(D,B) dV; E = d w/dD, H_field = d w/dB. For linear reciprocal materials w = (E.D + H_field.B)/2. Curl coupling is power preserving up to the Poynting boundary port. Material law, integration domain and live field samples are not supplied by this analytic description: numerical energy/power are unknown. Gauss laws constrain admissible fields; they are not time integrators."
         );
@@ -134,6 +153,15 @@ mod tests {
             let graph = PowerGraph::electromagnetic(ir, &store.it, root, None, 0.3).unwrap();
             assert_eq!(graph.nodes.len(), 3);
             assert_eq!(graph.edges.len(), 3);
+            assert_eq!(graph.equations.len(), 4);
+            assert!(graph.equations.iter().all(|e| e.value.is_none()));
+            assert!(
+                graph
+                    .equations
+                    .iter()
+                    .any(|e| e.expression.contains("w(D,B)"))
+            );
+            assert!(graph.equation_note.contains("Lagrange-sűrűséghez"));
             assert!(
                 graph.energy.is_none()
                     && graph.supplied_power.is_none()
@@ -145,10 +173,12 @@ mod tests {
                     PowerGraph::electromagnetic(ir, &store.it, root, node.scope, 0.3).unwrap();
                 assert_eq!(sub.selection, Some(root));
                 assert_eq!(sub.parent, None);
-                assert!(sub
-                    .nodes
-                    .iter()
-                    .all(|n| n.value.is_none() && n.decl == root));
+                assert!(sub.equations.is_empty());
+                assert!(
+                    sub.nodes
+                        .iter()
+                        .all(|n| n.value.is_none() && n.decl == root)
+                );
             }
             assert!(PowerGraph::electromagnetic(ir, &store.it, root, Some(3), 0.0).is_none());
             assert!(PowerGraph::electromagnetic(ir, &store.it, root, None, f64::NAN).is_none());
