@@ -55,7 +55,12 @@ impl PowerGraph {
         out.note="Structural mechanical power projection; velocity, gravity and effort measurements require the physical producer.".into();
         Some(out)
     }
-    fn mechanical(
+    /// Observe articulated state using its existing owner plan, without integration.
+    /// The plan must belong to this model; q and velocity use its joint slots.
+    /// Numerical damping armatures must be removed before observing physical momentum.
+    /// Returns None for malformed/nonfinite inputs or stale scopes. Boundary powers
+    /// remain unknown until supplied by the calling physical producer.
+    pub fn mechanical(
         model: &KinematicModel,
         plan: &AbaPlan,
         q: &[f64],
@@ -64,7 +69,8 @@ impl PowerGraph {
         scope: Option<usize>,
     ) -> Option<Self> {
         let (gravity, time) = environment;
-        if scope.is_some_and(|i| i >= model.links.len())
+        if !time.is_finite() || gravity.iter().any(|v| !v.is_finite())
+            || scope.is_some_and(|i| i >= model.links.len())
             || q.len() != plan.slots()
             || q.iter().any(|v| !v.is_finite())
         {

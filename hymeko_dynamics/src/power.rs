@@ -168,6 +168,7 @@ impl PowerGraph {
     }
 }
 
+mod electromagnetic;
 mod mechanical;
 mod continuum;
 

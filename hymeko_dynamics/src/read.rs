@@ -151,7 +151,7 @@ impl Reader<'_> {
         false
     }
 
-    fn field(&self, decl: DeclId, field: &str) -> Option<&ValueR> {
+    pub(crate) fn field(&self, decl: DeclId, field: &str) -> Option<&ValueR> {
         let mut child = self.ir.decl_nodes.get(decl.raw())?.first_child;
         let mut guard = 0usize;
         while child.is_some() && guard <= self.ir.decl_nodes.len() {
