@@ -235,7 +235,14 @@ impl PowerGraph {
                     model.links.iter().position(|l| l.name == j.parent_link),
                     model.links.iter().position(|l| l.name == j.child_link),
                 ) {
-                    out.connect(format!("body{a}"), format!("body{b}"));
+                    // Kinematic joints declare (+ parent, - child, - axis).
+                    // This view projects the two body incidences only.
+                    out.connect_identified(
+                        format!("body{b}"),
+                        format!("body{a}"),
+                        Some(j.did),
+                        None,
+                    );
                 }
             }
         }

@@ -11,6 +11,15 @@ pub struct Port {
     pub decl: DeclId,
     pub name: String,
 }
+/// Oriented reference connection. Incidence signs are independent of weight sign
+/// and instantaneous power flow. `decl=None` denotes a derived projection bond.
+#[derive(Clone, Debug)]
+pub struct Connection {
+    pub negative: String,
+    pub positive: String,
+    pub decl: Option<DeclId>,
+    pub weight: Option<f64>,
+}
 /// Display-only physical law supplied by its domain owner, not an expression IR.
 /// `value` observes the current state; None means unavailable, not zero.
 #[derive(Clone, Debug)]
@@ -69,7 +78,7 @@ pub struct PowerGraph {
     pub parent: Option<usize>,
     pub selection: Option<DeclId>,
     pub nodes: Vec<Node>,
-    pub edges: Vec<(String, String)>,
+    pub edges: Vec<Connection>,
     pub energy: Option<f64>,
     pub energy_unit: String,
     pub supplied_power: Option<f64>,
@@ -108,14 +117,55 @@ impl PowerGraph {
         }
     }
     fn connect(&mut self, a: String, b: String) {
+        self.connect_identified(a, b, None, None);
+    }
+    fn connect_identified(
+        &mut self,
+        a: String,
+        b: String,
+        decl: Option<DeclId>,
+        weight: Option<f64>,
+    ) {
         if a != b && self.nodes.iter().any(|n| n.key == a) && self.nodes.iter().any(|n| n.key == b)
         {
             if self.edges.len() < 2000 {
-                self.edges.push((a, b));
+                self.edges.push(Connection {
+                    negative: a,
+                    positive: b,
+                    decl,
+                    weight,
+                });
             } else {
                 self.truncated = true;
             }
         }
+    }
+    /// Deterministic display positions, ordered like `nodes`, without changing
+    /// physical state. Returns None for malformed or over-budget public input.
+    pub fn arrangement(&self) -> Option<Vec<[f64; 2]>> {
+        if self.nodes.len() > 500 || self.edges.len() > 2000 {
+            return None;
+        }
+        let index: std::collections::HashMap<_, _> = self
+            .nodes
+            .iter()
+            .enumerate()
+            .map(|(i, n)| (n.key.as_str(), i))
+            .collect();
+        if index.len() != self.nodes.len() {
+            return None;
+        }
+        let edges: Option<Vec<_>> = self
+            .edges
+            .iter()
+            .map(|e| {
+                Some((
+                    *index.get(e.positive.as_str())?,
+                    *index.get(e.negative.as_str())?,
+                ))
+            })
+            .collect();
+        crate::layout::layered(self.nodes.len(), &edges?)
     }
     /// Existing declared pH system, preserving its exact exported-port encapsulation.
     /// Returns None for stale scopes or malformed state; never advances the producer.
@@ -208,9 +258,19 @@ impl PowerGraph {
                     .map(|(g, _)| format!("s{g}"))
             }
         };
-        for p in &system.blueprint.ports {
+        for (i, p) in system.blueprint.ports.iter().enumerate() {
             if let (Some(a), Some(b)) = (endpoint(p.source), endpoint(p.target)) {
-                out.connect(a, b);
+                out.connect_identified(
+                    a,
+                    b,
+                    Some(p.decl),
+                    system
+                        .port_hamiltonian
+                        .interconnection
+                        .ports()
+                        .get(i)
+                        .map(|p| p.weight),
+                );
             }
         }
         Some(out)
@@ -331,5 +391,38 @@ mod tests {
         assert_eq!(graph.nodes.len(), 500);
         assert_eq!(graph.edges.len(), 2000);
         assert!(graph.truncated);
+        let layout = graph.arrangement().unwrap();
+        assert_eq!(layout.len(), 500);
+        assert!(
+            layout[1][0] < layout[0][0],
+            "positive body precedes negative body"
+        );
+        assert_eq!(layout, graph.arrangement().unwrap());
+        graph.edges[0].negative = "absent".into();
+        assert!(graph.arrangement().is_none());
+    }
+    #[test]
+    fn layered_layout_handles_cycles_parallel_edges_and_budget_without_overlap() {
+        let edges = [(0, 1), (1, 2), (2, 0), (0, 1)];
+        let positions = crate::layout::layered(5, &edges).unwrap();
+        assert_eq!(positions, crate::layout::layered(5, &edges).unwrap());
+        for i in 0..5 {
+            for j in 0..i {
+                assert_ne!(positions[i], positions[j]);
+            }
+        }
+        assert!(crate::layout::layered(501, &[]).is_none());
+        assert!(crate::layout::layered(2, &[(0, 2)]).is_none());
+        assert!(crate::layout::layered(2, &vec![(0, 1); 2001]).is_none());
+        assert_eq!(crate::layout::layered(0, &[]), Some(vec![]));
+        let large: Vec<_> = (0..2000).map(|i| (i % 500, (i + 1) % 500)).collect();
+        let start = std::time::Instant::now();
+        for _ in 0..20 {
+            assert_eq!(crate::layout::layered(500, &large).unwrap().len(), 500);
+        }
+        assert!(
+            start.elapsed().as_secs_f64() < 1.0,
+            "bounded diagram layout budget"
+        );
     }
 }
