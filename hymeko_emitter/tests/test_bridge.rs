@@ -190,6 +190,20 @@ fn editor_with_multiple_edges_preserves_per_edge_signs() {
     let arena = to_compiler_ir(&editor, &mut interner);
     let back = from_compiler_ir(&arena, &interner);
 
+    // The legacy editor declares signs, never data-flow directions.
+    assert_eq!(
+        arena.arcs.iter().map(|arc| arc.refs.len()).sum::<usize>(),
+        4
+    );
+    for reference in arena.arcs.iter().flat_map(|arc| &arc.refs) {
+        let atom = match reference {
+            hymeko::ir::ir::SignedRefR::Plus(atom)
+            | hymeko::ir::ir::SignedRefR::Minus(atom)
+            | hymeko::ir::ir::SignedRefR::Neutral(atom) => atom,
+        };
+        assert_eq!(atom.direction, hymeko::ir::ir::PortDirection::Unspecified);
+    }
+
     // Every edge should still have exactly 2 incidents with the same sign mix.
     assert_eq!(back.hyperedges.len(), 2);
     for he in back.hyperedges.values() {
@@ -289,11 +303,7 @@ fn incident_vertices_that_are_edges_in_arena_are_filtered_on_reverse() {
 
     // Arc references `a` (node, allowed) and `e1` (edge, should be filtered).
     let arc_did = push(&mut ir, fresh(DeclKind::HyperArc, SymId::new(0)));
-    let atom = |t| RefAtomR {
-        target: t,
-        anno: AnnoR::default(),
-        weights: None,
-    };
+    let atom = RefAtomR::plain;
     ir.arcs.push(ArcRec {
         anno: AnnoR::default(),
         in_edge: edge2_did,

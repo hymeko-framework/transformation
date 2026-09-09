@@ -285,11 +285,7 @@ mod tests {
         let refs = incidences
             .iter()
             .map(|&(sign, target)| {
-                let atom = RefAtomR {
-                    target,
-                    anno: AnnoR::default(),
-                    weights: None,
-                };
+                let atom = RefAtomR::plain(target);
                 match sign {
                     1 => SignedRefR::Plus(atom),
                     -1 => SignedRefR::Minus(atom),

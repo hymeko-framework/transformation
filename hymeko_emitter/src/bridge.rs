@@ -62,11 +62,7 @@ fn push_decl(ir: &mut Ir, decl: DeclNode) -> DeclId {
 }
 
 fn signed_ref_for(target: DeclId, sign: Sign) -> SignedRefR {
-    let atom = RefAtomR {
-        target,
-        anno: AnnoR::default(),
-        weights: None,
-    };
+    let atom = RefAtomR::plain(target);
     match sign {
         Sign::Plus => SignedRefR::Plus(atom),
         Sign::Minus => SignedRefR::Minus(atom),
