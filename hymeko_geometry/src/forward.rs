@@ -45,6 +45,8 @@ pub type JointValues = HashMap<String, f64>;
 pub enum FkError {
     /// A dynamics consumer was given a nonphysical declared COM inertia.
     InvalidInertia(String),
+    /// A bounded joint has nonfinite or reversed position stops.
+    InvalidJointLimits(String),
     /// The model declares no links.
     NoLinks,
     /// A link is the child of more than one joint, so the path to it — and hence its pose — is not
@@ -72,6 +74,7 @@ impl core::fmt::Display for FkError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::InvalidInertia(link) => write!(f, "invalid declared inertia on link {link:?}"),
+            Self::InvalidJointLimits(joint) => write!(f, "invalid position limits on joint {joint:?}"),
             Self::NoLinks => write!(f, "model declares no links"),
             Self::MultipleParents { link, joints } => write!(
                 f,

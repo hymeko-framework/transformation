@@ -22,10 +22,17 @@ crate-type = ["rlib"]
 [dependencies]
 hymeko_core = { workspace = true }
 hymeko_query = { path = "../hymeko_query" }
+# Spatial candidate search belongs to the canonical Graph octree implementation.
+hymeko_graph = { path = "../../graph/hymeko_graph" }
 # SE(n) comes from the Tensor pillar's geometric algebra. NOTE: a PATH dependency only until the
 # `hymeko/tensor` repo is pushed with `hymeko_clifford::algebra::Se`; flip it to a git line then.
 hymeko_clifford = { workspace = true }
 log = { workspace = true }
+serde = { version = "1", features = ["derive", "rc"] }
+meshopt = { version = "=0.6.2", optional = true }
+
+[features]
+mesh-optimization = ["dep:meshopt"]
 
 [dev-dependencies]
 parser = { workspace = true }

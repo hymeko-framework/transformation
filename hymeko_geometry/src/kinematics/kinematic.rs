@@ -283,11 +283,12 @@ fn extract_value_list(ir: &Ir, did: DeclId) -> Option<Vec<f64>> {
 /// Extract geometry from a child named `link_geometry` that inherits
 /// from box/cylinder/sphere.
 fn extract_geometry<R: NameResolver>(ir: &Ir, res: &R, link_did: DeclId) -> Option<GeometryInfo> {
-    ir.decl_children(link_did).find_map(|cid| {
-        let child = &ir.decl_nodes[cid.raw()];
-        let cname = res.resolve(child.name);
-        if cname != "link_geometry" { return None; }
+    ir.decl_children(link_did)
+        .find(|cid| res.resolve(ir.decl_nodes[cid.raw()].name) == "link_geometry")
+        .and_then(|cid| geometry_decl(ir, res, cid).unwrap_or_else(|message| panic!("{message}")))
+}
 
+pub(super) fn geometry_decl<R: NameResolver>(ir: &Ir, res: &R, cid: DeclId) -> Result<Option<GeometryInfo>, String> {
         if let Some(nid) = ir.as_node(cid) {
             let mut unknown_shape: Option<String> = None;
             for base in &ir.nodes[nid.raw()].bases {
@@ -305,20 +306,19 @@ fn extract_geometry<R: NameResolver>(ir: &Ir, res: &R, link_did: DeclId) -> Opti
                     let dims = find_child_list(ir, res, cid, "dimension")
                         .unwrap_or_default();
                     let collision = extract_collision(ir, res, cid);
-                    return Some(GeometryInfo { shape, dimensions: dims, collision });
+                    return Ok(Some(GeometryInfo { shape, dimensions: dims, collision }));
                 }
             }
             // An EXPLICITLY supplied but unknown geometry shape must hard-fail (not silently disappear).
             // Missing geometry (no shape base at all) remains allowed and returns None below.
             if let Some(bad) = unknown_shape {
-                panic!(
+                return Err(format!(
                     "unknown geometry shape {bad:?} in `link_geometry` (decl {cid:?}); \
                      expected one of box / cylinder / sphere / capsule"
-                );
+                ));
             }
         }
-        None
-    })
+        Ok(None)
 }
 
 /// Read an optional `collision {{ contype ...; conaffinity ...; }}` sub-node of a `link_geometry` node.

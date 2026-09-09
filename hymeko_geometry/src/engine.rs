@@ -1,3 +1,4 @@
+//! Kawakern rigid-body engine: existing articulated dynamics and contact solver.
 //! A whole physics step: the tree, the contacts, and the choice of how to advance.
 //!
 //! # Why the integrator is a choice the engine makes and not the caller
@@ -30,12 +31,13 @@
 use hymeko_clifford::Se3;
 
 use crate::articulated::{AbaPlan, AbaScratch};
-use crate::collide::{colliders_of, place, BroadPhase, Collider, Placement};
+use crate::collide::{BroadPhase, Collider, Convex, Placement, colliders_of, place};
 use crate::contact::{
-    ground_constraints, ground_contacts, Constraint, ConstraintSolver, ContactParameters,
-    GroundContact,
+    BodyContact, Constraint, ConstraintSolver, ContactParameters, ContactRows, GroundContact,
+    Limit, ground_constraints, ground_contacts,
 };
 use crate::forward::{FkError, FkPlan};
+use crate::kinematics::joints::JointType;
 use crate::kinematics::kinematic::KinematicModel;
 
 /// How the engine advances between contacts.
@@ -88,6 +90,8 @@ pub struct Engine {
     colliders: Vec<Collider>,
     broad: BroadPhase,
     solver: ConstraintSolver,
+    sphere_collisions: bool,
+    body_contacts: Vec<BodyContact>,
 
     /// Joint positions and rates, by plan slot.
     pub q: Vec<f64>,
@@ -114,11 +118,13 @@ pub struct Engine {
     velocity: Vec<f64>,
     armature: Vec<f64>,
     poses: Vec<Se3>,
+    predicted_poses: Vec<Se3>,
     placed: Vec<Placement>,
     boxes: Vec<([f64; 3], [f64; 3])>,
     candidates: Vec<(usize, usize)>,
     contacts: Vec<GroundContact>,
     constraints: Vec<Constraint>,
+    stops: Vec<(usize, f64, f64)>,
     stages: Vec<Vec<f64>>,
     rates: Vec<Vec<f64>>,
     trial: (Vec<f64>, Vec<f64>),
@@ -142,6 +148,19 @@ impl Engine {
         let n = aba.slots();
         let scratch = aba.scratch();
         let poses = plan.identity_poses_se3();
+        let mut stops = Vec::new();
+        for (slot, joint) in model.joints.iter().enumerate() {
+            if !matches!(joint.joint_type, JointType::Revolute | JointType::Prismatic) {
+                continue;
+            }
+            if let Some(limit) = &joint.limits {
+                if !limit.lower.is_finite() || !limit.upper.is_finite() || limit.lower > limit.upper
+                {
+                    return Err(FkError::InvalidJointLimits(joint.name.clone()));
+                }
+                stops.push((slot, limit.lower, limit.upper));
+            }
+        }
         Ok(Self {
             model,
             aba,
@@ -162,12 +181,16 @@ impl Engine {
             free: vec![0.0; n],
             velocity: vec![0.0; n],
             armature: vec![0.0; n],
+            predicted_poses: poses.clone(),
             poses,
             placed: Vec::new(),
             boxes: Vec::new(),
             candidates: Vec::new(),
+            sphere_collisions: false,
+            body_contacts: Vec::new(),
             contacts: Vec::new(),
             constraints: Vec::new(),
+            stops,
             stages: vec![vec![0.0; n]; 6],
             rates: vec![vec![0.0; n]; 6],
             trial: (vec![0.0; n], vec![0.0; n]),
@@ -190,6 +213,148 @@ impl Engine {
     /// The contacts found at the last step.
     pub fn contacts(&self) -> &[GroundContact] {
         &self.contacts
+    }
+
+    /// Enable exact sphere geometry on translational mechanisms. Rotational CCD
+    /// and general convex contact are not supported; activation fails explicitly.
+    /// This selects contact-sized Euler steps, including linear time-of-impact splits.
+    pub fn enable_sphere_collisions(&mut self) -> Result<(), String> {
+        if self.colliders.len() < 2 {
+            return Err("body collisions require at least two declared sphere proxies".into());
+        }
+        if self
+            .model
+            .joints
+            .iter()
+            .any(|j| !matches!(j.joint_type, JointType::Prismatic | JointType::Fixed))
+        {
+            return Err("sphere collisions currently require fixed/prismatic joints".into());
+        }
+        if self.colliders.iter().any(
+            |c| !matches!(c.shape, Convex::Sphere { radius } if radius.is_finite() && radius > 0.0),
+        ) {
+            return Err("body collisions currently require positive finite sphere proxies".into());
+        }
+        self.sphere_collisions = true;
+        Ok(())
+    }
+
+    /// Body-pair contacts used by the last impulse solve, independent of the ground.
+    pub fn body_contacts(&self) -> &[BodyContact] {
+        &self.body_contacts
+    }
+
+    // Earliest collision of the free Euler trajectories. Endpoint-union bounds are
+    // conservative because admitted joint chains only translate. Recomputing free
+    // velocity after a split retains the existing first-order force discretization.
+    fn sphere_pair(&self, i: usize, j: usize) -> Option<([f64; 3], f64, f64)> {
+        match (self.colliders[i].shape, self.colliders[j].shape) {
+            (Convex::Sphere { radius: a }, Convex::Sphere { radius: b }) => Some((
+                std::array::from_fn(|k| self.placed[j].centre[k] - self.placed[i].centre[k]),
+                a,
+                b,
+            )),
+            _ => None,
+        }
+    }
+
+    fn sphere_time(&mut self, h: f64) -> f64 {
+        self.plan.resolve_se3(&self.model, &self.q, &mut self.poses);
+        place(&self.colliders, &self.poses, &mut self.placed);
+        for (k, next) in self.trial.0.iter_mut().enumerate() {
+            *next = self.q[k] + h * self.velocity[k];
+        }
+        self.plan
+            .resolve_se3(&self.model, &self.trial.0, &mut self.predicted_poses);
+        self.boxes.clear();
+        let predicted: Vec<_> = self
+            .colliders
+            .iter()
+            .map(|c| Placement::of(c, &self.predicted_poses[c.link]))
+            .collect();
+        for ((c, a), b) in self.colliders.iter().zip(&self.placed).zip(&predicted) {
+            let (lo, hi) = a.aabb(&c.shape);
+            let (next_lo, next_hi) = b.aabb(&c.shape);
+            self.boxes.push((
+                std::array::from_fn(|k| lo[k].min(next_lo[k])),
+                std::array::from_fn(|k| hi[k].max(next_hi[k])),
+            ));
+        }
+        self.broad.with_bounds(&self.boxes, &mut self.candidates);
+        let mut fraction: f64 = 1.0;
+        for &(i, j) in &self.candidates {
+            let Some((delta, a, b)) = self.sphere_pair(i, j) else {
+                continue;
+            };
+            let travel: [f64; 3] =
+                std::array::from_fn(|k| predicted[j].centre[k] - predicted[i].centre[k] - delta[k]);
+            let dot = |x: [f64; 3], y: [f64; 3]| x.iter().zip(y).map(|(x, y)| x * y).sum::<f64>();
+            let c = dot(delta, delta) - (a + b).powi(2);
+            let v2 = dot(travel, travel);
+            let approach = dot(delta, travel);
+            let discriminant = approach * approach - v2 * c;
+            // Near-touching pairs are handled by the impulse rows, avoiding zero-time loops.
+            if c <= 1e-10 * (a + b) || approach >= 0.0 || v2 == 0.0 || discriminant < 0.0 {
+                continue;
+            }
+            let hit = c / (-approach + discriminant.sqrt());
+            if hit > 0.0 && hit < fraction {
+                fraction = hit;
+            }
+        }
+        h * fraction
+    }
+
+    fn sphere_constraints(&mut self, h: f64) {
+        // Include the margin in the index, but use exact spherical separation below.
+        self.boxes.clear();
+        for (c, p) in self.colliders.iter().zip(&self.placed) {
+            let (lo, hi) = p.aabb(&c.shape);
+            self.boxes.push((
+                lo.map(|x| x - self.contact.margin),
+                hi.map(|x| x + self.contact.margin),
+            ));
+        }
+        self.broad.with_bounds(&self.boxes, &mut self.candidates);
+        for &(i, j) in &self.candidates {
+            let Some((delta, a, b)) = self.sphere_pair(i, j) else {
+                continue;
+            };
+            let distance = delta.iter().map(|x| x * x).sum::<f64>().sqrt();
+            let separation = distance - a - b;
+            if separation > 1e-9 {
+                continue;
+            }
+            let normal = if distance > 1e-12 {
+                delta.map(|x| x / distance)
+            } else {
+                [1.0, 0.0, 0.0]
+            };
+            let point = std::array::from_fn(|k| {
+                self.placed[i].centre[k] + normal[k] * (a + separation * 0.5)
+            });
+            self.body_contacts.push(BodyContact {
+                colliders: [i, j],
+                point,
+                normal,
+                separation,
+            });
+            ContactRows {
+                aba: &self.aba,
+                poses: &self.poses,
+                velocity: &self.velocity,
+                parameters: &self.contact,
+                step: h,
+                scratch: &mut self.scratch,
+                out: &mut self.constraints,
+            }
+            .append(
+                [Some(self.colliders[i].link), Some(self.colliders[j].link)],
+                point,
+                normal,
+                separation,
+            );
+        }
     }
 
     /// The constraint impulses from the last step.
@@ -223,7 +388,9 @@ impl Engine {
 
     /// One step of at most `budget`, returning how much of it was used.
     fn one_step(&mut self, budget: f64) -> f64 {
-        if let FreeFlight::DormandPrince { step } = self.free_flight {
+        if let FreeFlight::DormandPrince { step } = self.free_flight
+            && !self.sphere_collisions
+        {
             let big = step.min(budget);
             // No comparison against `contact_step` here. Whether the free step is larger is the
             // caller's business — a small one is a deliberately accurate run, and an earlier version
@@ -244,15 +411,22 @@ impl Engine {
             }
         }
         let small = self.contact_step.min(budget);
-        self.semi_implicit(small);
+        let taken = self.semi_implicit(small);
         self.contact_steps += 1;
-        small
+        taken
     }
 
     /// Is every collider clear of the ground, with the contact margin to spare?
     ///
     /// Also refreshes the poses and placements, which the next step needs anyway.
     fn clearance_is_positive(&mut self) -> bool {
+        if self
+            .stops
+            .iter()
+            .any(|&(slot, lo, hi)| self.q[slot] <= lo || self.q[slot] >= hi)
+        {
+            return false;
+        }
         let Some(height) = self.ground else {
             return true;
         };
@@ -289,7 +463,7 @@ impl Engine {
     /// The scheme for whenever anything is touching, and the one whose damping is unconditionally
     /// stable: `M + h C` differs from `M` by a joint-space diagonal, which the articulated recursion
     /// absorbs as an armature.
-    fn semi_implicit(&mut self, h: f64) {
+    fn semi_implicit(&mut self, h: f64) -> f64 {
         let n = self.aba.slots();
         self.armature.clear();
         self.armature.resize(n, h * self.damping);
@@ -313,11 +487,24 @@ impl Engine {
         }
         self.free = free;
 
+        if self.sphere_collisions {
+            let split = self.sphere_time(h);
+            if split > 1e-12 && split < h * (1.0 - 1e-8) {
+                return self.semi_implicit(split);
+            }
+        }
+        self.constraints.clear();
+        self.contacts.clear();
+        self.body_contacts.clear();
         if let Some(height) = self.ground {
             self.plan.resolve_se3(&self.model, &self.q, &mut self.poses);
             place(&self.colliders, &self.poses, &mut self.placed);
-            self.broad
-                .overlapping(&self.colliders, &self.placed, &mut self.boxes, &mut self.candidates);
+            self.broad.overlapping(
+                &self.colliders,
+                &self.placed,
+                &mut self.boxes,
+                &mut self.candidates,
+            );
             ground_contacts(
                 &self.colliders,
                 &self.placed,
@@ -325,6 +512,7 @@ impl Engine {
                 self.contact.margin,
                 &mut self.contacts,
             );
+            self.predict_ground_contacts(height, h);
             if !self.contacts.is_empty() {
                 ground_constraints(
                     &self.aba,
@@ -337,16 +525,22 @@ impl Engine {
                     &mut self.scratch,
                     &mut self.constraints,
                 );
-                let mut velocity = std::mem::take(&mut self.velocity);
-                self.solver.solve(
-                    &self.aba,
-                    &self.constraints,
-                    &self.contact,
-                    &mut self.scratch,
-                    &mut velocity,
-                );
-                self.velocity = velocity;
             }
+        }
+        if self.sphere_collisions {
+            self.sphere_constraints(h);
+        }
+        self.joint_constraints(h);
+        if !self.constraints.is_empty() {
+            let mut velocity = std::mem::take(&mut self.velocity);
+            self.solver.solve(
+                &self.aba,
+                &self.constraints,
+                &self.contact,
+                &mut self.scratch,
+                &mut velocity,
+            );
+            self.velocity = velocity;
         }
 
         for k in 0..n {
@@ -356,6 +550,55 @@ impl Engine {
         self.armature.clear();
         self.armature.resize(n, 0.0);
         self.aba.set_armature(&self.armature);
+        h
+    }
+
+    // Include both bounds in the SAME solve as ground contact. A ground impulse
+    // can activate a stop even when the unconstrained velocity would not cross it.
+    // Full tree reach retains inertia coupling to every other coordinate.
+    fn joint_constraints(&mut self, h: f64) {
+        for &(slot, lo, hi) in &self.stops {
+            for (sign, gap) in [(1.0, self.q[slot] - lo), (-1.0, hi - self.q[slot])] {
+                let mut force = vec![0.0; self.q.len()];
+                force[slot] = sign;
+                self.constraints.push(Constraint {
+                    force,
+                    reach: self.aba.order().iter().rev().copied().collect(),
+                    bias: gap / h,
+                    limit: Limit::Pushing,
+                });
+            }
+        }
+    }
+
+    /// Admit impending plane crossings using the free end pose, while the
+    /// constraint Jacobian and gap remain at the current pose. Exact for linear
+    /// translations; this is not continuous collision detection for rotations.
+    fn predict_ground_contacts(&mut self, height: f64, h: f64) {
+        if self.contacts.len() == self.colliders.len() {
+            return;
+        }
+        for ((next, &q), &velocity) in self.trial.0.iter_mut().zip(&self.q).zip(&self.velocity) {
+            *next = q + h * velocity;
+        }
+        self.plan
+            .resolve_se3(&self.model, &self.trial.0, &mut self.predicted_poses);
+        for (collider, (shape, placed)) in self.colliders.iter().zip(&self.placed).enumerate() {
+            let point = placed.support(&shape.shape, [0.0, 0.0, -1.0]);
+            let separation = point[2] - height;
+            if separation <= self.contact.margin {
+                continue; // already admitted by ground_contacts, exactly once
+            }
+            let predicted = Placement::of(shape, &self.predicted_poses[shape.link]);
+            if predicted.support(&shape.shape, [0.0, 0.0, -1.0])[2] - height <= self.contact.margin
+            {
+                self.contacts.push(GroundContact {
+                    collider,
+                    point,
+                    separation,
+                });
+            }
+        }
     }
 
     /// Dormand-Prince 5(4) at a fixed step, for an interval with nothing touching.

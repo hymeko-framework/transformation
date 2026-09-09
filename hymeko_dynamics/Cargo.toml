@@ -19,6 +19,7 @@ default = []
 web = ["dep:wasm-bindgen"]
 
 [dependencies]
+hymeko_geometry = { path = "../hymeko_geometry" }
 wasm-bindgen = { version = "0.2.127", optional = true }
 hymeko_core = { workspace = true }
 # The Tensor pillar's numerics. Dependency-free by contract, so pulling it in by path adds nothing
@@ -29,6 +30,8 @@ hymeko_core = { workspace = true }
 hymeko_numerics = { git = "ssh://git@amaterasu.local:2222/hymeko/tensor.git", branch = "main" }
 # The shared in-memory SourceProvider, so a model compiles where there is no disk.
 hymeko_sources = { path = "../hymeko_sources" }
+
+hymeko_graph = { path = "../../graph/hymeko_graph" }
 
 [dev-dependencies]
 # The network reading of the same circuit, so the quasi-static limit can be checked against it.

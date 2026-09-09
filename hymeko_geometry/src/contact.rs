@@ -106,6 +106,16 @@ pub struct GroundContact {
     pub separation: f64,
 }
 
+/// A sphere pair at the last impulse configuration. Normal points from A to B.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BodyContact {
+    pub colliders: [usize; 2],
+    /// Common world point; equal/opposite impulses preserve angular momentum.
+    pub point: [f64; 3],
+    pub normal: [f64; 3],
+    pub separation: f64,
+}
+
 /// Every collider whose lowest point is within `margin` of `height`, above or below.
 ///
 /// **Exact, and one support evaluation each.** The lowest point of a convex body is its support in
@@ -328,8 +338,7 @@ impl ConstraintSolver {
                     // residuals — which read as a solver that plateaus at 5-8e-2 and never
                     // converges. It was the measurement that was stuck, not the solve.
                     let bound = mu * self.impulse[*normal].max(0.0);
-                    let length =
-                        (self.impulse[k].powi(2) + self.impulse[*partner].powi(2)).sqrt();
+                    let length = (self.impulse[k].powi(2) + self.impulse[*partner].powi(2)).sqrt();
                     if length >= bound * (1.0 - 1e-9) {
                         0.0 // sliding, and a residual here is the friction doing its job
                     } else {
@@ -505,7 +514,8 @@ impl ConstraintSolver {
                         let before = (self.impulse[k], self.impulse[partner]);
                         self.impulse[k] = self.gauss_seidel(k);
                         self.impulse[partner] = self.gauss_seidel(partner);
-                        let length = (self.impulse[k].powi(2) + self.impulse[partner].powi(2)).sqrt();
+                        let length =
+                            (self.impulse[k].powi(2) + self.impulse[partner].powi(2)).sqrt();
                         if length > bound && length > 0.0 {
                             self.impulse[k] *= bound / length;
                             self.impulse[partner] *= bound / length;
@@ -585,73 +595,119 @@ pub fn ground_constraints(
     out: &mut Vec<Constraint>,
 ) {
     out.clear();
-    let n = aba.slots();
+    let mut rows = ContactRows {
+        aba,
+        poses,
+        velocity,
+        parameters,
+        step,
+        scratch,
+        out,
+    };
     for contact in contacts {
-        let mut force = vec![0.0; n];
-        let mut reach = Vec::new();
-        aba.reach(colliders[contact.collider].link, &mut reach);
-        aba.constraint_force(
-            poses,
-            colliders[contact.collider].link,
+        rows.append(
+            [None, Some(colliders[contact.collider].link)],
             contact.point,
             [0.0, 0.0, 1.0],
-            scratch,
-            &mut force,
+            contact.separation,
         );
-        // The bias is one number doing two jobs, and the sign of the separation says which.
-        //
-        //   apart      the constraint must permit closing the gap, and no more: a body a millimetre
-        //              up may approach at `gap / h` and arrive exactly on the plane.
-        //   penetrating a fraction of the overlap beyond the slop is worked off per step, as a
-        //              velocity rather than a jump, so a body pushed into the floor rises out of it
-        //              instead of being flung.
-        let bias_position = if contact.separation > 0.0 {
-            contact.separation / step
+    }
+}
+
+// Shared normal/friction assembly for a world plane or two equal/opposite body wrenches.
+pub(crate) struct ContactRows<'a> {
+    pub aba: &'a AbaPlan,
+    pub poses: &'a [Se3],
+    pub velocity: &'a [f64],
+    pub parameters: &'a ContactParameters,
+    pub step: f64,
+    pub scratch: &'a mut AbaScratch,
+    pub out: &'a mut Vec<Constraint>,
+}
+impl ContactRows<'_> {
+    fn force(
+        &mut self,
+        links: [Option<usize>; 2],
+        point: [f64; 3],
+        direction: [f64; 3],
+    ) -> Vec<f64> {
+        let mut force = vec![0.0; self.aba.slots()];
+        let mut side = vec![0.0; self.aba.slots()];
+        for (link, sign) in links.into_iter().zip([-1.0, 1.0]) {
+            if let Some(link) = link {
+                self.aba.constraint_force(
+                    self.poses,
+                    link,
+                    point,
+                    direction,
+                    self.scratch,
+                    &mut side,
+                );
+                for (value, component) in force.iter_mut().zip(&side) {
+                    *value += sign * component;
+                }
+            }
+        }
+        force
+    }
+    pub(crate) fn append(
+        &mut self,
+        links: [Option<usize>; 2],
+        point: [f64; 3],
+        direction: [f64; 3],
+        separation: f64,
+    ) {
+        let mut reach = Vec::new();
+        let mut side = Vec::new();
+        for link in links.into_iter().flatten() {
+            self.aba.reach(link, &mut side);
+            reach.extend(&side);
+        }
+        reach.sort_unstable();
+        reach.dedup();
+        // The restricted ABA sweep requires the plan's order, not numeric link order.
+        let reach: Vec<_> = self
+            .aba
+            .order()
+            .iter()
+            .rev()
+            .copied()
+            .filter(|i| reach.binary_search(i).is_ok())
+            .collect();
+        let force = self.force(links, point, direction);
+        let position = if separation > 0.0 {
+            separation / self.step
         } else {
-            let overlap = (-contact.separation - parameters.slop).max(0.0);
-            -parameters.restitution_of_position * overlap / step
+            -self.parameters.restitution_of_position * (-separation - self.parameters.slop).max(0.0)
+                / self.step
         };
-        // `J qdot` is how fast the contact point is closing on the plane, and it falls out of the
-        // constraint's own force vector — the same row, read the other way.
         let approaching = force
             .iter()
-            .zip(velocity)
+            .zip(self.velocity)
             .map(|(f, v)| f * v)
             .sum::<f64>()
             .min(0.0);
-        let normal = out.len();
-        out.push(Constraint {
+        let normal = self.out.len();
+        self.out.push(Constraint {
             force,
             reach: reach.clone(),
-            bias: bias_position + parameters.restitution * approaching,
+            bias: position + self.parameters.restitution * approaching,
             limit: Limit::Pushing,
         });
-
-        if parameters.friction <= 0.0 {
-            continue;
+        if self.parameters.friction <= 0.0 {
+            return;
         }
-        // Two tangents, and the pair is what Coulomb bounds — not either one alone. The bias is
-        // zero: friction wants the contact point to stop, not to reach some target speed, and
-        // whether it can is the cone's business rather than this one's.
-        let (first, second) = (out.len(), out.len() + 1);
-        for (k, direction) in tangents([0.0, 0.0, 1.0]).into_iter().enumerate() {
-            let mut tangent = vec![0.0; n];
-            aba.constraint_force(
-                poses,
-                colliders[contact.collider].link,
-                contact.point,
-                direction,
-                scratch,
-                &mut tangent,
-            );
-            out.push(Constraint {
-                force: tangent,
+        let (first, second) = (self.out.len(), self.out.len() + 1);
+        for (k, tangent) in tangents(direction).into_iter().enumerate() {
+            let force = self.force(links, point, tangent);
+            self.out.push(Constraint {
+                force,
                 reach: reach.clone(),
                 bias: 0.0,
                 limit: Limit::Friction {
                     normal,
                     partner: if k == 0 { second } else { first },
-                    mu: parameters.friction,
+                    mu: self.parameters.friction,
                 },
             });
         }

@@ -19,8 +19,13 @@
 //! must equal the declared one — and does, to zero.
 
 pub mod analysis;
+pub mod diffusion;
+pub mod fluid;
+pub mod softbody;
 pub mod field;
 pub mod kirchhoff;
+pub mod hierarchy;
+pub mod power;
 pub mod layout;
 pub mod read;
 pub mod run;

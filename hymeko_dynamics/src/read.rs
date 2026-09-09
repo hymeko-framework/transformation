@@ -36,6 +36,8 @@ use crate::system::{
 /// Why a declaration could not be projected.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ReadError {
+    /// A coupling bypasses a sealed subsystem or its public port cannot be resolved.
+    Boundary { at: String, why: String },
     /// A structure edge whose incidences do not match what it takes.
     Arity {
         at: String,
@@ -94,9 +96,9 @@ pub fn project(ir: &Ir, it: &Interner) -> Result<System, ReadError> {
     Reader { ir, it }.project()
 }
 
-struct Reader<'a> {
-    ir: &'a Ir,
-    it: &'a Interner,
+pub(crate) struct Reader<'a> {
+    pub(crate) ir: &'a Ir,
+    pub(crate) it: &'a Interner,
 }
 
 impl Reader<'_> {
@@ -108,7 +110,7 @@ impl Reader<'_> {
             .unwrap_or("?")
     }
 
-    fn qualified(&self, decl: DeclId) -> String {
+    pub(crate) fn qualified(&self, decl: DeclId) -> String {
         let mut parts = Vec::new();
         let mut here = decl;
         let mut guard = 0usize;
@@ -131,7 +133,7 @@ impl Reader<'_> {
         &[]
     }
 
-    fn inherits(&self, decl: DeclId, name: &str) -> bool {
+    pub(crate) fn inherits(&self, decl: DeclId, name: &str) -> bool {
         let mut seen = HashSet::new();
         let mut stack = vec![decl];
         while let Some(here) = stack.pop() {
@@ -149,7 +151,7 @@ impl Reader<'_> {
         false
     }
 
-    fn field(&self, decl: DeclId, field: &str) -> Option<&ValueR> {
+    pub(crate) fn field(&self, decl: DeclId, field: &str) -> Option<&ValueR> {
         let mut child = self.ir.decl_nodes.get(decl.raw())?.first_child;
         let mut guard = 0usize;
         while child.is_some() && guard <= self.ir.decl_nodes.len() {
@@ -180,7 +182,7 @@ impl Reader<'_> {
         }
     }
 
-    fn reference(&self, decl: DeclId, field: &str) -> Option<DeclId> {
+    pub(crate) fn reference(&self, decl: DeclId, field: &str) -> Option<DeclId> {
         match self.field(decl, field) {
             Some(ValueR::Ref(d)) => Some(*d),
             _ => None,
@@ -261,6 +263,7 @@ impl Reader<'_> {
             return Err(ReadError::Empty);
         }
         let n = coordinates.len();
+        let hierarchy = crate::hierarchy::Hierarchy::project(self, &coordinates)?;
 
         // ── J, R, G and the readouts ────────────────────────────────────────────
         let mut ports = Vec::new();
@@ -291,13 +294,7 @@ impl Reader<'_> {
                     expected: "one more coordinate",
                     found: format!("{} of that sign", set.len()),
                 })?;
-                index_of
-                    .get(&target)
-                    .copied()
-                    .ok_or_else(|| ReadError::Unresolved {
-                        at: at.clone(),
-                        what: self.qualified(target),
-                    })
+                hierarchy.resolve(self, decl, target, &index_of)
             };
             // Returns the declaration as well as the number, so the blueprint can record which
             // parameter supplied which structural element and a sweep can move all of them at once.
@@ -446,10 +443,7 @@ impl Reader<'_> {
                 expected: "(+ coordinate, ~ shape)",
                 found: "no coordinate".into(),
             })?;
-            let coordinate = *index_of.get(&target).ok_or_else(|| ReadError::Unresolved {
-                at: at.clone(),
-                what: self.qualified(target),
-            })?;
+            let coordinate = hierarchy.resolve(self, decl, target, &index_of)?;
             let shape_decl = *neutral.first().ok_or_else(|| ReadError::Arity {
                 at: at.clone(),
                 expected: "(+ coordinate, ~ shape)",
@@ -560,11 +554,7 @@ impl Reader<'_> {
                     expected: "(+ to, - from, ~ coordinate)",
                     found: "no coordinate".into(),
                 })?;
-                let coordinate =
-                    *index_of.get(&carried).ok_or_else(|| ReadError::Unresolved {
-                        at: at.clone(),
-                        what: self.qualified(carried),
-                    })?;
+                let coordinate = hierarchy.resolve(self, decl, carried, &index_of)?;
                 wires.push(Wire {
                     decl,
                     name: at,
@@ -597,10 +587,7 @@ impl Reader<'_> {
                     expected: "(+ coordinate)",
                     found: "nothing".into(),
                 })?;
-                emitters.push(*index_of.get(&target).ok_or_else(|| ReadError::Unresolved {
-                    at,
-                    what: self.qualified(target),
-                })?);
+                emitters.push(hierarchy.resolve(self, decl, target, &index_of)?);
             }
         }
 
@@ -770,6 +757,7 @@ impl Reader<'_> {
             .unwrap_or_else(|| coordinates[0].name.clone());
 
         Ok(System {
+            hierarchy,
             name,
             coordinates,
             port_hamiltonian: PortHamiltonian::new(
@@ -810,5 +798,42 @@ fn signed(
 fn atom(r: &SignedRefR) -> &RefAtomR {
     match r {
         SignedRefR::Plus(a) | SignedRefR::Minus(a) | SignedRefR::Neutral(a) => a,
+    }
+}
+
+// Shared strict scalar/vector reads for continuum projections.
+pub(crate) fn number(
+    ir: &Ir,
+    it: &Interner,
+    decl: DeclId,
+    name: &str,
+    default: Option<f64>,
+) -> Result<f64, String> {
+    match hymeko_graph::octree::field(ir, it, decl, name) {
+        Some(ValueR::Num(v)) if v.is_finite() => Ok(*v),
+        None => default.ok_or_else(|| format!("missing {name}")),
+        _ => Err(format!("{name} must be finite numeric")),
+    }
+}
+pub(crate) fn vector(
+    ir: &Ir,
+    it: &Interner,
+    decl: DeclId,
+    name: &str,
+    default: Option<[f64; 3]>,
+) -> Result<[f64; 3], String> {
+    match hymeko_graph::octree::field(ir, it, decl, name) {
+        Some(ValueR::List(v)) if v.len() == 3 => {
+            let mut out = [0.0; 3];
+            for (i, x) in v.iter().enumerate() {
+                match x {
+                    ValueR::Num(n) if n.is_finite() => out[i] = *n,
+                    _ => return Err(format!("{name} must contain finite numbers")),
+                }
+            }
+            Ok(out)
+        }
+        None => default.ok_or_else(|| format!("missing {name}")),
+        _ => Err(format!("{name} must be a three-vector")),
     }
 }
