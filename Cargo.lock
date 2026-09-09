@@ -666,6 +666,7 @@ name = "hymeko_dynamics"
 version = "0.1.0"
 dependencies = [
  "hymeko_core 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/core.git?rev=ac1131b5490734b855021f6076753417e1337cd6)",
+ "hymeko_geometry",
  "hymeko_graph",
  "hymeko_numerics",
  "hymeko_optimize",

@@ -25,6 +25,7 @@ pub mod softbody;
 pub mod field;
 pub mod kirchhoff;
 pub mod hierarchy;
+pub mod power;
 pub mod layout;
 pub mod read;
 pub mod run;

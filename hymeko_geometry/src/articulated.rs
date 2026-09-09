@@ -215,6 +215,21 @@ impl AbaPlan {
         })
     }
 
+    /// Physical kinetic energy of each link, in joules, from the same spatial
+    /// inertias and velocity sweep used by inverse dynamics. Does not mutate state.
+    /// Reflected joint armatures are excluded from this per-body observation.
+    /// # Panics
+    /// If q or qd does not cover every joint, as for inverse_dynamics.
+    pub fn kinetic_energy_by_link(&self, model: &KinematicModel, q: &[f64], qd: &[f64]) -> Vec<f64> {
+        let mut scratch = self.scratch();
+        let zero = vec![0.0; self.slots()];
+        let mut torque = zero.clone();
+        self.inverse_dynamics(model, q, qd, &zero, [0.0; 3], &mut scratch, &mut torque);
+        self.inertia.iter().zip(&scratch.v)
+            .map(|(inertia, velocity)| 0.5 * velocity.dot(&inertia.apply(velocity)))
+            .collect()
+    }
+
     /// Set the per-joint inertia added to `d`. See [`Self::armature`].
     ///
     /// For implicit joint damping, pass `step * damping` for each joint. For a geared actuator, pass

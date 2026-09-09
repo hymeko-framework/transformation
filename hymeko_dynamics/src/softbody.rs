@@ -248,6 +248,8 @@ impl SoftBody {
             balance_error: 0.0,
         })
     }
+    pub(crate) fn extensions(&self) -> &[f64] { &self.state[..self.springs.len()] }
+
     pub fn particles(&self) -> &[Particle] {
         &self.particles
     }
