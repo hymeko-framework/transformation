@@ -28,6 +28,7 @@ pub mod hierarchy;
 pub mod layout;
 pub mod read;
 pub mod run;
+pub mod scenario;
 pub mod sources;
 pub mod system;
 

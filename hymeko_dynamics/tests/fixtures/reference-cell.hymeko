@@ -1,0 +1,83 @@
+reference_cell {}
+cell {
+    runtime "hymeko-scenario/v1";
+    timing "untimed";
+    policy "roundRobin";
+    resetCause -> causes.operator;
+    causes {
+        physical { label "physical fault"; }
+        data { label "bad or falsified data"; }
+        cyber { label "cyber event"; }
+        recommendation { label "model or AI recommendation"; }
+        operator { label "operator action"; }
+        process { label "declared process execution"; }
+        completed { label "completed transfer"; }
+    }
+    elements {
+        machine1 { initial 1; capacity 1; }
+        buffer { initial 0; capacity 1; }
+        robot { initial 0; capacity 1; }
+        machine2 { initial 1; capacity 1; }
+    }
+    transitions {
+        feed {
+            cause -> cell.causes.process;
+            guards {
+                ready { target -> cell.elements.machine1; op "eq"; value 1; }
+                space { target -> cell.elements.buffer; op "eq"; value 0; }
+            }
+            effects { load { target -> cell.elements.buffer; op "add"; value 1; } }
+        }
+        pick {
+            cause -> cell.causes.process;
+            guards {
+                present { target -> cell.elements.buffer; op "ge"; value 1; }
+                free { target -> cell.elements.robot; op "eq"; value 0; }
+            }
+            effects {
+                take { target -> cell.elements.buffer; op "add"; value -1; }
+                hold { target -> cell.elements.robot; op "add"; value 1; }
+            }
+        }
+        finish {
+            cause -> cell.causes.completed;
+            guards {
+                loaded { target -> cell.elements.robot; op "ge"; value 1; }
+                ready { target -> cell.elements.machine2; op "eq"; value 1; }
+            }
+            effects { release { target -> cell.elements.robot; op "add"; value -1; } }
+        }
+    }
+    interventions {
+        faultMachine2 {
+            cause -> cell.causes.physical;
+            guards { healthy { target -> cell.elements.machine2; op "eq"; value 1; } }
+            effects { fail { target -> cell.elements.machine2; op "set"; value 0; } }
+        }
+        repairMachine2 {
+            cause -> cell.causes.operator;
+            guards { failed { target -> cell.elements.machine2; op "eq"; value 0; } }
+            effects { recover { target -> cell.elements.machine2; op "set"; value 1; } }
+        }
+        changeSupply {
+            cause -> cell.causes.operator;
+            inputMin 0; inputMax 1;
+            guards {}
+            effects { adjust { target -> cell.elements.machine1; op "set"; input "value"; } }
+        }
+    }
+    observers {
+        available { mode "sum"; targets [cell.elements.machine1, cell.elements.machine2]; }
+        completed { mode "count"; targets []; cause -> cell.causes.completed; }
+        faults { mode "count"; targets []; cause -> cell.causes.physical; }
+        robotOccupancy { mode "accumulate"; targets [cell.elements.robot]; }
+    }
+    invariants {
+        workInProgress {
+            targets [cell.elements.buffer, cell.elements.robot]; minimum 0; maximum 2; violation "halt";
+        }
+        secondMachineAvailable {
+            targets [cell.elements.machine2]; minimum 1; maximum 1; violation "record";
+        }
+    }
+}

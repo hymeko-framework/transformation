@@ -632,30 +632,14 @@ source = "git+ssh://git@amaterasu.local:2222/hymeko/tensor.git?branch=main#b1d86
 [[package]]
 name = "hymeko_core"
 version = "0.1.0"
-source = "git+ssh://git@amaterasu.local:2222/hymeko/core.git?branch=main#c50069c1781ba078a2170aed8ac3c4bc0e34bce6"
+source = "git+https://github.com/hymeko-framework/core.git?rev=e1ebb415a9a818da69af111d58a0b49050554cd0#e1ebb415a9a818da69af111d58a0b49050554cd0"
 dependencies = [
  "blake3",
  "ciborium",
  "nalgebra",
  "nalgebra-sparse",
  "num-traits",
- "parser",
- "rayon",
- "rustc-hash",
- "serde",
-]
-
-[[package]]
-name = "hymeko_core"
-version = "0.1.0"
-source = "git+ssh://git@amaterasu.local:2222/hymeko/core.git?rev=ac1131b5490734b855021f6076753417e1337cd6#ac1131b5490734b855021f6076753417e1337cd6"
-dependencies = [
- "blake3",
- "ciborium",
- "nalgebra",
- "nalgebra-sparse",
- "num-traits",
- "parser",
+ "parser 0.1.0 (git+https://github.com/hymeko-framework/parser.git?rev=0019eb0accdacb54c741524fae871793a0fac07c)",
  "rayon",
  "rustc-hash",
  "serde",
@@ -665,11 +649,14 @@ dependencies = [
 name = "hymeko_dynamics"
 version = "0.1.0"
 dependencies = [
- "hymeko_core 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/core.git?rev=ac1131b5490734b855021f6076753417e1337cd6)",
+ "ciborium",
+ "hymeko_core",
  "hymeko_graph",
  "hymeko_numerics",
  "hymeko_optimize",
  "hymeko_sources",
+ "serde",
+ "serde_json",
  "wasm-bindgen",
 ]
 
@@ -677,9 +664,9 @@ dependencies = [
 name = "hymeko_emitter"
 version = "0.1.0"
 dependencies = [
- "hymeko_core 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/core.git?rev=ac1131b5490734b855021f6076753417e1337cd6)",
+ "hymeko_core",
  "log",
- "parser",
+ "parser 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/parser.git?branch=master)",
  "serde",
  "slotmap",
  "thiserror 1.0.69",
@@ -691,7 +678,7 @@ version = "0.1.0"
 dependencies = [
  "gltf",
  "hymeko_clifford",
- "hymeko_core 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/core.git?rev=ac1131b5490734b855021f6076753417e1337cd6)",
+ "hymeko_core",
  "hymeko_geometry",
  "hymeko_query",
  "image",
@@ -704,35 +691,36 @@ name = "hymeko_geometry"
 version = "0.1.0"
 dependencies = [
  "hymeko_clifford",
- "hymeko_core 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/core.git?rev=ac1131b5490734b855021f6076753417e1337cd6)",
+ "hymeko_core",
  "hymeko_graph",
  "hymeko_query",
  "hymeko_sources",
  "log",
  "meshopt",
- "parser",
+ "parser 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/parser.git?branch=master)",
  "serde",
 ]
 
 [[package]]
 name = "hymeko_graph"
 version = "0.1.0"
+source = "git+https://github.com/hymeko-framework/graph.git?rev=8f44b8ca299fe6bd433aea016dcc3db948077153#8f44b8ca299fe6bd433aea016dcc3db948077153"
 dependencies = [
  "dashmap",
- "hymeko_core 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/core.git?branch=main)",
+ "hymeko_core",
  "rayon",
 ]
 
 [[package]]
 name = "hymeko_numerics"
 version = "0.1.0"
-source = "git+ssh://git@amaterasu.local:2222/hymeko/tensor.git?branch=main#b1d869d24fb563ed7042f38a1272c1736fdfbea4"
+source = "git+https://github.com/hymeko-framework/tensor.git?rev=14c1d231897b48aac6fadef1fd4189af7260bc22#14c1d231897b48aac6fadef1fd4189af7260bc22"
 
 [[package]]
 name = "hymeko_optimize"
 version = "0.1.0"
 dependencies = [
- "hymeko_core 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/core.git?rev=ac1131b5490734b855021f6076753417e1337cd6)",
+ "hymeko_core",
  "hymeko_query",
  "hymeko_sources",
  "wasm-bindgen",
@@ -743,25 +731,25 @@ name = "hymeko_query"
 version = "0.1.0"
 dependencies = [
  "env_logger",
- "hymeko_core 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/core.git?rev=ac1131b5490734b855021f6076753417e1337cd6)",
+ "hymeko_core",
  "hymeko_formats",
  "hymeko_geometry",
  "log",
- "parser",
+ "parser 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/parser.git?branch=master)",
 ]
 
 [[package]]
 name = "hymeko_sources"
 version = "0.1.0"
 dependencies = [
- "hymeko_core 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/core.git?rev=ac1131b5490734b855021f6076753417e1337cd6)",
+ "hymeko_core",
 ]
 
 [[package]]
 name = "hymeko_webxr"
 version = "0.1.0"
 dependencies = [
- "hymeko_core 0.1.0 (git+ssh://git@amaterasu.local:2222/hymeko/core.git?rev=ac1131b5490734b855021f6076753417e1337cd6)",
+ "hymeko_core",
 ]
 
 [[package]]
@@ -1115,6 +1103,15 @@ dependencies = [
 name = "parser"
 version = "0.1.0"
 source = "git+ssh://git@amaterasu.local:2222/hymeko/parser.git?branch=master#284c490d68232973a006bcba974279fed6f89ce8"
+dependencies = [
+ "lalrpop",
+ "lalrpop-util",
+]
+
+[[package]]
+name = "parser"
+version = "0.1.0"
+source = "git+https://github.com/hymeko-framework/parser.git?rev=0019eb0accdacb54c741524fae871793a0fac07c#0019eb0accdacb54c741524fae871793a0fac07c"
 dependencies = [
  "lalrpop",
  "lalrpop-util",
