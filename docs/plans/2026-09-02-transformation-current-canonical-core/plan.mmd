@@ -31,3 +31,11 @@ flowchart TD
 
 %% Single hymeko_core in the whole graph is the invariant: cargo tree must show exactly one.
 %% Byte-identical query/transform/emit output where the contract requires; no semantics change.
+
+    subgraph repair["2026-09-10: active authoring dependency repair"]
+        D["Dynamics + Geometry"] --> G["Graph Git 8f44b8ca"]
+        G --> C["single Core Git e1ebb415"]
+        D --> C
+        C --> P["Parser Git 0019eb0a"]
+        D --> T["Tensor Git 14c1d231"]
+    end

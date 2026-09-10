@@ -1,6 +1,6 @@
 \documentclass[11pt]{article}
 \usepackage[margin=1in]{geometry}
-\usepackage{amsmath,amssymb,booktabs,hyperref,enumitem}
+\usepackage{amsmath,hyperref}
 \title{Transformation migration to canonical core \texttt{5fe2c88}}
 \author{STRATEGY-ID: HYMEKO-PLATFORM-2026-09-01-v1 \\ ROADMAP-TASK: TRANSFORMATION-M2B}
 \date{Created-at: 2026-09-02 18:40 CEDT}
@@ -32,7 +32,7 @@ in-place topology mutation, so it maps \textbf{1:1} to the public API. Audit bot
 migration needs \textbf{no missing core mutation API} and \textbf{no HARD STOP}.
 
 \section{Affected files (transformation only)}
-\begin{itemize}[nosep]
+\begin{itemize}
   \item \texttt{Cargo.toml} (workspace): \texttt{hymeko\_core} rev \texttt{15223bcd}$\to$\texttt{5fe2c88}
         (APPROVED-DEPENDENCY-EDIT: transformation-current-core-pin); parser unchanged.
   \item \texttt{hymeko\_query/src/entropy.rs}, \texttt{rewrite/regen.rs}, \texttt{rewrite/split.rs}:
@@ -66,7 +66,7 @@ transform, emit, peak RSS. A $>10\%$ regression blocks completion until profiled
 Additive branch; revert = drop the branch. No core change to unwind; no main merge.
 
 \section{Risk anticipation}
-\begin{itemize}[nosep]
+\begin{itemize}
   \item \textbf{Worst case:} a deterministically-generated $\ge 10^5$-incidence source through
         \texttt{compile}$\to$\texttt{transform}$\to$\texttt{emit}; the migrated construction path
         must stay $O(\text{nnz})$ and byte-identical.
@@ -81,4 +81,33 @@ Additive branch; revert = drop the branch. No core change to unwind; no main mer
         \texttt{hymeko\_dynamics}/\texttt{hymeko\_optimize} crates. Work only in the clone
         \texttt{/d/hnnwork/transformation}; never touch the user checkout.
 \end{itemize}
+
+\section{Dependency repair continuation (2026-09-10)}
+Created-at: 2026-09-10T01:50:53.773910+02:00. ETA 10--20 minutes:
+manifest alignment 3, isolated compilation/tests 10, publication/archive 5.
+User requests fixing and publishing the active Transformation checkout. Backport the
+already published main dependency configuration to the active authoring branch e76562f;
+main 6e70c28 is three commits ahead, while dirty source work prevents an automatic
+whole-tree fast-forward. No stash, branch switch or new worktree. Preserve other
+staged/unstaged changes; back up the locally overridden Cargo.lock before reconciling it.
+Affected files: workspace Cargo.toml/lock, Dynamics and Geometry Cargo.toml, the four
+legacy Query reference fixtures in entropy.rs, rewrite/regen.rs and rewrite/split.rs,
+this plan bundle. The full workspace build also exposes legacy RefAtomR
+constructors in Emitter src/bridge.rs, tests/test\_bridge.rs and WebXR
+tests/mod.rs; use Core plain constructors and assert unspecified direction
+for all three signs in the existing bridge round-trip test. These additional
+compatibility fixes must also be merged into main after branch validation.
+Optimize tests/authority.rs replaces its blanket patch-section rejection with
+a check that all Core declarations use the same published exact Git identity;
+the existing dirty formatting in this file is excluded from staging. Reuse Core e1ebb415, Graph 8f44b8ca, Parser 0019eb0a and Tensor
+14c1d231, the tested main set. No Core production edit or new API. Intra-repository
+workspace paths remain; external siblings become exact Git dependencies.
+Validate the staged publication through an index export below ignored target, running
+Cargo outside the parent configuration, shared-owner tests and dependency identity audit.
+Do not publish unrelated local source edits. Cap each test process at 180 seconds and
+four build jobs; no new performance campaign for manifest-only alignment. Existing
+main integration evidence supplies runtime baseline. Publish the active authoring branch
+to both remotes; main already contains these dependency changes. Rollback only task
+hunks or the focused commit, preserving the pre-task lock backup. Report exact branch,
+SHA and any pre-existing test limitations; archive reports through the shared provider.
 \end{document}

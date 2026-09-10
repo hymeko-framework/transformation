@@ -451,8 +451,8 @@ fn verdict_clean_checkout_qualification() {
 
 /// Verdict: NO. The whole slice runs on an unmodified core.
 ///
-/// The evidence is that `hymeko_core` is consumed as the workspace's git dependency with no `patch`
-/// section anywhere above this crate, and that the two models compile and project on it. If the
+/// The evidence is that `hymeko_core` is consumed from one published Git revision, including any
+/// legacy-URL redirects, and that the two models compile and project on it. If the
 /// slice had needed a core change, this crate could not have been built without one.
 #[test]
 fn verdict_core_ir_change_not_required() {
@@ -461,10 +461,18 @@ fn verdict_core_ir_change_not_required() {
         workspace.contains("hymeko_core = { git ="),
         "core is a git dependency, taken as published"
     );
-    assert!(
-        !workspace.contains("[patch."),
-        "a patch section would mean a local core change: {workspace}"
-    );
+    // A Git source redirect may unify a legacy URL with the same published Core.
+    // It must not introduce a local path or a second source/revision.
+    let mut declarations = workspace
+        .lines()
+        .map(str::trim)
+        .filter(|line| line.starts_with("hymeko_core ="));
+    let canonical = declarations.next().expect("workspace Core declaration");
+    assert!(!canonical.contains("path ="));
+    assert!(canonical.contains("rev ="), "Core must use an exact revision");
+    for declaration in declarations {
+        assert_eq!(declaration, canonical, "Core redirects must keep one identity");
+    }
 
     let (ir, it) = model!();
     let problem = project(&ir, &it).expect("an unmodified core compiles and projects the model");

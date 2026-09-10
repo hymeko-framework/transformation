@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use hymeko::common::ids::DeclId;
-use hymeko::ir::ir::{AnnoR, Ir, RefAtomR, SignedRefR, ValueR};
+use hymeko::ir::ir::{Ir, RefAtomR, SignedRefR, ValueR};
 use hymeko::module_store::module_store::{CompiledProgram, ModuleStore};
 use hymeko::module_store::source_provider::{MemProvider, StdFsProvider};
 use hymeko::resolution::interner::Interner;
@@ -451,11 +451,7 @@ fn dangling_reference_is_rejected() {
     // point the last arc's first participant at a non-existent decl (the placement's arc)
     let bogus = DeclId::new(ir.decl_nodes.len() + 500);
     let arc = ir.arcs.last_mut().expect("an arc exists");
-    arc.refs[0] = SignedRefR::Plus(RefAtomR {
-        target: bogus,
-        anno: AnnoR::default(),
-        weights: None,
-    });
+    arc.refs[0] = SignedRefR::Plus(RefAtomR::plain(bogus));
     let v = validate(&ir, c.it());
     assert!(
         v.iter()

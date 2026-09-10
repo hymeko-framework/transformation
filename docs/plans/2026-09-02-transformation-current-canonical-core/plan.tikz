@@ -39,4 +39,15 @@
   \node[draw,dotted,rounded corners,fit=(c58)(q1)(f1)(e1)(py1),label={[font=\footnotesize]above:AFTER (this + PY1)}] {};
 \end{scope}
 \end{tikzpicture}
+
+% 2026-09-10 continuation: authoritative pins shared with published main.
+\begin{tikzpicture}[node distance=16mm, every node/.style={draw,align=center}]
+\node (d) {Dynamics / Geometry};
+\node (g) [right=of d] {Graph 8f44b8ca};
+\node (c) [below=of g] {Core e1ebb415};
+\node (p) [below=of c] {Parser 0019eb0a};
+\node (t) [below=of d] {Tensor 14c1d231};
+\draw[->] (d)--(g); \draw[->] (d)--(c); \draw[->] (g)--(c);
+\draw[->] (c)--(p); \draw[->] (d)--(t);
+\end{tikzpicture}
 \end{document}
