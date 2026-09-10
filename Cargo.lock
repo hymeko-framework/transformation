@@ -705,7 +705,7 @@ dependencies = [
 [[package]]
 name = "hymeko_graph"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=f80ac84e63d17d6e41b4c10e5c8dc7bdab357ab9#f80ac84e63d17d6e41b4c10e5c8dc7bdab357ab9"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=e4845599898c22091e5e58132f6b3571c3338ff7#e4845599898c22091e5e58132f6b3571c3338ff7"
 dependencies = [
  "dashmap",
  "hymeko_core",
@@ -742,7 +742,7 @@ dependencies = [
 [[package]]
 name = "hymeko_sbsh"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=f80ac84e63d17d6e41b4c10e5c8dc7bdab357ab9#f80ac84e63d17d6e41b4c10e5c8dc7bdab357ab9"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=e4845599898c22091e5e58132f6b3571c3338ff7#e4845599898c22091e5e58132f6b3571c3338ff7"
 dependencies = [
  "hymeko_core",
  "hymeko_graph",

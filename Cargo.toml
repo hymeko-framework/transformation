@@ -23,5 +23,5 @@ hymeko_clifford = { git = "ssh://git@192.168.1.228:2222/hymeko/tensor.git", rev 
 serde = "1.0.228"
 log = "0.4.29"
 
-hymeko_graph = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "f80ac84e63d17d6e41b4c10e5c8dc7bdab357ab9" }
-hymeko_sbsh = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "f80ac84e63d17d6e41b4c10e5c8dc7bdab357ab9" }
+hymeko_graph = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "e4845599898c22091e5e58132f6b3571c3338ff7" }
+hymeko_sbsh = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "e4845599898c22091e5e58132f6b3571c3338ff7" }
