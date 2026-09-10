@@ -517,7 +517,7 @@ impl BroadPhase {
 
     /// Replace `out` with the overlapping, structurally allowed pairs in fixed order.
     ///
-    /// Output and AABB buffers are reused. Graph builds O(n) transient octree scratch
+    /// Output and AABB buffers are reused. SBSH builds bounded-depth O(n * depth) transient partition scratch
     /// from current placements, so motion cannot leave a stale spatial index.
     /// Placements remain shared with the narrow phase. Explicit `pairs()` diagnostics
     /// are independent and are never materialized by this query.
@@ -543,7 +543,7 @@ impl BroadPhase {
         out: &mut Vec<(usize, usize)>,
     ) {
         out.clear();
-        hymeko_graph::octree::BoundsIndex::new(boxes).for_each_overlap(|i, j| {
+        hymeko_sbsh::BoundsIndex::new(boxes).for_each_overlap(|i, j| {
             if self.allowed(i, j) {
                 out.push((i, j));
             }

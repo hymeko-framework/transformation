@@ -470,7 +470,7 @@ fn broadphase_scaling_profile() {
             );
             if run > 0 {
                 let timer = Instant::now();
-                let index = hymeko_graph::octree::BoundsIndex::new(&boxes);
+                let index = hymeko_sbsh::BoundsIndex::new(&boxes);
                 let build = timer.elapsed().as_secs_f64();
                 pairs.clear();
                 let timer = Instant::now();

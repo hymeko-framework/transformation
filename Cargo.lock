@@ -693,8 +693,8 @@ version = "0.1.0"
 dependencies = [
  "hymeko_clifford",
  "hymeko_core",
- "hymeko_graph",
  "hymeko_query",
+ "hymeko_sbsh",
  "hymeko_sources",
  "log",
  "meshopt",
@@ -705,7 +705,7 @@ dependencies = [
 [[package]]
 name = "hymeko_graph"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=5ecba29968a1ac4ed07f0da947ca7ec2e67ad12c#5ecba29968a1ac4ed07f0da947ca7ec2e67ad12c"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=617814114270aad5a399ad3affc3ceafdde8a84a#617814114270aad5a399ad3affc3ceafdde8a84a"
 dependencies = [
  "dashmap",
  "hymeko_core",
@@ -737,6 +737,15 @@ dependencies = [
  "hymeko_geometry",
  "log",
  "parser",
+]
+
+[[package]]
+name = "hymeko_sbsh"
+version = "0.1.0"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=617814114270aad5a399ad3affc3ceafdde8a84a#617814114270aad5a399ad3affc3ceafdde8a84a"
+dependencies = [
+ "hymeko_core",
+ "hymeko_graph",
 ]
 
 [[package]]
