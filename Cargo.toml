@@ -15,15 +15,12 @@ members = ["hymeko_emitter", "hymeko_query", "hymeko_geometry", "hymeko_formats"
 [workspace.dependencies]
 # Pinned to the integrated core commit: WebXR is supplied by this workspace's
 # hymeko_webxr crate while core supplies canonical IR and transport codecs.
-hymeko_core = { git = "https://github.com/hymeko-framework/core.git", rev = "e1ebb415a9a818da69af111d58a0b49050554cd0" }
-parser = { git = "https://github.com/hymeko-framework/parser.git", rev = "0019eb0accdacb54c741524fae871793a0fac07c" }
+hymeko_core = { git = "ssh://git@192.168.1.228:2222/hymeko/core.git", rev = "44383f32864841d3d8a794c4df0f99166724b95d" }
+parser = { git = "ssh://git@192.168.1.228:2222/hymeko/parser.git", rev = "f11628591a8183586492807ecdf43c64e6d31c5f" }
 # The Tensor pillar's geometric algebra — SE(n) rigid motions live there, not here.
 # Same published Tensor revision as the numerics owner consumed by Dynamics.
-hymeko_clifford = { git = "https://github.com/hymeko-framework/tensor.git", rev = "14c1d231897b48aac6fadef1fd4189af7260bc22" }
+hymeko_clifford = { git = "ssh://git@192.168.1.228:2222/hymeko/tensor.git", rev = "14c1d231897b48aac6fadef1fd4189af7260bc22" }
 serde = "1.0.228"
 log = "0.4.29"
 
-hymeko_graph = { git = "https://github.com/hymeko-framework/graph.git", rev = "8f44b8ca299fe6bd433aea016dcc3db948077153" }
-
-[patch."ssh://git@amaterasu.local:2222/hymeko/core.git"]
-hymeko_core = { git = "https://github.com/hymeko-framework/core.git", rev = "e1ebb415a9a818da69af111d58a0b49050554cd0" }
+hymeko_graph = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "5ecba29968a1ac4ed07f0da947ca7ec2e67ad12c" }
