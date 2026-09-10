@@ -1,3 +1,6 @@
 /target
 **/target
 .DS_Store
+
+# Task reports are archived to Samba after each task.
+/reports/
