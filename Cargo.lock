@@ -705,7 +705,7 @@ dependencies = [
 [[package]]
 name = "hymeko_graph"
 version = "0.1.0"
-source = "git+https://github.com/hymeko-framework/graph.git?rev=8f44b8ca299fe6bd433aea016dcc3db948077153#8f44b8ca299fe6bd433aea016dcc3db948077153"
+source = "git+https://github.com/hymeko-framework/graph.git?rev=781977345db6aa48900a9b16838aa76b1711a853#781977345db6aa48900a9b16838aa76b1711a853"
 dependencies = [
  "dashmap",
  "hymeko_core",
