@@ -28,36 +28,55 @@
 #![warn(missing_docs)]
 #![allow(missing_docs)] // inherited from the moved modules; tightened per-module as they are revisited
 
+#[cfg(feature = "simulation")]
 pub mod articulated;
+#[cfg(feature = "simulation")]
 pub mod collide;
+#[cfg(feature = "simulation")]
 pub mod contact;
+#[cfg(feature = "simulation")]
 pub mod engine;
+#[cfg(feature = "simulation")]
 pub mod forward;
 pub mod mesh;
 pub mod material;
+#[cfg(feature = "simulation")]
 pub mod force_field;
+#[cfg(feature = "simulation")]
 pub mod kinematics;
+#[cfg(feature = "simulation")]
 pub mod transforms;
+#[cfg(feature = "simulation")]
 pub mod track;
+#[cfg(feature = "simulation")]
 pub mod vehicle;
 
+#[cfg(feature = "simulation")]
 pub use articulated::{AbaPlan, AbaScratch};
+#[cfg(feature = "simulation")]
 pub use engine::{Engine, FreeFlight};
+#[cfg(feature = "simulation")]
 pub use contact::{
     Limit,
     ground_constraints, ground_contacts, Constraint, ConstraintSolver, ContactParameters,
     GroundContact,
 };
+#[cfg(feature = "simulation")]
 pub use collide::{
     colliders_of, intersects, intersects_at, place, BroadPhase, Collider, Contact, Convex,
     Placement,
 };
+#[cfg(feature = "simulation")]
 pub use forward::{forward_kinematics, FkError, LinkPoses};
+#[cfg(feature = "simulation")]
 pub use kinematics::joints::{JointInfo, JointLimits, JointType};
+#[cfg(feature = "simulation")]
 pub use kinematics::kinematic::{
     extract_kinematic_model, GeometryInfo, GeometryShape, KinematicModel, LinkInfo,
 };
+#[cfg(feature = "simulation")]
 pub use transforms::{extract, ModelKind, ModelView, TransformEngine};
 
 /// $SE(n)$ re-exported from the Tensor pillar, so a consumer needs one geometry dependency.
+#[cfg(feature = "simulation")]
 pub use hymeko_clifford::Se;
