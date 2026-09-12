@@ -74,65 +74,16 @@ impl Track {
             return Err("invalid track declaration".into());
         }
         let fields = Fields { ir, res, did: id };
-        let degree = fields.integer("degree", 1, 5)? as usize;
-        let count = fields.integer("samples", 256, 8192)? as usize;
         let width = fields.number("width")?;
         if !(4.0..=40.0).contains(&width) {
             return Err("road width must be 4..40 metres".into());
         }
-        let child = |parent, name| {
-            ir.decl_children(parent)
-                .find(|c| res.resolve(ir.decl_nodes[c.raw()].name) == name)
-                .ok_or_else(|| format!("missing track {name}"))
-        };
-        let controls_id = child(id, "controls")?;
-        let mut controls = Vec::new();
-        for did in ir.decl_children(controls_id) {
-            if controls.len() == 256 {
-                return Err("more than 256 control points".into());
-            }
-            let point = Fields { ir, res, did };
-            controls.push(TrackControl {
-                id: did,
-                point: point.array("point")?,
-                weight: point.positive("weight")?,
-            });
-        }
-        let ValueR::List(values) = fields.value("knots")? else {
-            return Err("knots must be a numeric list".into());
-        };
-        if values.len() > 262 {
-            return Err("more than 262 knots".into());
-        }
-        let knots = values
-            .iter()
-            .map(|v| match v {
-                ValueR::Num(n) if n.is_finite() => Ok(*n),
-                _ => Err("knots must be finite".to_string()),
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        let points: Vec<_> = controls.iter().map(|c| c.point).collect();
-        let weights: Vec<_> = controls.iter().map(|c| c.weight).collect();
-        let curve =
-            NurbsCurve::new(degree, &points, &weights, &knots).map_err(|e| e.to_string())?;
+        let count = fields.integer("samples", 256, 8192)? as usize;
+        let controls_id = child(ir, res, id, "controls").ok_or("missing track controls")?;
+        let controls = read_controls(ir, res, controls_id)?;
+        let curve = read_curve(&fields, &controls)?;
         let samples = Self::table(&curve, count)?;
-        let length = samples.last().unwrap().station;
-        let first = samples[0];
-        let last = *samples.last().unwrap();
-        if !(100.0..=100_000.0).contains(&length)
-            || norm(sub(first.position, last.position)) > 1e-6
-            || norm(sub(first.tangent, last.tangent)) > 1e-6
-        {
-            return Err(
-                "track must close in position and tangent, length 100..100000 metres".into(),
-            );
-        }
-        if samples
-            .iter()
-            .any(|s| s.curvature.abs() * width * 0.5 >= 0.8)
-        {
-            return Err("track turn radius too small for its road width".into());
-        }
+        let length = validate_closed(width, &samples)?;
         let mut track = Self {
             id,
             width,
@@ -142,36 +93,41 @@ impl Track {
             samples,
             length,
         };
-        if let Ok(obstacles_id) = child(id, "obstacles") {
-            for did in ir.decl_children(obstacles_id) {
-                if track.obstacles.len() == 32 {
-                    return Err("more than 32 obstacles".into());
-                }
-                let f = Fields { ir, res, did };
-                let fraction = f.number("fraction")?;
-                let offset = f.number("offset")?;
-                let radius = f.positive("radius")?;
-                let height = f.positive("height")?;
-                if !(0.0..1.0).contains(&fraction)
-                    || offset.abs() > width * 0.5
-                    || radius > 40.0
-                    || height > 10.0
-                {
-                    return Err("invalid obstacle road coordinates or dimensions".into());
-                }
-                let station = fraction * length;
-                let position = track.sample(station)?.offset(offset);
-                track.obstacles.push(TrackObstacle {
-                    id: did,
-                    station,
-                    offset,
-                    radius,
-                    height,
-                    position,
-                });
-            }
-        }
+        track.read_obstacles(ir, res)?;
         Ok(track)
+    }
+    fn read_obstacles<R: NameResolver>(&mut self, ir: &Ir, res: &R) -> Result<(), String> {
+        let Some(parent) = child(ir, res, self.id, "obstacles") else {
+            return Ok(());
+        };
+        for did in ir.decl_children(parent) {
+            if self.obstacles.len() == 32 {
+                return Err("more than 32 obstacles".into());
+            }
+            let f = Fields { ir, res, did };
+            let fraction = f.number("fraction")?;
+            let offset = f.number("offset")?;
+            let radius = f.positive("radius")?;
+            let height = f.positive("height")?;
+            if !(0.0..1.0).contains(&fraction)
+                || offset.abs() > self.width * 0.5
+                || radius > 40.0
+                || height > 10.0
+            {
+                return Err("invalid obstacle road coordinates or dimensions".into());
+            }
+            let station = fraction * self.length;
+            let position = self.sample(station)?.offset(offset);
+            self.obstacles.push(TrackObstacle {
+                id: did,
+                station,
+                offset,
+                radius,
+                height,
+                position,
+            });
+        }
+        Ok(())
     }
     fn frame(curve: &NurbsCurve<2>, parameter: f64, station: f64) -> Result<TrackSample, String> {
         let s = curve.sample(parameter).map_err(|e| e.to_string())?;
@@ -300,4 +256,71 @@ fn sub(a: [f64; 2], b: [f64; 2]) -> [f64; 2] {
 }
 fn norm(v: [f64; 2]) -> f64 {
     v[0].hypot(v[1])
+}
+
+fn child<R: NameResolver>(ir: &Ir, res: &R, parent: DeclId, name: &str) -> Option<DeclId> {
+    ir.decl_children(parent)
+        .find(|c| res.resolve(ir.decl_nodes[c.raw()].name) == name)
+}
+fn read_controls<R: NameResolver>(
+    ir: &Ir,
+    res: &R,
+    parent: DeclId,
+) -> Result<Vec<TrackControl>, String> {
+    let mut controls = Vec::new();
+    for did in ir.decl_children(parent) {
+        if controls.len() == 256 {
+            return Err("more than 256 control points".into());
+        }
+        let point = Fields { ir, res, did };
+        controls.push(TrackControl {
+            id: did,
+            point: point.array("point")?,
+            weight: point.positive("weight")?,
+        });
+    }
+    Ok(controls)
+}
+fn read_curve<R: NameResolver>(
+    fields: &Fields<'_, R>,
+    controls: &[TrackControl],
+) -> Result<NurbsCurve<2>, String> {
+    let degree = fields.integer("degree", 1, 5)? as usize;
+    let knots = read_knots(fields.value("knots")?)?;
+    let points: Vec<_> = controls.iter().map(|c| c.point).collect();
+    let weights: Vec<_> = controls.iter().map(|c| c.weight).collect();
+    NurbsCurve::new(degree, &points, &weights, &knots).map_err(|e| e.to_string())
+}
+fn read_knots(value: &ValueR) -> Result<Vec<f64>, String> {
+    let ValueR::List(values) = value else {
+        return Err("knots must be a numeric list".into());
+    };
+    if values.len() > 262 {
+        return Err("more than 262 knots".into());
+    }
+    values
+        .iter()
+        .map(|v| match v {
+            ValueR::Num(n) if n.is_finite() => Ok(*n),
+            _ => Err("knots must be finite".to_string()),
+        })
+        .collect()
+}
+fn validate_closed(width: f64, samples: &[TrackSample]) -> Result<f64, String> {
+    let last = *samples.last().ok_or("track has no samples")?;
+    let first = samples[0];
+    let length = last.station;
+    if !(100.0..=100_000.0).contains(&length)
+        || norm(sub(first.position, last.position)) > 1e-6
+        || norm(sub(first.tangent, last.tangent)) > 1e-6
+    {
+        return Err("track must close in position and tangent, length 100..100000 metres".into());
+    }
+    if samples
+        .iter()
+        .any(|s| s.curvature.abs() * width * 0.5 >= 0.8)
+    {
+        return Err("track turn radius too small for its road width".into());
+    }
+    Ok(length)
 }
