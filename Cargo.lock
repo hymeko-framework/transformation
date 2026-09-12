@@ -696,6 +696,7 @@ dependencies = [
  "hymeko_query",
  "hymeko_sbsh",
  "hymeko_sources",
+ "hymeko_spline",
  "log",
  "meshopt",
  "parser",
@@ -754,6 +755,11 @@ version = "0.1.0"
 dependencies = [
  "hymeko_core",
 ]
+
+[[package]]
+name = "hymeko_spline"
+version = "0.1.0"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=c85bd74b8000b76b5e01b5e8a5ef4123d6f02772#c85bd74b8000b76b5e01b5e8a5ef4123d6f02772"
 
 [[package]]
 name = "hymeko_webxr"

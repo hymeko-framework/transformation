@@ -26,6 +26,8 @@ hymeko_query = { path = "../hymeko_query" }
 hymeko_sbsh = { workspace = true }
 # SE(n) comes from the Tensor pillar's pinned geometric algebra package.
 hymeko_clifford = { workspace = true }
+# User-approved NURBS owner; dependency-free on native and WASM.
+hymeko_spline = { git = "ssh://git@192.168.1.228:2222/hymeko/tensor.git", rev = "c85bd74b8000b76b5e01b5e8a5ef4123d6f02772" }
 log = { workspace = true }
 serde = { version = "1", features = ["derive", "rc"] }
 meshopt = { version = "=0.6.2", optional = true }

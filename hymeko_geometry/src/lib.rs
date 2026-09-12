@@ -38,6 +38,8 @@ pub mod material;
 pub mod force_field;
 pub mod kinematics;
 pub mod transforms;
+pub mod track;
+pub mod vehicle;
 
 pub use articulated::{AbaPlan, AbaScratch};
 pub use engine::{Engine, FreeFlight};

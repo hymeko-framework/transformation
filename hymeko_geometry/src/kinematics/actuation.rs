@@ -212,31 +212,31 @@ impl Actuation {
     }
 }
 
-pub(super) struct Fields<'a, R> {
-    pub(super) ir: &'a Ir,
-    pub(super) res: &'a R,
-    pub(super) did: DeclId,
+pub(crate) struct Fields<'a, R> {
+    pub(crate) ir: &'a Ir,
+    pub(crate) res: &'a R,
+    pub(crate) did: DeclId,
 }
 impl<R: NameResolver> Fields<'_, R> {
-    pub(super) fn has(&self, key: &str) -> bool {
+    pub(crate) fn has(&self, key: &str) -> bool {
         self.ir
             .decl_children(self.did)
             .any(|c| self.res.resolve(self.ir.decl_nodes[c.raw()].name) == key)
     }
-    pub(super) fn value(&self, key: &str) -> Result<&ValueR, String> {
+    pub(crate) fn value(&self, key: &str) -> Result<&ValueR, String> {
         self.ir
             .decl_children(self.did)
             .find(|c| self.res.resolve(self.ir.decl_nodes[c.raw()].name) == key)
             .and_then(|c| self.ir.decl_nodes[c.raw()].anno.value.as_ref())
             .ok_or_else(|| format!("missing {key}"))
     }
-    pub(super) fn number(&self, key: &str) -> Result<f64, String> {
+    pub(crate) fn number(&self, key: &str) -> Result<f64, String> {
         match self.value(key)? {
             ValueR::Num(n) if n.is_finite() => Ok(*n),
             _ => Err(format!("{key} must be finite")),
         }
     }
-    pub(super) fn positive(&self, key: &str) -> Result<f64, String> {
+    pub(crate) fn positive(&self, key: &str) -> Result<f64, String> {
         let n = self.number(key)?;
         if n > 0.0 {
             Ok(n)
@@ -244,7 +244,7 @@ impl<R: NameResolver> Fields<'_, R> {
             Err(format!("{key} must be positive"))
         }
     }
-    pub(super) fn integer(&self, key: &str, lo: u32, hi: u32) -> Result<u32, String> {
+    pub(crate) fn integer(&self, key: &str, lo: u32, hi: u32) -> Result<u32, String> {
         let n = self.number(key)?;
         if n.fract() == 0.0 && n >= lo as f64 && n <= hi as f64 {
             Ok(n as u32)
@@ -252,7 +252,7 @@ impl<R: NameResolver> Fields<'_, R> {
             Err(format!("invalid {key}"))
         }
     }
-    pub(super) fn array<const N: usize>(&self, key: &str) -> Result<[f64; N], String> {
+    pub(crate) fn array<const N: usize>(&self, key: &str) -> Result<[f64; N], String> {
         let mut value = self.value(key)?;
         if let ValueR::Ref(target) = value {
             value = self
@@ -280,13 +280,13 @@ impl<R: NameResolver> Fields<'_, R> {
     fn xyz(&self) -> Result<[f64; 3], String> {
         Ok([self.number("x")?, self.number("y")?, self.number("z")?])
     }
-    pub(super) fn text(&self, key: &str) -> Result<&str, String> {
+    pub(crate) fn text(&self, key: &str) -> Result<&str, String> {
         match self.value(key)? {
             ValueR::Str(s) => Ok(self.res.resolve(*s)),
             _ => Err(format!("{key} must be text")),
         }
     }
-    pub(super) fn reference(&self, key: &str) -> Result<DeclId, String> {
+    pub(crate) fn reference(&self, key: &str) -> Result<DeclId, String> {
         match self.value(key)? {
             ValueR::Ref(d) if !d.is_none() => Ok(*d),
             _ => Err(format!("{key} must reference a declaration")),
