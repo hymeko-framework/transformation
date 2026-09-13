@@ -272,6 +272,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam-queue"
+version = "0.3.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03e8bd762f7479489c70ed6c768ddca99d7296857de437a68dcb2a94365b3fae"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-utils"
 version = "0.8.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -632,10 +641,11 @@ source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=14c1d231897b48a
 [[package]]
 name = "hymeko_core"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/core.git?rev=44383f32864841d3d8a794c4df0f99166724b95d#44383f32864841d3d8a794c4df0f99166724b95d"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/core.git?rev=a31b6651463390aa845599effc2e77fd2902d75b#a31b6651463390aa845599effc2e77fd2902d75b"
 dependencies = [
  "blake3",
  "ciborium",
+ "crossbeam-queue",
  "nalgebra",
  "nalgebra-sparse",
  "num-traits",
@@ -705,7 +715,7 @@ dependencies = [
 [[package]]
 name = "hymeko_graph"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=e4845599898c22091e5e58132f6b3571c3338ff7#e4845599898c22091e5e58132f6b3571c3338ff7"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=f6cf341f2ba5556794bb759d09ab294d1836e505#f6cf341f2ba5556794bb759d09ab294d1836e505"
 dependencies = [
  "dashmap",
  "hymeko_core",
@@ -742,7 +752,7 @@ dependencies = [
 [[package]]
 name = "hymeko_sbsh"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=e4845599898c22091e5e58132f6b3571c3338ff7#e4845599898c22091e5e58132f6b3571c3338ff7"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=f6cf341f2ba5556794bb759d09ab294d1836e505#f6cf341f2ba5556794bb759d09ab294d1836e505"
 dependencies = [
  "hymeko_core",
  "hymeko_graph",
