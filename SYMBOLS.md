@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**12 package(s), 583 public symbol(s).**
+**12 package(s), 594 public symbol(s).**
 
 ## generated (python)
 
@@ -380,10 +380,14 @@ _No public symbols._
 - `LinkInfo` — `hymeko_geometry/src/kinematics/kinematic.rs`
 - `LinkPoses` — `hymeko_geometry/src/forward.rs`
 - `MeshLod` — `hymeko_geometry/src/mesh.rs`
+- `Outcome` — `hymeko_geometry/src/contact/replay.rs`
 - `PbrMaterial` — `hymeko_geometry/src/material.rs`
 - `Placement` — `hymeko_geometry/src/collide.rs`
+- `Problem` — `hymeko_geometry/src/contact/replay.rs`
 - `RadianceImage` — `hymeko_geometry/src/material.rs`
+- `Replay` — `hymeko_geometry/src/contact/replay.rs`
 - `RgbaImage` — `hymeko_geometry/src/material.rs`
+- `Settings` — `hymeko_geometry/src/contact/replay.rs`
 - `SphericalGravity` — `hymeko_geometry/src/force_field.rs`
 - `StereoPair` — `hymeko_geometry/src/kinematics/cameras.rs`
 - `TextureMap` — `hymeko_geometry/src/material.rs`
@@ -407,6 +411,7 @@ _No public symbols._
 - `JointEncoding` — `hymeko_geometry/src/kinematics/joints.rs`
 - `JointType` — `hymeko_geometry/src/kinematics/joints.rs`
 - `Limit` — `hymeko_geometry/src/contact.rs`
+- `Method` — `hymeko_geometry/src/contact/replay.rs`
 - `ModelKind` — `hymeko_geometry/src/transforms/model_view.rs`
 - `ModelView` — `hymeko_geometry/src/transforms/model_view.rs`
 - `TextureWrap` — `hymeko_geometry/src/material.rs`
@@ -428,6 +433,7 @@ _No public symbols._
 - `colliders_of` — `hymeko_geometry/src/collide.rs`
 - `complementarity_residual` — `hymeko_geometry/src/contact.rs`
 - `constraint_force` — `hymeko_geometry/src/articulated.rs`
+- `contact_problem` — `hymeko_geometry/src/engine.rs`
 - `contacts` — `hymeko_geometry/src/engine.rs`
 - `delassus` — `hymeko_geometry/src/contact.rs`
 - `dynamics` — `hymeko_geometry/src/engine.rs`
@@ -481,6 +487,7 @@ _No public symbols._
 - `new` — `hymeko_geometry/src/articulated.rs`
 - `new` — `hymeko_geometry/src/collide.rs`
 - `new` — `hymeko_geometry/src/contact.rs`
+- `new` — `hymeko_geometry/src/contact/replay.rs`
 - `new` — `hymeko_geometry/src/engine.rs`
 - `new` — `hymeko_geometry/src/forward.rs`
 - `new` — `hymeko_geometry/src/transforms/mod.rs`
@@ -499,6 +506,8 @@ _No public symbols._
 - `regime_counts` — `hymeko_geometry/src/engine.rs`
 - `register` — `hymeko_geometry/src/transforms/mod.rs`
 - `render_from_templates` — `hymeko_geometry/src/transforms/mod.rs`
+- `replay` — `hymeko_geometry/src/contact.rs`
+- `residual` — `hymeko_geometry/src/contact/replay.rs`
 - `resolve` — `hymeko_geometry/src/forward.rs`
 - `resolve_se3` — `hymeko_geometry/src/forward.rs`
 - `root` — `hymeko_geometry/src/forward.rs`
@@ -508,6 +517,7 @@ _No public symbols._
 - `slot` — `hymeko_geometry/src/forward.rs`
 - `slots` — `hymeko_geometry/src/articulated.rs`
 - `solve` — `hymeko_geometry/src/contact.rs`
+- `solve` — `hymeko_geometry/src/contact/replay.rs`
 - `solve_factorised` — `hymeko_geometry/src/articulated.rs`
 - `solve_factorised_over` — `hymeko_geometry/src/articulated.rs`
 - `support` — `hymeko_geometry/src/collide.rs`
@@ -515,6 +525,7 @@ _No public symbols._
 - `unsatisfiable` — `hymeko_geometry/src/contact.rs`
 - `urdf_str` — `hymeko_geometry/src/kinematics/joints.rs`
 - `valid_inertia` — `hymeko_geometry/src/kinematics/kinematic.rs`
+- `validate` — `hymeko_geometry/src/contact/replay.rs`
 - `validate` — `hymeko_geometry/src/force_field.rs`
 - `validate` — `hymeko_geometry/src/material.rs`
 - `validate` — `hymeko_geometry/src/mesh.rs`
