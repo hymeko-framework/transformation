@@ -18,10 +18,10 @@
 //!
 //!   {{#comment}} ... {{/comment}}  Stripped from output
 
-use hymeko::ir::ir::Ir;
+use super::match_context::{FieldValue, MatchContext};
 use crate::engine::QueryMatch;
 use crate::traits::NameResolver;
-use super::match_context::{FieldValue, MatchContext};
+use hymeko::ir::ir::Ir;
 
 use std::collections::HashMap;
 use std::fmt;
@@ -94,7 +94,8 @@ fn parse_blocks(src: &str, out: &mut Vec<Block>, pos: &mut usize) -> Result<(), 
         }
         *pos = abs + 2;
 
-        let close = src[*pos..].find("}}")
+        let close = src[*pos..]
+            .find("}}")
             .ok_or_else(|| format!("Unclosed {{{{ at position {abs}"))?;
         let tag = src[*pos..*pos + close].trim().to_string();
         *pos += close + 2;
@@ -117,20 +118,26 @@ fn dispatch_tag(
 ) -> Result<bool, String> {
     if let Some(label) = tag.strip_prefix("#each ") {
         let body = parse_nested_body(src, pos)?;
-        out.push(Block::Each { label: label.trim().to_string(), body });
+        out.push(Block::Each {
+            label: label.trim().to_string(),
+            body,
+        });
         return Ok(false);
     }
     if let Some(field) = tag.strip_prefix("#if ") {
         let body = parse_nested_body(src, pos)?;
-        out.push(Block::If { field: field.trim().to_string(), body });
+        out.push(Block::If {
+            field: field.trim().to_string(),
+            body,
+        });
         return Ok(false);
     }
     if let Some(rest) = tag.strip_prefix("#inherits ") {
         // Syntax: {{#inherits <field> "<base_name>"}}
         //   where <field> is `.` or a field path like `geometry.shape`,
         //   and <base_name> is a quoted string.
-        let (field, base) = parse_inherits_tag(rest)
-            .ok_or_else(|| format!("Malformed #inherits tag: `{tag}`"))?;
+        let (field, base) =
+            parse_inherits_tag(rest).ok_or_else(|| format!("Malformed #inherits tag: `{tag}`"))?;
         let body = parse_nested_body(src, pos)?;
         out.push(Block::Inherits { field, base, body });
         return Ok(false);
@@ -171,20 +178,13 @@ pub struct RenderContext<'a, R: NameResolver> {
 }
 
 /// Render a parsed template to a string.
-pub fn render<R: NameResolver>(
-    blocks: &[Block],
-    ctx: &RenderContext<R>,
-) -> String {
+pub fn render<R: NameResolver>(blocks: &[Block], ctx: &RenderContext<R>) -> String {
     let mut out = String::new();
     render_blocks(blocks, ctx, &mut out);
     out
 }
 
-fn render_blocks<R: NameResolver>(
-    blocks: &[Block],
-    ctx: &RenderContext<R>,
-    out: &mut String,
-) {
+fn render_blocks<R: NameResolver>(blocks: &[Block], ctx: &RenderContext<R>, out: &mut String) {
     for block in blocks {
         match block {
             Block::Literal(s) => out.push_str(s),
@@ -245,12 +245,10 @@ fn parse_inherits_tag(rest: &str) -> Option<(String, String)> {
 
 /// Resolve a field path to a DeclId, then ask the MatchContext whether
 /// that declaration transitively inherits from `base_name`.
-fn inherits_matches<R: NameResolver>(
-    field: &str,
-    base_name: &str,
-    ctx: &RenderContext<R>,
-) -> bool {
-    let Some(m) = ctx.current_match else { return false; };
+fn inherits_matches<R: NameResolver>(field: &str, base_name: &str, ctx: &RenderContext<R>) -> bool {
+    let Some(m) = ctx.current_match else {
+        return false;
+    };
     let mc = MatchContext::new(ctx.ir, ctx.resolver, m);
     let target_did = if field == "." {
         m.id
@@ -384,7 +382,9 @@ fn resolve_expr<R: NameResolver>(expr: &str, ctx: &RenderContext<R>) -> String {
             let mc = MatchContext::new(ctx.ir, ctx.resolver, m);
 
             if parts[1] == "all" {
-                let names: Vec<String> = m.arc_bindings.iter()
+                let names: Vec<String> = m
+                    .arc_bindings
+                    .iter()
                     .filter(|b| b.sign == sign)
                     .map(|b| b.target_name.clone())
                     .collect();
@@ -395,7 +395,9 @@ fn resolve_expr<R: NameResolver>(expr: &str, ctx: &RenderContext<R>) -> String {
                 // when a multi-source dataflow hyperedge has many `+`
                 // operands.  Used by the torch_dataflow Tier-3
                 // arity_mixer fan-in.
-                let names: Vec<String> = m.arc_bindings.iter()
+                let names: Vec<String> = m
+                    .arc_bindings
+                    .iter()
                     .filter(|b| b.sign == sign)
                     .map(|b| b.target_name.clone())
                     .collect();
@@ -441,7 +443,10 @@ pub struct TransformSpec {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransformSpecError {
     /// `<transforms_dir>/<name>` is not an existing directory.
-    TransformNotFound { transforms_dir: String, name: String },
+    TransformNotFound {
+        transforms_dir: String,
+        name: String,
+    },
     /// `queries.hymeko` is absent or unreadable.
     QueriesUnreadable { path: String, reason: String },
     /// The transform directory contains no `template.*` file.
@@ -465,10 +470,14 @@ impl TransformSpecError {
 impl fmt::Display for TransformSpecError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::TransformNotFound { transforms_dir, name } =>
-                write!(f, "transform '{name}' not found under '{transforms_dir}'"),
-            Self::QueriesUnreadable { path, reason } | Self::TemplateUnreadable { path, reason } =>
-                write!(f, "failed to read {path}: {reason}"),
+            Self::TransformNotFound {
+                transforms_dir,
+                name,
+            } => write!(f, "transform '{name}' not found under '{transforms_dir}'"),
+            Self::QueriesUnreadable { path, reason }
+            | Self::TemplateUnreadable { path, reason } => {
+                write!(f, "failed to read {path}: {reason}")
+            }
             Self::TemplateMissing { dir } => write!(f, "no template.* file found in {dir}"),
         }
     }
@@ -486,7 +495,10 @@ impl TransformSpec {
     /// # Errors
     /// Returns a typed [`TransformSpecError`] and never terminates the process: an invalid transform
     /// directory is a recoverable caller error, which is what makes this usable from a library.
-    pub fn from_dir(transforms_dir: impl AsRef<Path>, name: &str) -> Result<Self, TransformSpecError> {
+    pub fn from_dir(
+        transforms_dir: impl AsRef<Path>,
+        name: &str,
+    ) -> Result<Self, TransformSpecError> {
         let root = transforms_dir.as_ref();
         let dir = root.join(name);
         if !dir.is_dir() {
@@ -496,21 +508,39 @@ impl TransformSpec {
             });
         }
         let query_path = dir.join("queries.hymeko");
-        let query_source = fs::read_to_string(&query_path).map_err(|e| {
-            TransformSpecError::QueriesUnreadable { path: query_path.display().to_string(), reason: e.to_string() }
-        })?;
-        let template_path = Self::find_template_path(&dir)
-            .ok_or_else(|| TransformSpecError::TemplateMissing { dir: dir.display().to_string() })?;
+        let query_source =
+            fs::read_to_string(&query_path).map_err(|e| TransformSpecError::QueriesUnreadable {
+                path: query_path.display().to_string(),
+                reason: e.to_string(),
+            })?;
+        let template_path =
+            Self::find_template_path(&dir).ok_or_else(|| TransformSpecError::TemplateMissing {
+                dir: dir.display().to_string(),
+            })?;
         let template_source = fs::read_to_string(&template_path).map_err(|e| {
-            TransformSpecError::TemplateUnreadable { path: template_path.display().to_string(), reason: e.to_string() }
+            TransformSpecError::TemplateUnreadable {
+                path: template_path.display().to_string(),
+                reason: e.to_string(),
+            }
         })?;
-        Ok(Self { name: name.to_string(), query_source, template_source })
+        Ok(Self {
+            name: name.to_string(),
+            query_source,
+            template_source,
+        })
     }
 
     /// Deterministically pick the `template.*` file: sorted, so the choice cannot vary by filesystem.
     fn find_template_path(dir: &Path) -> Option<PathBuf> {
-        let mut found: Vec<PathBuf> = fs::read_dir(dir).ok()?.flatten().map(|e| e.path())
-            .filter(|p| p.file_name().map(|n| n.to_string_lossy().starts_with("template.")).unwrap_or(false))
+        let mut found: Vec<PathBuf> = fs::read_dir(dir)
+            .ok()?
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| {
+                p.file_name()
+                    .map(|n| n.to_string_lossy().starts_with("template."))
+                    .unwrap_or(false)
+            })
             .collect();
         found.sort();
         found.into_iter().next()

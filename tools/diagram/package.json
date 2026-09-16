@@ -1,0 +1,7 @@
+{
+  "name": "hymeko-diagram-renderer",
+  "private": true,
+  "type": "module",
+  "description": "Development rendering of DOT emitted by hymeko_formats; no model semantics",
+  "dependencies": { "@viz-js/viz": "3.30.0" }
+}

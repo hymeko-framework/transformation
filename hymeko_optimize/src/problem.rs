@@ -165,11 +165,29 @@ pub struct Quantity {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Relation {
     /// `y = sum(coefficient * operand)`.
-    Add { result: usize, terms: Vec<(usize, f64)> },
-    Subtract { result: usize, a: usize, b: usize },
-    Multiply { result: usize, a: usize, b: usize },
-    Divide { result: usize, a: usize, b: usize },
-    Square { result: usize, a: usize },
+    Add {
+        result: usize,
+        terms: Vec<(usize, f64)>,
+    },
+    Subtract {
+        result: usize,
+        a: usize,
+        b: usize,
+    },
+    Multiply {
+        result: usize,
+        a: usize,
+        b: usize,
+    },
+    Divide {
+        result: usize,
+        a: usize,
+        b: usize,
+    },
+    Square {
+        result: usize,
+        a: usize,
+    },
     /// The potential of a net once the scenario's network is solved.
     NetPotential {
         result: usize,
@@ -306,10 +324,7 @@ impl Problem {
             .iter()
             .map(|&q| {
                 let quantity = &self.quantities[q];
-                quantity
-                    .start
-                    .or(quantity.lower)
-                    .unwrap_or(1.0)
+                quantity.start.or(quantity.lower).unwrap_or(1.0)
             })
             .collect()
     }
@@ -348,12 +363,12 @@ impl Problem {
                 Kind::Derived if !defined.contains_key(&i) => {
                     return Err(ProblemError::Undefined {
                         quantity: quantity.name.clone(),
-                    })
+                    });
                 }
                 Kind::Parameter if quantity.value.is_none() => {
                     return Err(ProblemError::ValueMissing {
                         quantity: quantity.name.clone(),
-                    })
+                    });
                 }
                 _ => {}
             }
@@ -503,9 +518,9 @@ impl Problem {
         for &r in &self.order {
             let relation = &self.relations[r];
             let get = |i: usize, values: &Vec<Option<Dual>>| -> Dual {
-                values[i]
-                    .clone()
-                    .unwrap_or_else(|| panic!("relation order left {} undefined", self.quantities[i].name))
+                values[i].clone().unwrap_or_else(|| {
+                    panic!("relation order left {} undefined", self.quantities[i].name)
+                })
             };
             let out = match *relation {
                 Relation::Add { result, ref terms } => {
@@ -521,7 +536,9 @@ impl Problem {
                 Relation::Multiply { result, a, b } => {
                     (result, get(a, &values).mul(&get(b, &values)))
                 }
-                Relation::Divide { result, a, b } => (result, get(a, &values).div(&get(b, &values))),
+                Relation::Divide { result, a, b } => {
+                    (result, get(a, &values).div(&get(b, &values)))
+                }
                 Relation::Square { result, a } => {
                     let v = get(a, &values);
                     (result, v.mul(&v))
@@ -545,7 +562,11 @@ impl Problem {
                     // `V * I`, and for a source that comes out negative because it delivers rather
                     // than dissipates — so the magnitude is what a power readout means.
                     let power = across.mul(&solution.current[branch]);
-                    let signed = if power.value < 0.0 { power.neg() } else { power };
+                    let signed = if power.value < 0.0 {
+                        power.neg()
+                    } else {
+                        power
+                    };
                     (result, signed)
                 }
             };
@@ -556,9 +577,7 @@ impl Problem {
             .into_iter()
             .enumerate()
             .map(|(i, v)| {
-                v.unwrap_or_else(|| {
-                    panic!("{} was never given a value", self.quantities[i].name)
-                })
+                v.unwrap_or_else(|| panic!("{} was never given a value", self.quantities[i].name))
             })
             .collect();
 
@@ -608,13 +627,11 @@ impl Problem {
                         .unwrap_or_else(|| Dual::constant(q.value.unwrap_or(0.0), width))
                 })
                 .collect();
-            let solution =
-                network::solve(self.nets.len(), &branches, &element, self.ground, width).map_err(
-                    |error| ProblemError::Network {
-                        scenario: self.scenarios[scenario].name.clone(),
-                        error,
-                    },
-                )?;
+            let solution = network::solve(self.nets.len(), &branches, &element, self.ground, width)
+                .map_err(|error| ProblemError::Network {
+                    scenario: self.scenarios[scenario].name.clone(),
+                    error,
+                })?;
             // The solution is indexed by the scenario's own branch order; widen it back to the
             // problem's, so a readout can name any branch and get zero where it does not take part.
             let mut current = vec![Dual::zero(width); self.branches.len()];

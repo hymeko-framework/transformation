@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 
 use hymeko::ir::ir::Ir;
 
-use hymeko_query::NameResolver;
 use hymeko_geometry::transforms::TransformConfig;
+use hymeko_query::NameResolver;
 
 #[derive(Debug, Clone, Copy)]
 pub enum OutputFormat {
@@ -70,9 +70,7 @@ pub fn generate_description<R: NameResolver>(
     let root = default_transforms_root();
 
     reg.render_from_templates(name, ir, resolver, &cfg, &root)
-        .ok_or_else(|| CodegenError::QueryFailed(format!(
-            "no template registered for `{name}`"
-        )))?
+        .ok_or_else(|| CodegenError::QueryFailed(format!("no template registered for `{name}`")))?
         .map_err(CodegenError::QueryFailed)
 }
 

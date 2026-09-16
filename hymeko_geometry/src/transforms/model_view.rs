@@ -13,10 +13,10 @@
 //!                        └─ CommModel ────────→ DDS config (future)
 //! ```
 
+use crate::kinematics::kinematic::{self, KinematicModel};
 use hymeko::ir::ir::Ir;
 use hymeko_query::engine::QueryEngine;
 use hymeko_query::traits::NameResolver;
-use crate::kinematics::kinematic::{self, KinematicModel};
 
 // ─── Model kinds ──────────────────────────────────────────────────────────
 
@@ -74,23 +74,14 @@ impl ModelView {
 /// let model = extract(&ir, &interner, "moveo", ModelKind::Kinematic);
 /// let urdf = registry.get("urdf").unwrap().emit(&model, &config);
 /// ```
-pub fn extract<R: NameResolver>(
-    ir: &Ir,
-    resolver: &R,
-    name: &str,
-    kind: ModelKind,
-) -> ModelView {
+pub fn extract<R: NameResolver>(ir: &Ir, resolver: &R, name: &str, kind: ModelKind) -> ModelView {
     match kind {
         ModelKind::Kinematic => extract_kinematic(ir, resolver, name),
     }
 }
 
 /// Extract a kinematic model (links, joints, topology).
-pub fn extract_kinematic<R: NameResolver>(
-    ir: &Ir,
-    resolver: &R,
-    robot_name: &str,
-) -> ModelView {
+pub fn extract_kinematic<R: NameResolver>(ir: &Ir, resolver: &R, robot_name: &str) -> ModelView {
     let engine = QueryEngine::new(ir, resolver);
     let model = kinematic::extract_kinematic_model(&engine, robot_name);
     ModelView::Kinematic(model)

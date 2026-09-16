@@ -44,7 +44,7 @@
 
 use hymeko_clifford::{ArticulatedInertia, Se3, SpatialInertia, Twist, Wrench};
 
-use crate::forward::{joint_motion_se3, joint_origin_se3, FkError, FkPlan};
+use crate::forward::{FkError, FkPlan, joint_motion_se3, joint_origin_se3};
 use crate::kinematics::joints::JointType;
 use crate::kinematics::kinematic::KinematicModel;
 
@@ -198,7 +198,9 @@ impl AbaPlan {
                 // Use the declared full COM tensor. Legacy mass-only links retain their
                 // point-mass semantics rather than inventing a rotational inertia.
                 match l.inertia_com {
-                    Some([xx, yy, zz, xy, xz, yz]) => SpatialInertia::rigid(m, com, [xx, xy, xz, xy, yy, yz, xz, yz, zz]),
+                    Some([xx, yy, zz, xy, xz, yz]) => {
+                        SpatialInertia::rigid(m, com, [xx, xy, xz, xy, yy, yz, xz, yz, zz])
+                    }
                     None => SpatialInertia::point_mass(m, com),
                 }
             })
@@ -247,7 +249,8 @@ impl AbaPlan {
             armature.iter().all(|&a| a >= 0.0),
             "a negative armature removes inertia the mechanism has"
         );
-        self.armature.copy_from_slice(&armature[..self.subspace.len()]);
+        self.armature
+            .copy_from_slice(&armature[..self.subspace.len()]);
     }
 
     /// The per-joint inertia currently added to `d`.
@@ -370,11 +373,7 @@ impl AbaPlan {
                     let x = joint_origin_se3(joint).compose(&joint_motion_se3(joint, q[ji]));
                     // The world is not a link. A joint that hangs off it hangs off the base, whose
                     // pose is the identity and whose velocity is zero.
-                    let vp = if p == usize::MAX {
-                        Twist::ZERO
-                    } else {
-                        s.v[p]
-                    };
+                    let vp = if p == usize::MAX { Twist::ZERO } else { s.v[p] };
                     let parent_here = vp.to_child(&x);
                     match self.subspace[ji] {
                         Some(sub) => {
@@ -409,8 +408,8 @@ impl AbaPlan {
                 Some(sub) => {
                     let u = s.ia[i].apply(&sub);
                     let d = sub.dot(&u) + self.armature[ji];
-                    let floor = (INERTIA_RELATIVE_FLOOR * scale_of(&s.ia[i]))
-                        .max(INERTIA_ABSOLUTE_FLOOR);
+                    let floor =
+                        (INERTIA_RELATIVE_FLOOR * scale_of(&s.ia[i])).max(INERTIA_ABSOLUTE_FLOOR);
                     if d <= floor {
                         // Nothing below this joint resists it. `d` is zero to within its own
                         // rounding — or negative, which means the same thing and says only that the
@@ -548,7 +547,9 @@ impl AbaPlan {
                             let vj = sub.scale(qd[ji]);
                             s.v[i] = v_here.add(&vj);
                             // `v x vJ` is the velocity-product term; `S qdd` is the motion asked for
-                            s.a[i] = a_here.add(&sub.scale(qdd[ji])).add(&s.v[i].cross_motion(&vj));
+                            s.a[i] = a_here
+                                .add(&sub.scale(qdd[ji]))
+                                .add(&s.v[i].cross_motion(&vj));
                         }
                         None => {
                             s.v[i] = v_here;
@@ -774,11 +775,7 @@ impl AbaPlan {
             let Some((ji, p)) = self.plan.parent[i] else {
                 continue;
             };
-            let ap = if p == usize::MAX {
-                Twist::ZERO
-            } else {
-                s.a[p]
-            };
+            let ap = if p == usize::MAX { Twist::ZERO } else { s.a[p] };
             let here = ap.to_child(&s.x[i]);
             match self.subspace[ji] {
                 Some(_) if s.d[ji] == 0.0 => {
@@ -842,11 +839,7 @@ impl AbaPlan {
             let Some((ji, p)) = self.plan.parent[i] else {
                 continue;
             };
-            let ap = if p == usize::MAX {
-                Twist::ZERO
-            } else {
-                s.a[p]
-            };
+            let ap = if p == usize::MAX { Twist::ZERO } else { s.a[p] };
             let here = ap.to_child(&s.x[i]);
             match self.subspace[ji] {
                 Some(_) if s.d[ji] == 0.0 => {

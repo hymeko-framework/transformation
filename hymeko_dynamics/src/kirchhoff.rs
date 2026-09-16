@@ -150,7 +150,11 @@ impl System {
             .collect();
 
         let mut tally = vec![0usize; self.terminals.len()];
-        for wire in self.wires.iter().filter(|w| coupled.contains(&w.coordinate)) {
+        for wire in self
+            .wires
+            .iter()
+            .filter(|w| coupled.contains(&w.coordinate))
+        {
             tally[wire.from] += 1;
             tally[wire.to] += 1;
         }
@@ -234,9 +238,7 @@ impl System {
                 Some(worst / scale),
                 self.kirchhoff_residual(x, time).map(|r| {
                     let drops = self.branch_drops(x, time);
-                    let d = drops
-                        .iter()
-                        .fold(f64::MIN_POSITIVE, |m, v| m.max(v.abs()));
+                    let d = drops.iter().fold(f64::MIN_POSITIVE, |m, v| m.max(v.abs()));
                     r / d
                 }),
             )

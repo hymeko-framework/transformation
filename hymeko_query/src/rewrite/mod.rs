@@ -25,8 +25,7 @@ pub mod template;
 
 pub use regen::emit_split_rewrite;
 pub use split::{
-    propose_split, propose_split_for_highest_h_sign,
+    Cluster, SplitProposal, WeightAggregation, propose_split, propose_split_for_highest_h_sign,
     propose_split_for_highest_h_sign_with, propose_split_with,
-    Cluster, SplitProposal, WeightAggregation,
 };
-pub use template::{execute_transform, TransformSpec, TransformSpecError};
+pub use template::{TransformSpec, TransformSpecError, execute_transform};

@@ -72,7 +72,11 @@ fn apply_update_weight_updates_hyperedge_weight() {
         weight: 0.5,
         patch_id: None,
     });
-    ir.apply(IRDelta::UpdateWeight { key: e, weight: 2.5 }).unwrap();
+    ir.apply(IRDelta::UpdateWeight {
+        key: e,
+        weight: 2.5,
+    })
+    .unwrap();
     assert!((ir.hyperedges[e].weight - 2.5).abs() < 1e-12);
 }
 
@@ -178,7 +182,9 @@ fn apply_batch_short_circuits_on_first_error() {
             deltas: vec![
                 IRDelta::AddVertex { data: v("ok", 0) },
                 IRDelta::RemoveVertex { key: bogus },
-                IRDelta::AddVertex { data: v("never", 0) },
+                IRDelta::AddVertex {
+                    data: v("never", 0),
+                },
             ],
         })
         .unwrap_err();

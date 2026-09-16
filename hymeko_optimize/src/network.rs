@@ -21,7 +21,11 @@ use crate::dual::Dual;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Branch {
     /// `I = (V_a - V_b) / R`, current flowing from `a` to `b`.
-    Resistor { a: usize, b: usize, resistance: usize },
+    Resistor {
+        a: usize,
+        b: usize,
+        resistance: usize,
+    },
     /// `V_a - V_b = V`, with the current an unknown the system solves for.
     Source { a: usize, b: usize, voltage: usize },
 }

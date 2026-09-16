@@ -436,8 +436,11 @@ impl System {
     /// [`System::kirchhoff_residual`] measures.
     fn walk(&self, drops: &[f64]) -> Vec<Option<f64>> {
         let mut out = vec![None; self.terminals.len()];
-        let Some(root) = self.reference.or(if self.terminals.is_empty() { None } else { Some(0) })
-        else {
+        let Some(root) = self.reference.or(if self.terminals.is_empty() {
+            None
+        } else {
+            Some(0)
+        }) else {
             return out;
         };
         out[root] = Some(0.0);

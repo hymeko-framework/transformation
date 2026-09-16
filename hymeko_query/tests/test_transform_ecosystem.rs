@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test_transform_ecosystem {
-    use hymeko_query::engine::QueryEngine;
     use hymeko_geometry::kinematics::kinematic::*;
     use hymeko_geometry::transforms::ModelView;
+    use hymeko_query::engine::QueryEngine;
 
     const MOVEO_ARM: &str = "../data/robotics/robots/anthropomorphic_arm.hymeko";
     const MOVEO_ARM_USING: &str = "../data/robotics/robots/anthropomorphic_arm_using.hymeko";
@@ -419,7 +419,10 @@ mod test_transform_ecosystem {
             // and no (Y).
             assert!(output.contains("(Z)"), "DOT should show Z axis joints");
             assert!(output.contains("(X)"), "DOT should show X axis joints");
-            assert!(!output.contains("(Y)"), "corrected arm has no local Y-axis joint label");
+            assert!(
+                !output.contains("(Y)"),
+                "corrected arm has no local Y-axis joint label"
+            );
         }
 
         #[test]
@@ -737,7 +740,10 @@ mod test_transform_ecosystem {
         fn registry_has_requirements_transforms_without_regressing_others() {
             let reg = hymeko_formats::default_registry();
             let av = reg.available();
-            assert!(av.contains(&"requirements_sysml"), "missing requirements_sysml");
+            assert!(
+                av.contains(&"requirements_sysml"),
+                "missing requirements_sysml"
+            );
             assert!(av.contains(&"requirements_dot"), "missing requirements_dot");
             for f in ["urdf", "sdf", "mjcf", "dot", "mermaid", "sysml"] {
                 assert!(av.contains(&f), "registration regressed: missing {f}");
@@ -747,9 +753,15 @@ mod test_transform_ecosystem {
         #[test]
         fn sysml_emits_requirement_defs_satisfy_allocate_derive() {
             let s = render("requirements_sysml");
-            assert!(s.contains("requirement def R1_safe_stop"), "requirement def\n{s}");
+            assert!(
+                s.contains("requirement def R1_safe_stop"),
+                "requirement def\n{s}"
+            );
             assert!(s.contains("part def SafetyController"), "block -> part def");
-            assert!(s.contains("satisfy R1_safe_stop by SafetyController;"), "satisfy");
+            assert!(
+                s.contains("satisfy R1_safe_stop by SafetyController;"),
+                "satisfy"
+            );
             // R2 has two realizers -> two satisfy statements (binary projection).
             assert!(s.contains("satisfy R2_pos_accuracy by MotionPlanner;"));
             assert!(s.contains("satisfy R2_pos_accuracy by Arm;"));

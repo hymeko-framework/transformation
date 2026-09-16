@@ -72,7 +72,11 @@ impl Trace {
 
     /// How far the energy wandered, relative to its own scale over the run.
     pub fn energy_drift(&self) -> f64 {
-        let high = self.energy.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        let high = self
+            .energy
+            .iter()
+            .copied()
+            .fold(f64::NEG_INFINITY, f64::max);
         let low = self.energy.iter().copied().fold(f64::INFINITY, f64::min);
         (high - low) / high.abs().max(f64::MIN_POSITIVE)
     }
@@ -141,9 +145,7 @@ pub fn run(
                 // Held at the midpoint, which is what makes the balance exact rather than
                 // first-order in the input's own variation across the step.
                 system.input_at(time + 0.5 * step, &mut input);
-                system
-                    .port_hamiltonian
-                    .step(&mut x, &input, step, 1e-14);
+                system.port_hamiltonian.step(&mut x, &input, step, 1e-14);
             }
             Integrator::Rk4 => rk4(system, &mut x, time, step),
         }

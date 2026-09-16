@@ -10,8 +10,8 @@ use std::path::PathBuf;
 use hymeko::module_store::module_store::ModuleStore;
 use hymeko::module_store::source_provider::StdFsProvider;
 use hymeko::util::real_parser::RealParser;
-use hymeko_geometry::forward::{forward_kinematics, FkPlan, JointValues};
-use hymeko_geometry::kinematics::kinematic::{extract_kinematic_model, KinematicModel};
+use hymeko_geometry::forward::{FkPlan, JointValues, forward_kinematics};
+use hymeko_geometry::kinematics::kinematic::{KinematicModel, extract_kinematic_model};
 use hymeko_query::QueryEngine;
 
 // ─── models ─────────────────────────────────────────────────────────────────────────────────────
@@ -75,7 +75,9 @@ fn the_plan_reproduces_the_shipped_solver_exactly() {
         plan.resolve(&model, &flat, &mut poses);
 
         for (i, l) in model.links.iter().enumerate() {
-            let want = reference.get(&l.name).expect("the reference poses every link");
+            let want = reference
+                .get(&l.name)
+                .expect("the reference poses every link");
             assert_eq!(
                 poses[i].translation, want.translation,
                 "{}: translation differs",
@@ -91,11 +93,13 @@ fn the_plan_reproduces_the_shipped_solver_exactly() {
         assert_eq!(model.links[plan.root()].name, reference.root);
         checked += 1;
     }
-    assert!(checked >= 1, "at least the local fixture must have been checked");
+    assert!(
+        checked >= 1,
+        "at least the local fixture must have been checked"
+    );
 }
 
 // ─── and no bookkeeping ─────────────────────────────────────────────────────────────────────────
-
 
 // ─── the topology comes from the arena ──────────────────────────────────────────────────────────
 
@@ -113,15 +117,27 @@ fn the_handles_and_the_names_name_the_same_links() {
     .into_iter()
     .flatten()
     {
-        let by_handle: HashMap<_, _> = model.links.iter().map(|l| (l.did, l.name.as_str())).collect();
+        let by_handle: HashMap<_, _> = model
+            .links
+            .iter()
+            .map(|l| (l.did, l.name.as_str()))
+            .collect();
         let mut resolved = 0;
         for j in &model.joints {
             if let Some(name) = by_handle.get(&j.child) {
-                assert_eq!(*name, j.child_link, "joint {}: child handle and name disagree", j.name);
+                assert_eq!(
+                    *name, j.child_link,
+                    "joint {}: child handle and name disagree",
+                    j.name
+                );
                 resolved += 1;
             }
             if let Some(name) = by_handle.get(&j.parent) {
-                assert_eq!(*name, j.parent_link, "joint {}: parent handle and name disagree", j.name);
+                assert_eq!(
+                    *name, j.parent_link,
+                    "joint {}: parent handle and name disagree",
+                    j.name
+                );
             }
         }
         assert_eq!(
@@ -214,4 +230,3 @@ fn the_se3_walk_is_bit_identical_to_the_heap_one() {
     }
     assert!(checked >= 1);
 }
-

@@ -49,14 +49,24 @@ impl Dual {
     pub fn add(&self, rhs: &Self) -> Self {
         Self {
             value: self.value + rhs.value,
-            grad: self.grad.iter().zip(&rhs.grad).map(|(a, b)| a + b).collect(),
+            grad: self
+                .grad
+                .iter()
+                .zip(&rhs.grad)
+                .map(|(a, b)| a + b)
+                .collect(),
         }
     }
 
     pub fn sub(&self, rhs: &Self) -> Self {
         Self {
             value: self.value - rhs.value,
-            grad: self.grad.iter().zip(&rhs.grad).map(|(a, b)| a - b).collect(),
+            grad: self
+                .grad
+                .iter()
+                .zip(&rhs.grad)
+                .map(|(a, b)| a - b)
+                .collect(),
         }
     }
 

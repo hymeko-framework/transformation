@@ -18,8 +18,8 @@ use std::fmt::Write;
 
 use std::collections::{HashMap, HashSet};
 
-use hymeko_geometry::kinematics::joints::{JointInfo, JointType};
 use hymeko_geometry::kinematics::actuation::{Attachment, DriveLaw};
+use hymeko_geometry::kinematics::joints::{JointInfo, JointType};
 use hymeko_geometry::kinematics::kinematic::{GeometryShape, KinematicModel, LinkInfo};
 use hymeko_geometry::transforms::{
     Diagnostic, DomainTransform, ModelKind, ModelView, TransformConfig,
@@ -93,7 +93,9 @@ impl DomainTransform for MjcfTransform {
     }
 
     fn emit(&self, model: &ModelView, config: &TransformConfig) -> Option<String> {
-        if self.validate(model).iter().any(Diagnostic::is_error) { return None; }
+        if self.validate(model).iter().any(Diagnostic::is_error) {
+            return None;
+        }
         let km = model.as_kinematic()?;
         Some(emit_mjcf(km, config))
     }
@@ -106,18 +108,37 @@ impl DomainTransform for MjcfTransform {
         if let Some(km) = model.as_kinematic() {
             diags.extend(km.actuation.errors.iter().map(Diagnostic::error));
             for link in &km.links {
-                if !link.valid_inertia() { diags.push(Diagnostic::error(format!("invalid inertia on {}", link.name))); }
+                if !link.valid_inertia() {
+                    diags.push(Diagnostic::error(format!(
+                        "invalid inertia on {}",
+                        link.name
+                    )));
+                }
             }
             for drive in &km.actuation.drives {
                 if let Some([guide, side]) = drive.wrapping {
-                    if !km.actuation.attachments.iter().any(|a| a.did == guide && a.radius_m.is_some())
-                        || !km.actuation.attachments.iter().any(|a| a.did == side) {
-                        diags.push(Diagnostic::error(format!("dangling tendon guide {}", drive.name)));
+                    if !km
+                        .actuation
+                        .attachments
+                        .iter()
+                        .any(|a| a.did == guide && a.radius_m.is_some())
+                        || !km.actuation.attachments.iter().any(|a| a.did == side)
+                    {
+                        diags.push(Diagnostic::error(format!(
+                            "dangling tendon guide {}",
+                            drive.name
+                        )));
                     }
                 }
-                if ![drive.origin, drive.insertion].iter().all(|id| km.actuation.attachments.iter().any(|s| s.did == *id))
-                    || !km.joints.iter().any(|j| j.did == drive.joint) {
-                    diags.push(Diagnostic::error(format!("dangling force connection {}", drive.name)));
+                if ![drive.origin, drive.insertion]
+                    .iter()
+                    .all(|id| km.actuation.attachments.iter().any(|s| s.did == *id))
+                    || !km.joints.iter().any(|j| j.did == drive.joint)
+                {
+                    diags.push(Diagnostic::error(format!(
+                        "dangling force connection {}",
+                        drive.name
+                    )));
                 }
             }
             let mut child_counts: std::collections::HashMap<&str, usize> =
@@ -489,17 +510,42 @@ fn emit_mjcf(model: &KinematicModel, config: &TransformConfig) -> String {
         out.push_str("  <tendon>\n");
         for drive in &model.actuation.drives {
             let name = xml_escape(&drive.name);
-            let color = match drive.law { DriveLaw::Muscle { .. } => "0.75 0.12 0.1 1", _ => "0.15 0.3 0.55 1" };
-            let [lo,hi] = drive.length_range_m;
+            let color = match drive.law {
+                DriveLaw::Muscle { .. } => "0.75 0.12 0.1 1",
+                _ => "0.15 0.3 0.55 1",
+            };
+            let [lo, hi] = drive.length_range_m;
             out.push_str(&format!("    <spatial name=\"{name}\" width=\"{}\" rgba=\"{color}\" limited=\"true\" range=\"{lo} {hi}\">\n", drive.radius_m));
             for id in [drive.origin, drive.insertion] {
-                let site = model.actuation.attachments.iter().find(|s| s.did == id).unwrap();
-                out.push_str(&format!("      <site site=\"{}\"/>\n", xml_escape(&site.name)));
+                let site = model
+                    .actuation
+                    .attachments
+                    .iter()
+                    .find(|s| s.did == id)
+                    .unwrap();
+                out.push_str(&format!(
+                    "      <site site=\"{}\"/>\n",
+                    xml_escape(&site.name)
+                ));
                 if id == drive.origin {
                     if let Some([guide, side]) = drive.wrapping {
-                        let guide = model.actuation.attachments.iter().find(|s| s.did == guide).unwrap();
-                        let side = model.actuation.attachments.iter().find(|s| s.did == side).unwrap();
-                        out.push_str(&format!("      <geom geom=\"guide.{}\" sidesite=\"{}\"/>\n", xml_escape(&guide.name), xml_escape(&side.name)));
+                        let guide = model
+                            .actuation
+                            .attachments
+                            .iter()
+                            .find(|s| s.did == guide)
+                            .unwrap();
+                        let side = model
+                            .actuation
+                            .attachments
+                            .iter()
+                            .find(|s| s.did == side)
+                            .unwrap();
+                        out.push_str(&format!(
+                            "      <geom geom=\"guide.{}\" sidesite=\"{}\"/>\n",
+                            xml_escape(&guide.name),
+                            xml_escape(&side.name)
+                        ));
                     }
                 }
             }
@@ -509,7 +555,9 @@ fn emit_mjcf(model: &KinematicModel, config: &TransformConfig) -> String {
     }
     out.push_str("  <actuator>\n");
     for j in &model.joints {
-        if j.joint_type != JointType::Fixed && !model.actuation.drives.iter().any(|d| d.joint == j.did) {
+        if j.joint_type != JointType::Fixed
+            && !model.actuation.drives.iter().any(|d| d.joint == j.did)
+        {
             // Bound the torque to the joint's declared effort limit (N·m); an unlimited
             // joint leaves ctrlrange off (the consumer supplies its own default).
             let ctrl = j
@@ -528,10 +576,19 @@ fn emit_mjcf(model: &KinematicModel, config: &TransformConfig) -> String {
         let name = xml_escape(&drive.name);
         let [lo, hi] = drive.length_range_m;
         match drive.law {
-            DriveLaw::Muscle { force, activation_s, deactivation_s } => {
+            DriveLaw::Muscle {
+                force,
+                activation_s,
+                deactivation_s,
+            } => {
                 out.push_str(&format!("    <muscle name=\"act_{name}\" tendon=\"{name}\" force=\"{force}\" timeconst=\"{activation_s} {deactivation_s}\" lengthrange=\"{lo} {hi}\" ctrlrange=\"0 1\"/>\n"));
             }
-            DriveLaw::Hydraulic { area_m2, pressure_pa, response_s, damping_ns_m } => {
+            DriveLaw::Hydraulic {
+                area_m2,
+                pressure_pa,
+                response_s,
+                damping_ns_m,
+            } => {
                 let force = area_m2 * pressure_pa;
                 out.push_str(&format!("    <general name=\"act_{name}\" tendon=\"{name}\" dyntype=\"filterexact\" dynprm=\"{response_s}\" gaintype=\"fixed\" gainprm=\"{area_m2}\" biastype=\"affine\" biasprm=\"0 0 -{damping_ns_m}\" ctrllimited=\"true\" ctrlrange=\"-{pressure_pa} {pressure_pa}\" forcelimited=\"true\" forcerange=\"-{force} {force}\"/>\n"));
             }
@@ -578,7 +635,10 @@ impl<'a> MjcfCtx<'a> {
         let mut attachments: HashMap<&str, Vec<&Attachment>> = HashMap::new();
         for site in &model.actuation.attachments {
             if let Some(body) = model.links.iter().find(|l| l.did == site.link) {
-                attachments.entry(body.name.as_str()).or_default().push(site);
+                attachments
+                    .entry(body.name.as_str())
+                    .or_default()
+                    .push(site);
             }
         }
         Self {
@@ -613,8 +673,11 @@ fn emit_mjcf_body_open(out: &mut String, ctx: &MjcfCtx<'_>, link_name: &str, ind
 
     if let Some(sites) = ctx.attachments.get(link_name) {
         for site in sites {
-            let [x,y,z] = site.position;
-            out.push_str(&format!("{pad2}<site name=\"{}\" pos=\"{x} {y} {z}\" size=\"0.005\"/>\n", xml_escape(&site.name)));
+            let [x, y, z] = site.position;
+            out.push_str(&format!(
+                "{pad2}<site name=\"{}\" pos=\"{x} {y} {z}\" size=\"0.005\"/>\n",
+                xml_escape(&site.name)
+            ));
             if let Some(radius) = site.radius_m {
                 out.push_str(&format!("{pad2}<geom name=\"guide.{}\" type=\"sphere\" pos=\"{x} {y} {z}\" size=\"{radius}\" mass=\"0\" contype=\"0\" conaffinity=\"0\" rgba=\"0.3 0.3 0.32 1\"/>\n", xml_escape(&site.name)));
             }
@@ -633,18 +696,25 @@ fn emit_mjcf_body_open(out: &mut String, ctx: &MjcfCtx<'_>, link_name: &str, ind
             let i = mass * 0.01;
             // <inertial> COM at the geometry centroid (not the joint), so a link's mass is centred
             // on its rod. A richer inertia tensor can refine the diaginertia later.
-            if let Some([xx,yy,zz,xy,xz,yz]) = link.inertia_com {
+            if let Some([xx, yy, zz, xy, xz, yz]) = link.inertia_com {
                 out.push_str(&format!("{pad2}<inertial mass=\"{mass}\" pos=\"{centroid}\" fullinertia=\"{xx} {yy} {zz} {xy} {xz} {yz}\"/>\n"));
-            } else { out.push_str(&format!(
-                "{}<inertial mass=\"{}\" pos=\"{}\" diaginertia=\"{} {} {}\"/>\n",
-                pad2, mass, centroid, i, i, i
-            )); }
+            } else {
+                out.push_str(&format!(
+                    "{}<inertial mass=\"{}\" pos=\"{}\" diaginertia=\"{} {} {}\"/>\n",
+                    pad2, mass, centroid, i, i, i
+                ));
+            }
         }
         if let Some(ref geom) = link.geometry {
             // Explicit MuJoCo collision categories (additive): omitted entirely when None (historical default).
             let coll = geom
                 .collision
-                .map(|c| format!(" contype=\"{}\" conaffinity=\"{}\"", c.contype, c.conaffinity))
+                .map(|c| {
+                    format!(
+                        " contype=\"{}\" conaffinity=\"{}\"",
+                        c.contype, c.conaffinity
+                    )
+                })
                 .unwrap_or_default();
             let mat = link
                 .color
@@ -671,7 +741,12 @@ fn emit_mjcf_body_open(out: &mut String, ctx: &MjcfCtx<'_>, link_name: &str, ind
                     let gs = match geom.shape {
                         GeometryShape::Box if geom.dimensions.len() >= 3 => {
                             let d = &geom.dimensions;
-                            format!("type=\"box\" size=\"{} {} {}\"", d[0] / 2.0, d[1] / 2.0, d[2] / 2.0)
+                            format!(
+                                "type=\"box\" size=\"{} {} {}\"",
+                                d[0] / 2.0,
+                                d[1] / 2.0,
+                                d[2] / 2.0
+                            )
                         }
                         GeometryShape::Cylinder if geom.dimensions.len() >= 2 => {
                             let d = &geom.dimensions;
@@ -685,7 +760,9 @@ fn emit_mjcf_body_open(out: &mut String, ctx: &MjcfCtx<'_>, link_name: &str, ind
                     if !gs.is_empty() {
                         // geom centred at the link's geometry centroid (the `origin` offset) — a rod from the joint.
                         out.push_str(&format!(
-                            "{}<geom {} pos=\"{}\"{}{}/>  \n", pad2, gs, centroid, mat, coll));
+                            "{}<geom {} pos=\"{}\"{}{}/>  \n",
+                            pad2, gs, centroid, mat, coll
+                        ));
                     }
                 }
             }
@@ -942,9 +1019,18 @@ fn emit_sysml(model: &KinematicModel, config: &TransformConfig) -> String {
         out,
         "    part def FixedJoint      {{ end parent : Link; end child : Link; }}"
     );
-    let _ = writeln!(out, "    part def RevoluteJoint   {{ end parent : Link; end child : Link; attribute axis : Vector3; }}");
-    let _ = writeln!(out, "    part def ContinuousJoint {{ end parent : Link; end child : Link; attribute axis : Vector3; }}");
-    let _ = writeln!(out, "    part def PrismaticJoint  {{ end parent : Link; end child : Link; attribute axis : Vector3; }}");
+    let _ = writeln!(
+        out,
+        "    part def RevoluteJoint   {{ end parent : Link; end child : Link; attribute axis : Vector3; }}"
+    );
+    let _ = writeln!(
+        out,
+        "    part def ContinuousJoint {{ end parent : Link; end child : Link; attribute axis : Vector3; }}"
+    );
+    let _ = writeln!(
+        out,
+        "    part def PrismaticJoint  {{ end parent : Link; end child : Link; attribute axis : Vector3; }}"
+    );
     let _ = writeln!(out);
 
     // Link instances.
@@ -1095,7 +1181,11 @@ mod mjcf_emit_tests {
         assert!(xml.contains("<contact>"), "expected a <contact> block");
         assert!(xml.contains("<exclude body1=\"L0\" body2=\"L1\"/>"));
         assert!(xml.contains("<exclude body1=\"L2\" body2=\"L3\"/>"));
-        assert_eq!(xml.matches("<exclude").count(), 3, "one exclude per parent→child joint");
+        assert_eq!(
+            xml.matches("<exclude").count(),
+            3,
+            "one exclude per parent→child joint"
+        );
     }
 
     /// `world` is the implicit worldbody, not an emitted body: world-rooted joints must NOT emit an
@@ -1122,7 +1212,10 @@ mod mjcf_emit_tests {
         );
         let cfg = hymeko_geometry::transforms::TransformConfig::default().with_name("chain");
         let xml = emit_mjcf(&model, &cfg);
-        assert!(!xml.contains("body1=\"world\""), "world must not appear in an exclude");
+        assert!(
+            !xml.contains("body1=\"world\""),
+            "world must not appear in an exclude"
+        );
         assert!(xml.contains("<exclude body1=\"L0\" body2=\"L1\"/>"));
     }
 }

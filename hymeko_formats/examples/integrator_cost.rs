@@ -92,8 +92,15 @@ struct Sim<'a> {
 impl Sim<'_> {
     fn acceleration(&mut self, q: &[f64], qd: &[f64], out: &mut [f64]) {
         self.evaluations += 1;
-        self.aba
-            .accelerations(self.model, q, qd, &self.tau, GRAVITY, &mut self.scratch, out);
+        self.aba.accelerations(
+            self.model,
+            q,
+            qd,
+            &self.tau,
+            GRAVITY,
+            &mut self.scratch,
+            out,
+        );
     }
 }
 
@@ -135,12 +142,7 @@ fn velocity_verlet(sim: &mut Sim, q: &mut [f64], qd: &mut [f64], h: f64, steps: 
 
 fn rk4(sim: &mut Sim, q: &mut [f64], qd: &mut [f64], h: f64, steps: usize) {
     let n = q.len();
-    let (mut k1, mut k2, mut k3, mut k4) = (
-        vec![0.0; n],
-        vec![0.0; n],
-        vec![0.0; n],
-        vec![0.0; n],
-    );
+    let (mut k1, mut k2, mut k3, mut k4) = (vec![0.0; n], vec![0.0; n], vec![0.0; n], vec![0.0; n]);
     for _ in 0..steps {
         sim.acceleration(q, qd, &mut k1);
         let q2: Vec<f64> = (0..n).map(|i| q[i] + 0.5 * h * qd[i]).collect();
@@ -262,9 +264,15 @@ fn main() {
     };
 
     println!("  double pendulum, chaotic and smooth, {duration} s of motion");
-    println!("  reference: RK4 at h = 2e-7 ({} evaluations)", 4 * 5_000_000);
+    println!(
+        "  reference: RK4 at h = 2e-7 ({} evaluations)",
+        4 * 5_000_000
+    );
     println!();
-    println!("  {:<18} {:>9}  {:>11}  {:>12}", "scheme", "rate Hz", "evaluations", "error rad");
+    println!(
+        "  {:<18} {:>9}  {:>11}  {:>12}",
+        "scheme", "rate Hz", "evaluations", "error rad"
+    );
 
     let schemes: [(&str, Scheme); 4] = [
         ("symplectic Euler", symplectic_euler),
@@ -292,7 +300,11 @@ fn main() {
         println!();
     }
 
-    println!("  The axis that matters is the middle column. A scheme is better only if it reaches a");
-    println!("  smaller error for the same number of evaluations — the integrator's own arithmetic");
+    println!(
+        "  The axis that matters is the middle column. A scheme is better only if it reaches a"
+    );
+    println!(
+        "  smaller error for the same number of evaluations — the integrator's own arithmetic"
+    );
     println!("  is nanoseconds inside a step that is microseconds.");
 }

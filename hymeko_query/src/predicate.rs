@@ -1,7 +1,5 @@
 use hymeko::ir::ir::DeclKind;
 
-
-
 /// Value comparison for numeric/string predicates.
 #[derive(Debug, Clone)]
 pub enum ValuePredicate {
@@ -20,20 +18,20 @@ pub enum ValuePredicate {
 impl ValuePredicate {
     pub fn matches_num(&self, v: f64) -> bool {
         match self {
-            Self::NumEq(t)  => (v - t).abs() < 1e-9,
-            Self::NumGt(t)  => v > *t,
-            Self::NumLt(t)  => v < *t,
+            Self::NumEq(t) => (v - t).abs() < 1e-9,
+            Self::NumGt(t) => v > *t,
+            Self::NumLt(t) => v < *t,
             Self::NumGte(t) => v >= *t,
             Self::NumLte(t) => v <= *t,
-            Self::Any        => true,
-            Self::StrEq(_)   => false,
+            Self::Any => true,
+            Self::StrEq(_) => false,
         }
     }
 
     pub fn matches_str(&self, s: &str) -> bool {
         match self {
             Self::StrEq(t) => s == t,
-            Self::Any       => true,
+            Self::Any => true,
             _ => false,
         }
     }
@@ -85,7 +83,6 @@ pub enum Predicate {
     ChildValue(String, ValuePredicate),
 
     // --- Edge-specific predicates (arc ref matching) ---
-
     /// Edge has a Plus-signed ref whose target matches `inner`.
     HasPlusRef(Box<Predicate>),
     /// Edge has a Minus-signed ref whose target matches `inner`.
@@ -105,19 +102,36 @@ pub enum Predicate {
 ///     .and(Predicate::ChildValue("mass".into(), ValuePredicate::NumGt(10.0)));
 /// ```
 impl Predicate {
-    pub fn node() -> Self { Self::Kind(DeclKind::Node) }
-    pub fn edge() -> Self { Self::Kind(DeclKind::Edge) }
+    pub fn node() -> Self {
+        Self::Kind(DeclKind::Node)
+    }
+    pub fn edge() -> Self {
+        Self::Kind(DeclKind::Edge)
+    }
 
-    pub fn named(n: &str) -> Self { Self::Named(n.to_string()) }
-    pub fn name_prefix(p: &str) -> Self { Self::NamePrefix(p.to_string()) }
-    pub fn inherits(base: &str) -> Self { Self::InheritsFrom(base.to_string()) }
-    pub fn has_tag(tag: &str) -> Self { Self::HasTag(tag.to_string()) }
-    pub fn tagged(tag: &str) -> Self { Self::HasTag(tag.to_string()) }
+    pub fn named(n: &str) -> Self {
+        Self::Named(n.to_string())
+    }
+    pub fn name_prefix(p: &str) -> Self {
+        Self::NamePrefix(p.to_string())
+    }
+    pub fn inherits(base: &str) -> Self {
+        Self::InheritsFrom(base.to_string())
+    }
+    pub fn has_tag(tag: &str) -> Self {
+        Self::HasTag(tag.to_string())
+    }
+    pub fn tagged(tag: &str) -> Self {
+        Self::HasTag(tag.to_string())
+    }
 
     /// Combine with AND, flattening nested And nodes.
     pub fn and(self, other: Self) -> Self {
         match self {
-            Self::And(mut v) => { v.push(other); Self::And(v) }
+            Self::And(mut v) => {
+                v.push(other);
+                Self::And(v)
+            }
             _ => Self::And(vec![self, other]),
         }
     }
@@ -125,13 +139,18 @@ impl Predicate {
     /// Combine with OR, flattening nested Or nodes.
     pub fn or(self, other: Self) -> Self {
         match self {
-            Self::Or(mut v) => { v.push(other); Self::Or(v) }
+            Self::Or(mut v) => {
+                v.push(other);
+                Self::Or(v)
+            }
             _ => Self::Or(vec![self, other]),
         }
     }
 
     /// Negate this predicate.
-    pub fn not(self) -> Self { Self::Not(Box::new(self)) }
+    pub fn not(self) -> Self {
+        Self::Not(Box::new(self))
+    }
 }
 
 /// A labeled query: associates a human-readable name with a predicate.

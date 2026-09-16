@@ -138,10 +138,10 @@ pub fn eigenvalues(a: &[f64], n: usize) -> Result<Vec<Complex>, AnalysisError> {
     // two on a correct root set — which is how this was found.
     let want_determinant = if n % 2 == 0 { -c[n] } else { c[n] };
     let scale = |v: f64| v.abs().max(1.0);
-    let trace_error = (sum.re - want_trace).abs() / scale(want_trace) + sum.im.abs() / scale(want_trace);
-    let determinant_error =
-        (product.re - want_determinant).abs() / scale(want_determinant)
-            + product.im.abs() / scale(want_determinant);
+    let trace_error =
+        (sum.re - want_trace).abs() / scale(want_trace) + sum.im.abs() / scale(want_trace);
+    let determinant_error = (product.re - want_determinant).abs() / scale(want_determinant)
+        + product.im.abs() / scale(want_determinant);
     if trace_error > 1e-6 || determinant_error > 1e-6 {
         return Err(AnalysisError::Untrustworthy {
             trace: trace_error,
@@ -231,7 +231,9 @@ pub fn response(
         .collect();
 
     Ok(match readout {
-        Readout::Effort { coordinate } => x[coordinate].scale(1.0 / system.coordinates[coordinate].capacity),
+        Readout::Effort { coordinate } => {
+            x[coordinate].scale(1.0 / system.coordinates[coordinate].capacity)
+        }
         Readout::Store { coordinate } => x[coordinate],
         _ => unreachable!("guarded by is_linear"),
     })
@@ -373,5 +375,7 @@ fn solve(mut a: Vec<Complex>, mut b: Vec<Complex>, n: usize) -> Option<Vec<Compl
         }
         x[column] = acc.div(a[column * n + column]);
     }
-    x.iter().all(|v| v.re.is_finite() && v.im.is_finite()).then_some(x)
+    x.iter()
+        .all(|v| v.re.is_finite() && v.im.is_finite())
+        .then_some(x)
 }

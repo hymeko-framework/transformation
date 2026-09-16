@@ -15,7 +15,7 @@
 
 use std::time::Instant;
 
-use hymeko_geometry::collide::{colliders_of, intersects, place, BroadPhase, Placement};
+use hymeko_geometry::collide::{BroadPhase, Placement, colliders_of, intersects, place};
 use hymeko_geometry::forward::FkPlan;
 use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
 use hymeko_query::QueryEngine;
@@ -94,13 +94,8 @@ fn main() {
          ({:.3} us each)",
         narrow_us / survivors.max(1) as f64
     );
-    println!(
-        "    (no broad) {all_narrow_us:>8.3} us   GJK on all {kept} pairs, for comparison"
-    );
-    println!(
-        "    TOTAL      {:>8.3} us per step",
-        broad_us + narrow_us
-    );
+    println!("    (no broad) {all_narrow_us:>8.3} us   GJK on all {kept} pairs, for comparison");
+    println!("    TOTAL      {:>8.3} us per step", broad_us + narrow_us);
 }
 
 fn time_narrow(

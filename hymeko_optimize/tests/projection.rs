@@ -38,7 +38,14 @@ fn dump() {
     }
     println!("nets:");
     for (i, name) in problem.net_names.iter().enumerate() {
-        println!("  {i} {name}{}", if problem.ground == Some(i) { "  (ground)" } else { "" });
+        println!(
+            "  {i} {name}{}",
+            if problem.ground == Some(i) {
+                "  (ground)"
+            } else {
+                ""
+            }
+        );
     }
     println!("branches:");
     for (i, name) in problem.branch_names.iter().enumerate() {
@@ -66,7 +73,9 @@ fn dump() {
     for &(q, w) in &problem.objective {
         println!("  {} x {w}", problem.quantities[q].name);
     }
-    problem.check().expect("the projected problem is well posed");
+    problem
+        .check()
+        .expect("the projected problem is well posed");
 }
 
 /// The decision variables are the ones the model TYPED as decisions.
@@ -166,16 +175,32 @@ fn constraints_keep_their_sense() {
         .iter()
         .find(|c| c.sense == Sense::Equality)
         .expect("the operating-point equality");
-    assert!(problem.quantities[equality.left].name.ends_with(".V_A_connected"));
-    assert!(problem.quantities[equality.right].name.ends_with(".target_node_a"));
+    assert!(
+        problem.quantities[equality.left]
+            .name
+            .ends_with(".V_A_connected")
+    );
+    assert!(
+        problem.quantities[equality.right]
+            .name
+            .ends_with(".target_node_a")
+    );
 
     let at_most = problem
         .constraints
         .iter()
         .find(|c| c.sense == Sense::AtMost)
         .expect("the open-circuit limit");
-    assert!(problem.quantities[at_most.left].name.ends_with(".V_A_disconnected"));
-    assert!(problem.quantities[at_most.right].name.ends_with(".open_circuit_limit"));
+    assert!(
+        problem.quantities[at_most.left]
+            .name
+            .ends_with(".V_A_disconnected")
+    );
+    assert!(
+        problem.quantities[at_most.right]
+            .name
+            .ends_with(".open_circuit_limit")
+    );
 }
 
 /// A term carried at weight zero stays visible.

@@ -17,9 +17,9 @@
 //! So this example calls the transform directly, and says why: a cross-check run through the first
 //! path would have compared our kinematics against a model that has none, and agreed with it.
 use hymeko_formats::transforms::MjcfTransform;
-use hymeko_geometry::transforms::{DomainTransform, ModelView, TransformConfig};
-use hymeko_geometry::forward::{forward_kinematics, JointValues};
+use hymeko_geometry::forward::{JointValues, forward_kinematics};
 use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
+use hymeko_geometry::transforms::{DomainTransform, ModelView, TransformConfig};
 use hymeko_query::QueryEngine;
 
 fn main() {
@@ -44,7 +44,11 @@ fn main() {
         .emit(&ModelView::Kinematic(model.clone()), &cfg)
         .expect("mjcf");
     std::fs::write(format!("{out}/{root}.xml"), &xml).expect("write mjcf");
-    eprintln!("{root}: {} links, {} joints", model.links.len(), model.joints.len());
+    eprintln!(
+        "{root}: {} links, {} joints",
+        model.links.len(),
+        model.joints.len()
+    );
 
     // A deterministic, non-trivial pose: every revolute joint gets a distinct angle.
     let mut q = JointValues::new();
@@ -62,8 +66,13 @@ fn main() {
             rows.push(format!(
                 "{{\"link\":\"{}\",\"pos\":[{},{},{}],\"mat\":[{}]}}",
                 l.name,
-                t[0], t[1], t[2],
-                r.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")
+                t[0],
+                t[1],
+                t[2],
+                r.iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",")
             ));
         }
     }
@@ -74,7 +83,11 @@ fn main() {
         .collect();
     std::fs::write(
         format!("{out}/{root}_fk.json"),
-        format!("{{\"q\":{{{}}},\"poses\":[{}]}}", qrows.join(","), rows.join(",")),
+        format!(
+            "{{\"q\":{{{}}},\"poses\":[{}]}}",
+            qrows.join(","),
+            rows.join(",")
+        ),
     )
     .expect("write fk");
 

@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use hymeko::module_store::module_store::ModuleStore;
 use hymeko::module_store::source_provider::StdFsProvider;
 use hymeko::util::real_parser::RealParser;
-use hymeko_geometry::forward::{forward_kinematics, JointValues};
+use hymeko_geometry::forward::{JointValues, forward_kinematics};
 use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
 use hymeko_query::QueryEngine;
 
@@ -66,9 +66,18 @@ fn poses_come_out_of_a_file_the_cli_compiles() {
     let m = arm();
     let poses = forward_kinematics(&m, &JointValues::new()).expect("arm is a rooted chain");
     assert_eq!(poses.root, "base");
-    assert!(close(&poses.get("base").unwrap().translation, [0.0, 0.0, 0.0]));
-    assert!(close(&poses.get("upper").unwrap().translation, [1.0, 0.0, 0.0]));
-    assert!(close(&poses.get("tool").unwrap().translation, [2.0, 0.0, 0.0]));
+    assert!(close(
+        &poses.get("base").unwrap().translation,
+        [0.0, 0.0, 0.0]
+    ));
+    assert!(close(
+        &poses.get("upper").unwrap().translation,
+        [1.0, 0.0, 0.0]
+    ));
+    assert!(close(
+        &poses.get("tool").unwrap().translation,
+        [2.0, 0.0, 0.0]
+    ));
 }
 
 #[test]
@@ -78,6 +87,12 @@ fn driving_the_declared_joint_moves_the_declared_link() {
     let mut q: JointValues = HashMap::new();
     q.insert("j1".into(), TAU / 4.0);
     let poses = forward_kinematics(&m, &q).unwrap();
-    assert!(close(&poses.get("upper").unwrap().translation, [1.0, 0.0, 0.0]));
-    assert!(close(&poses.get("tool").unwrap().translation, [1.0, 1.0, 0.0]));
+    assert!(close(
+        &poses.get("upper").unwrap().translation,
+        [1.0, 0.0, 0.0]
+    ));
+    assert!(close(
+        &poses.get("tool").unwrap().translation,
+        [1.0, 1.0, 0.0]
+    ));
 }

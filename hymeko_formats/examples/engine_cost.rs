@@ -17,9 +17,9 @@ use std::time::Instant;
 
 use hymeko_clifford::Se3;
 use hymeko_geometry::articulated::AbaPlan;
-use hymeko_geometry::collide::{colliders_of, place, BroadPhase, Placement};
+use hymeko_geometry::collide::{BroadPhase, Placement, colliders_of, place};
 use hymeko_geometry::contact::{
-    ground_constraints, ground_contacts, ConstraintSolver, ContactParameters,
+    ConstraintSolver, ContactParameters, ground_constraints, ground_contacts,
 };
 use hymeko_geometry::forward::FkPlan;
 use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
@@ -74,18 +74,38 @@ fn main() {
         plan.resolve_se3(&model, &q, &mut poses);
         place(&colliders, &poses, &mut placed);
         broad.overlapping(&colliders, &placed, &mut boxes, &mut candidates);
-        ground_contacts(&colliders, &placed, ground, parameters.margin, &mut contacts);
+        ground_contacts(
+            &colliders,
+            &placed,
+            ground,
+            parameters.margin,
+            &mut contacts,
+        );
         std::hint::black_box((&candidates, &contacts));
     });
 
     // --- the constraints --------------------------------------------------------------------------
     plan.resolve_se3(&model, &q, &mut poses);
     place(&colliders, &poses, &mut placed);
-    ground_contacts(&colliders, &placed, ground, parameters.margin, &mut contacts);
+    ground_contacts(
+        &colliders,
+        &placed,
+        ground,
+        parameters.margin,
+        &mut contacts,
+    );
     let c = contacts.len();
 
     ground_constraints(
-        &aba, &poses, &colliders, &contacts, &qd, &parameters, h, &mut scratch, &mut constraints,
+        &aba,
+        &poses,
+        &colliders,
+        &contacts,
+        &qd,
+        &parameters,
+        h,
+        &mut scratch,
+        &mut constraints,
     );
     let constrain_us = if c == 0 {
         0.0
@@ -97,17 +117,18 @@ fn main() {
         aba.accelerations(&model, &q, &qd, &tau, GRAVITY, &mut scratch, &mut free);
         time(20_000, || {
             ground_constraints(
-                &aba, &poses, &colliders, &contacts, &qd, &parameters, h, &mut scratch,
+                &aba,
+                &poses,
+                &colliders,
+                &contacts,
+                &qd,
+                &parameters,
+                h,
+                &mut scratch,
                 &mut constraints,
             );
             velocity.copy_from_slice(&qd);
-            solver.solve(
-                &aba,
-                &constraints,
-                &parameters,
-                &mut scratch,
-                &mut velocity,
-            );
+            solver.solve(&aba, &constraints, &parameters, &mut scratch, &mut velocity);
             std::hint::black_box(&velocity);
         })
     };

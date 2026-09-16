@@ -1,0 +1,15 @@
+diagram_fixture {}
+kind {}
+graph {
+    length 1.0;
+    a: kind { dimension -> length; }
+    b {}
+    nested { a {} }
+    alias -> nested.a;
+    @constraint {
+        (+ a, - b, + a [2.0]);
+        (~ b, + a);
+    }
+    @wrapper { (~ constraint, - b); }
+    @empty {}
+}

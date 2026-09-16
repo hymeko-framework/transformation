@@ -4,10 +4,10 @@
 //! by looking up named children under that declaration. This decouples the
 //! template engine from domain-specific knowledge about what fields exist.
 
-use hymeko::common::ids::DeclId;
-use hymeko::ir::ir::{DeclKind, Ir, ValueR};
 use crate::engine::QueryMatch;
 use crate::traits::NameResolver;
+use hymeko::common::ids::DeclId;
+use hymeko::ir::ir::{DeclKind, Ir, ValueR};
 
 /// Extracted field value (string representation for template interpolation).
 #[derive(Clone, Debug)]
@@ -41,12 +41,11 @@ impl FieldValue {
                     format!("{n}")
                 }
             }
-            FieldValue::List(vs) => {
-                vs.iter()
-                    .map(|v| v.to_template_string())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            }
+            FieldValue::List(vs) => vs
+                .iter()
+                .map(|v| v.to_template_string())
+                .collect::<Vec<_>>()
+                .join(" "),
             FieldValue::Present => "true".into(),
             FieldValue::Missing => String::new(),
         }
@@ -62,7 +61,11 @@ pub struct MatchContext<'a, R: NameResolver> {
 
 impl<'a, R: NameResolver> MatchContext<'a, R> {
     pub fn new(ir: &'a Ir, resolver: &'a R, match_result: &'a QueryMatch) -> Self {
-        Self { ir, resolver, match_result }
+        Self {
+            ir,
+            resolver,
+            match_result,
+        }
     }
 
     /// Get the value of a named child field.
@@ -135,9 +138,8 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
                     for base in &edge.bases {
                         let target = base.target();
                         if !target.is_none() {
-                            let target_name_resolved = self.resolver.resolve(
-                                self.ir.decl_nodes[target.raw()].name
-                            );
+                            let target_name_resolved =
+                                self.resolver.resolve(self.ir.decl_nodes[target.raw()].name);
                             if target_name_resolved == target_name {
                                 if rest.is_empty() {
                                     return self.decl_value(target);
@@ -209,7 +211,10 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
     pub fn children_fields(&self) -> Vec<(String, FieldValue)> {
         let mut result = Vec::new();
         for child in self.ir.decl_children(self.match_result.id) {
-            let name = self.resolver.resolve(self.ir.decl_nodes[child.raw()].name).to_string();
+            let name = self
+                .resolver
+                .resolve(self.ir.decl_nodes[child.raw()].name)
+                .to_string();
             let value = self.decl_value(child);
             result.push((name, value));
         }
@@ -218,7 +223,10 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
 
     /// Get the n-th arc binding with the given sign (1 = +, -1 = -, 0 = neutral).
     pub fn binding_target(&self, sign: i8, index: usize) -> FieldValue {
-        let filtered: Vec<_> = self.match_result.arc_bindings.iter()
+        let filtered: Vec<_> = self
+            .match_result
+            .arc_bindings
+            .iter()
             .filter(|b| b.sign == sign)
             .collect();
         match filtered.get(index) {
@@ -229,7 +237,9 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
 
     /// Get all positive binding targets as a list.
     pub fn positive_bindings(&self) -> Vec<String> {
-        self.match_result.arc_bindings.iter()
+        self.match_result
+            .arc_bindings
+            .iter()
             .filter(|b| b.sign > 0)
             .map(|b| b.target_name.clone())
             .collect()
@@ -237,7 +247,9 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
 
     /// Get all negative binding targets as a list.
     pub fn negative_bindings(&self) -> Vec<String> {
-        self.match_result.arc_bindings.iter()
+        self.match_result
+            .arc_bindings
+            .iter()
             .filter(|b| b.sign < 0)
             .map(|b| b.target_name.clone())
             .collect()

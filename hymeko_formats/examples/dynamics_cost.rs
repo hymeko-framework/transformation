@@ -18,7 +18,7 @@ use std::time::Instant;
 use hymeko_geometry::articulated::AbaPlan;
 use hymeko_geometry::forward::FkPlan;
 use hymeko_geometry::kinematics::joints::JointType;
-use hymeko_geometry::kinematics::kinematic::{extract_kinematic_model, KinematicModel};
+use hymeko_geometry::kinematics::kinematic::{KinematicModel, extract_kinematic_model};
 use hymeko_query::QueryEngine;
 
 fn main() {

@@ -47,7 +47,10 @@ pub enum ReadError {
     /// A reference to something the projection needs and did not find.
     Unresolved { at: String, what: String },
     /// A coordinate with no `capacity`, or one that is not positive.
-    Capacity { coordinate: String, value: Option<f64> },
+    Capacity {
+        coordinate: String,
+        value: Option<f64>,
+    },
     /// A dissipation that would create energy.
     NegativeDissipation { at: String, value: f64 },
     /// A waveform missing `amplitude` or `frequency`.
@@ -55,12 +58,20 @@ pub enum ReadError {
     /// A declared sweep that does not say what it varies, or over what.
     Sweep { at: String, missing: &'static str },
     /// A mode shape missing one of its dimensions, or given one that is not positive.
-    Shape { at: String, field: &'static str, value: Option<f64> },
+    Shape {
+        at: String,
+        field: &'static str,
+        value: Option<f64>,
+    },
     /// A probe whose two leads are not joined by any run of conductors.
     ///
     /// Not a large reading: no reading. A potential difference is defined along a path, and between
     /// two separated pieces of circuit there is none.
-    Disconnected { at: String, plus: String, minus: String },
+    Disconnected {
+        at: String,
+        plus: String,
+        minus: String,
+    },
     /// More than one terminal declared as the reference, or a potential asked for without one.
     Reference { at: String, why: &'static str },
     /// No state coordinate at all — there is no system to project.
@@ -344,18 +355,18 @@ impl Reader<'_> {
                     expected: "(+ coordinate, ~ waveform)",
                     found: "no waveform".into(),
                 })?;
-                let amplitude_from = self.reference(waveform, "amplitude").ok_or(
-                    ReadError::Waveform {
-                        at: at.clone(),
-                        missing: "amplitude",
-                    },
-                )?;
-                let frequency_from = self.reference(waveform, "frequency").ok_or(
-                    ReadError::Waveform {
-                        at: at.clone(),
-                        missing: "frequency",
-                    },
-                )?;
+                let amplitude_from =
+                    self.reference(waveform, "amplitude")
+                        .ok_or(ReadError::Waveform {
+                            at: at.clone(),
+                            missing: "amplitude",
+                        })?;
+                let frequency_from =
+                    self.reference(waveform, "frequency")
+                        .ok_or(ReadError::Waveform {
+                            at: at.clone(),
+                            missing: "frequency",
+                        })?;
                 let amplitude = self.value_of(amplitude_from).ok_or(ReadError::Waveform {
                     at: at.clone(),
                     missing: "amplitude",
@@ -570,10 +581,12 @@ impl Reader<'_> {
                     expected: "(+ terminal)",
                     found: "nothing".into(),
                 })?;
-                let index = *terminal_of.get(&target).ok_or_else(|| ReadError::Unresolved {
-                    at: at.clone(),
-                    what: self.qualified(target),
-                })?;
+                let index = *terminal_of
+                    .get(&target)
+                    .ok_or_else(|| ReadError::Unresolved {
+                        at: at.clone(),
+                        what: self.qualified(target),
+                    })?;
                 if reference.is_some_and(|already| already != index) {
                     return Err(ReadError::Reference {
                         at,
@@ -596,17 +609,19 @@ impl Reader<'_> {
         // `J` is assembled from, read a second way. A model may pin some terminals and leave the
         // rest, and what it pins is honoured exactly.
         let edges: Vec<(usize, usize)> = wires.iter().map(|w| (w.from, w.to)).collect();
-        for (terminal, at) in terminals
-            .iter_mut()
-            .zip(crate::layout::arrange(declared_at.len(), &edges, &declared_at))
-        {
+        for (terminal, at) in terminals.iter_mut().zip(crate::layout::arrange(
+            declared_at.len(),
+            &edges,
+            &declared_at,
+        )) {
             terminal.at = at;
         }
         let positions: Vec<[f64; 3]> = terminals.iter().map(|t| t.at).collect();
         let declared_via: Vec<Option<[f64; 3]>> = wires.iter().map(|w| w.via).collect();
-        for (wire, via) in wires
-            .iter_mut()
-            .zip(crate::layout::bends(&positions, &edges, &declared_via))
+        for (wire, via) in
+            wires
+                .iter_mut()
+                .zip(crate::layout::bends(&positions, &edges, &declared_via))
         {
             wire.via = via;
         }
@@ -785,10 +800,7 @@ impl Reader<'_> {
     }
 }
 
-fn signed(
-    inc: &[(&SignedRefR, DeclId)],
-    want: impl Fn(&SignedRefR) -> bool,
-) -> Vec<DeclId> {
+fn signed(inc: &[(&SignedRefR, DeclId)], want: impl Fn(&SignedRefR) -> bool) -> Vec<DeclId> {
     inc.iter()
         .filter(|(r, _)| want(r))
         .map(|(_, d)| *d)

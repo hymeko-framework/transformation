@@ -12,18 +12,18 @@
 //!   produce deterministic text. The editor converts to the arena IR via
 //!   [`bridge`] before emitting.
 
-pub mod editor_ir;
 pub mod bridge;
+pub mod editor_ir;
 pub mod emit_hymeko;
-pub mod emit_sysml;
-pub mod emit_rust_stubs;
 pub mod emit_lean4;
+pub mod emit_rust_stubs;
+pub mod emit_sysml;
 
 pub use editor_ir::{
-    Attribute, AttributeValue, HyMeKoEditorIR, IRDelta, IRError, Patch, Position, Sign, Vertex,
-    HyperEdge,
+    Attribute, AttributeValue, HyMeKoEditorIR, HyperEdge, IRDelta, IRError, Patch, Position, Sign,
+    Vertex,
 };
 pub use emit_hymeko::emit_hymeko;
-pub use emit_sysml::emit_sysml;
-pub use emit_rust_stubs::emit_rust_stubs;
 pub use emit_lean4::emit_lean4;
+pub use emit_rust_stubs::emit_rust_stubs;
+pub use emit_sysml::emit_sysml;

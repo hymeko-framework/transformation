@@ -74,7 +74,9 @@ impl core::fmt::Display for FkError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::InvalidInertia(link) => write!(f, "invalid declared inertia on link {link:?}"),
-            Self::InvalidJointLimits(joint) => write!(f, "invalid position limits on joint {joint:?}"),
+            Self::InvalidJointLimits(joint) => {
+                write!(f, "invalid position limits on joint {joint:?}")
+            }
             Self::NoLinks => write!(f, "model declares no links"),
             Self::MultipleParents { link, joints } => write!(
                 f,
@@ -82,11 +84,7 @@ impl core::fmt::Display for FkError {
                 joints.len()
             ),
             Self::Cycle(c) => write!(f, "joint chain closes on itself: {c:?}"),
-            Self::MultipleRoots(r) => write!(
-                f,
-                "expected one root link, found {}: {r:?}",
-                r.len()
-            ),
+            Self::MultipleRoots(r) => write!(f, "expected one root link, found {}: {r:?}", r.len()),
             Self::UnknownLink { joint, link } => {
                 write!(f, "joint {joint:?} refers to undeclared link {link:?}")
             }
@@ -235,7 +233,9 @@ pub fn forward_kinematics(model: &KinematicModel, q: &JointValues) -> Result<Lin
     poses.insert(
         root.clone(),
         match anchor.get(root.as_str()) {
-            Some(j) => joint_origin(j).compose(&joint_motion(j, q.get(&j.name).copied().unwrap_or(0.0))),
+            Some(j) => {
+                joint_origin(j).compose(&joint_motion(j, q.get(&j.name).copied().unwrap_or(0.0)))
+            }
             None => Se::identity(3),
         },
     );
@@ -291,7 +291,6 @@ fn trace_cycle(start: &str, parent_joint: &HashMap<&str, &JointInfo>) -> Vec<Str
         }
     }
 }
-
 
 // ─── The prepared plan ──────────────────────────────────────────────────────────────────────────
 
@@ -399,15 +398,11 @@ impl FkPlan {
                     return Err(FkError::UnknownLink {
                         joint: j.name.clone(),
                         link: j.parent_link.clone(),
-                    })
+                    });
                 }
             }
         }
-        if let Some((i, js)) = claimed
-            .iter()
-            .enumerate()
-            .find(|(_, js)| js.len() > 1)
-        {
+        if let Some((i, js)) = claimed.iter().enumerate().find(|(_, js)| js.len() > 1) {
             let mut joints: Vec<String> = js.iter().map(|s| (*s).to_string()).collect();
             joints.sort();
             return Err(FkError::MultipleParents {
@@ -655,9 +650,18 @@ mod tests {
         let poses = forward_kinematics(&two_link_arm(), &JointValues::new()).unwrap();
         assert_eq!(poses.root, "base");
         assert_eq!(poses.len(), 3);
-        assert!(close(&poses.get("base").unwrap().translation, [0.0, 0.0, 0.0]));
-        assert!(close(&poses.get("upper").unwrap().translation, [1.0, 0.0, 0.0]));
-        assert!(close(&poses.get("tool").unwrap().translation, [2.0, 0.0, 0.0]));
+        assert!(close(
+            &poses.get("base").unwrap().translation,
+            [0.0, 0.0, 0.0]
+        ));
+        assert!(close(
+            &poses.get("upper").unwrap().translation,
+            [1.0, 0.0, 0.0]
+        ));
+        assert!(close(
+            &poses.get("tool").unwrap().translation,
+            [2.0, 0.0, 0.0]
+        ));
     }
 
     #[test]
@@ -667,8 +671,14 @@ mod tests {
         let mut q = JointValues::new();
         q.insert("j1".into(), TAU / 4.0);
         let poses = forward_kinematics(&two_link_arm(), &q).unwrap();
-        assert!(close(&poses.get("upper").unwrap().translation, [1.0, 0.0, 0.0]));
-        assert!(close(&poses.get("tool").unwrap().translation, [1.0, 1.0, 0.0]));
+        assert!(close(
+            &poses.get("upper").unwrap().translation,
+            [1.0, 0.0, 0.0]
+        ));
+        assert!(close(
+            &poses.get("tool").unwrap().translation,
+            [1.0, 1.0, 0.0]
+        ));
     }
 
     #[test]
@@ -679,7 +689,10 @@ mod tests {
         q.insert("j1".into(), TAU / 4.0);
         q.insert("j2".into(), TAU / 4.0);
         let poses = forward_kinematics(&two_link_arm(), &q).unwrap();
-        assert!(close(&poses.get("tool").unwrap().translation, [1.0, 1.0, 0.0]));
+        assert!(close(
+            &poses.get("tool").unwrap().translation,
+            [1.0, 1.0, 0.0]
+        ));
         // …and the tool's orientation has accumulated both turns: its local +x now points -x.
         assert!(close(
             &poses.get("tool").unwrap().rotate(&[1.0, 0.0, 0.0]),
@@ -695,7 +708,10 @@ mod tests {
         q.insert("j2".into(), 0.5);
         let poses = forward_kinematics(&m, &q).unwrap();
         // j2's axis is +z, so the tool lifts rather than reaching further along x
-        assert!(close(&poses.get("tool").unwrap().translation, [2.0, 0.0, 0.5]));
+        assert!(close(
+            &poses.get("tool").unwrap().translation,
+            [2.0, 0.0, 0.5]
+        ));
     }
 
     #[test]
@@ -705,7 +721,10 @@ mod tests {
         let mut q = JointValues::new();
         q.insert("j2".into(), 1.234);
         let poses = forward_kinematics(&m, &q).unwrap();
-        assert!(close(&poses.get("tool").unwrap().translation, [2.0, 0.0, 0.0]));
+        assert!(close(
+            &poses.get("tool").unwrap().translation,
+            [2.0, 0.0, 0.0]
+        ));
     }
 
     #[test]
@@ -716,20 +735,41 @@ mod tests {
             name: "fork".into(),
             links: vec![link("base"), link("left"), link("right")],
             joints: vec![
-                joint("jl", "base", "left", JointType::Fixed, Some([0.0, 1.0, 0.0]), None),
-                joint("jr", "base", "right", JointType::Fixed, Some([0.0, -1.0, 0.0]), None),
+                joint(
+                    "jl",
+                    "base",
+                    "left",
+                    JointType::Fixed,
+                    Some([0.0, 1.0, 0.0]),
+                    None,
+                ),
+                joint(
+                    "jr",
+                    "base",
+                    "right",
+                    JointType::Fixed,
+                    Some([0.0, -1.0, 0.0]),
+                    None,
+                ),
             ],
             frames: Vec::new(),
         };
         let poses = forward_kinematics(&m, &JointValues::new()).unwrap();
-        assert!(close(&poses.get("left").unwrap().translation, [0.0, 1.0, 0.0]));
-        assert!(close(&poses.get("right").unwrap().translation, [0.0, -1.0, 0.0]));
+        assert!(close(
+            &poses.get("left").unwrap().translation,
+            [0.0, 1.0, 0.0]
+        ));
+        assert!(close(
+            &poses.get("right").unwrap().translation,
+            [0.0, -1.0, 0.0]
+        ));
     }
 
     #[test]
     fn a_link_with_two_parent_joints_is_rejected() {
         let mut m = two_link_arm();
-        m.joints.push(joint("j3", "base", "tool", JointType::Fixed, None, None));
+        m.joints
+            .push(joint("j3", "base", "tool", JointType::Fixed, None, None));
         match forward_kinematics(&m, &JointValues::new()) {
             Err(FkError::MultipleParents { link, joints }) => {
                 assert_eq!(link, "tool");
@@ -744,7 +784,9 @@ mod tests {
         let mut m = two_link_arm();
         m.links.push(link("stray"));
         match forward_kinematics(&m, &JointValues::new()) {
-            Err(FkError::MultipleRoots(r)) => assert_eq!(r, vec!["base".to_string(), "stray".to_string()]),
+            Err(FkError::MultipleRoots(r)) => {
+                assert_eq!(r, vec!["base".to_string(), "stray".to_string()])
+            }
             other => panic!("expected MultipleRoots, got {other:?}"),
         }
     }
@@ -753,7 +795,8 @@ mod tests {
     fn a_closed_loop_is_reported_as_a_cycle() {
         // base ──▶ upper ──▶ tool ──▶ base : every link has a parent, so there is no root.
         let mut m = two_link_arm();
-        m.joints.push(joint("j3", "tool", "base", JointType::Fixed, None, None));
+        m.joints
+            .push(joint("j3", "tool", "base", JointType::Fixed, None, None));
         match forward_kinematics(&m, &JointValues::new()) {
             Err(FkError::Cycle(c)) => {
                 assert!(c.len() >= 2, "cycle must name the loop, got {c:?}");
@@ -832,11 +875,23 @@ mod tests {
         // and the anchoring joint's own origin is kept: it is what states the standing height of a
         // floating base, and dropping it would put every model in the library on the floor
         let base = poses.get("base").unwrap();
-        assert!((base.translation[2] - 0.25).abs() < 1e-12, "{:?}", base.translation);
+        assert!(
+            (base.translation[2] - 0.25).abs() < 1e-12,
+            "{:?}",
+            base.translation
+        );
         // the rest of the chain rides on it
         let tool = poses.get("tool").unwrap();
-        assert!((tool.translation[2] - 0.25).abs() < 1e-12, "{:?}", tool.translation);
-        assert!((tool.translation[0] - 2.0).abs() < 1e-12, "{:?}", tool.translation);
+        assert!(
+            (tool.translation[2] - 0.25).abs() < 1e-12,
+            "{:?}",
+            tool.translation
+        );
+        assert!(
+            (tool.translation[0] - 2.0).abs() < 1e-12,
+            "{:?}",
+            tool.translation
+        );
     }
 
     /// A parent that is neither a link nor a declared frame is still a mistake, not an anchor.

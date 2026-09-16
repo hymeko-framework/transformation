@@ -138,8 +138,12 @@ impl Region {
     /// The region's true extent in metres: across the face, and along the axis.
     pub fn span(&self) -> (f64, f64) {
         match self.shape {
-            Shape::ParallelPlate { area, separation, .. } => (area.sqrt(), separation),
-            Shape::Solenoid { area, length, .. } => (2.0 * (area / std::f64::consts::PI).sqrt(), length),
+            Shape::ParallelPlate {
+                area, separation, ..
+            } => (area.sqrt(), separation),
+            Shape::Solenoid { area, length, .. } => {
+                (2.0 * (area / std::f64::consts::PI).sqrt(), length)
+            }
         }
     }
 
@@ -212,7 +216,12 @@ pub struct Sample {
 /// This is NOT the port's power. The port carries `g * effort_e * effort_h` watts; this is the flux
 /// density of the reduced mode, and the two differ by the geometry. Both are useful and they are not
 /// the same quantity.
-pub fn poynting(electric: &Region, electric_effort: f64, magnetic: &Region, magnetic_effort: f64) -> f64 {
+pub fn poynting(
+    electric: &Region,
+    electric_effort: f64,
+    magnetic: &Region,
+    magnetic_effort: f64,
+) -> f64 {
     electric.shape.field(electric_effort) * magnetic.shape.field(magnetic_effort)
 }
 

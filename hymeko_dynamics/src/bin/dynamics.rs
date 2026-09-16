@@ -14,9 +14,9 @@ use std::process::ExitCode;
 use hymeko::module_store::module_store::ModuleStore;
 use hymeko::module_store::source_provider::StdFsProvider;
 use hymeko::util::real_parser::RealParser;
-use hymeko_dynamics::analysis::{modes, response};
-use hymeko_dynamics::run::{run, Integrator};
 use hymeko_dynamics::System;
+use hymeko_dynamics::analysis::{modes, response};
+use hymeko_dynamics::run::{Integrator, run};
 
 /// How far outside the modes a response curve is sampled, as a fraction either side.
 const MARGIN: (f64, f64) = (0.75, 1.3);
@@ -53,7 +53,9 @@ fn main() -> ExitCode {
         }
     }
     let Some(model) = model else {
-        eprintln!("usage: hymeko-dynamics <model.hymeko> [--modes] [--sweep] [--trace <s> <h>] [--json <file>]");
+        eprintln!(
+            "usage: hymeko-dynamics <model.hymeko> [--modes] [--sweep] [--trace <s> <h>] [--json <file>]"
+        );
         return ExitCode::FAILURE;
     };
     if !want_modes && !want_sweep && trace.is_none() && json.is_none() {
@@ -97,7 +99,10 @@ fn main() -> ExitCode {
 
     if want_modes {
         println!("modes");
-        println!("  {:>14}  {:>16}  {:>10}", "frequency Hz", "damping 1/s", "Q");
+        println!(
+            "  {:>14}  {:>16}  {:>10}",
+            "frequency Hz", "damping 1/s", "Q"
+        );
         for mode in &declared_modes {
             println!(
                 "  {:>14.3}  {:>16.3}  {:>10.2}",
@@ -116,7 +121,10 @@ fn main() -> ExitCode {
     if want_sweep {
         for sweep in &system.sweeps {
             println!("sweep {} over {}", sweep.name, sweep.parameter_name);
-            println!("  {:>10}  {:>14}  {:>14}  {:>14}", "value", "mode 1 Hz", "mode 2 Hz", "product");
+            println!(
+                "  {:>10}  {:>14}  {:>14}  {:>14}",
+                "value", "mode 1 Hz", "mode 2 Hz", "product"
+            );
             for point in sweep.points() {
                 let at = system.at(sweep.parameter, point);
                 match modes(&at) {
@@ -135,7 +143,14 @@ fn main() -> ExitCode {
 
     if let Some((duration, step)) = trace {
         let stride = ((duration / step) as usize / 2000).max(1);
-        let recorded = run(&system, &vec![0.0; system.dim()], duration, step, stride, Integrator::DiscreteGradient);
+        let recorded = run(
+            &system,
+            &vec![0.0; system.dim()],
+            duration,
+            step,
+            stride,
+            Integrator::DiscreteGradient,
+        );
         eprintln!(
             "trace: {} samples, worst balance residual {:e}",
             recorded.times.len(),
@@ -258,7 +273,10 @@ fn dataset(system: &System, declared: &[hymeko_dynamics::analysis::Mode]) -> Str
         .collect();
     out.push_str(&format!(
         "  \"frequencies_hz\": [{}],\n",
-        grid.iter().map(|f| format!("{f:.2}")).collect::<Vec<_>>().join(", ")
+        grid.iter()
+            .map(|f| format!("{f:.2}"))
+            .collect::<Vec<_>>()
+            .join(", ")
     ));
 
     let observable = system.observable_of("capacitor_voltage").unwrap_or(0);
@@ -327,13 +345,21 @@ fn dataset(system: &System, declared: &[hymeko_dynamics::analysis::Mode]) -> Str
     for (i, observable) in system.observables.iter().enumerate() {
         out.push_str(&format!(
             "    \"{}\": [{}]{}\n",
-            observable.name.rsplit('.').next().unwrap_or(&observable.name),
+            observable
+                .name
+                .rsplit('.')
+                .next()
+                .unwrap_or(&observable.name),
             recorded.columns[i]
                 .iter()
                 .map(|v| format!("{v:.6e}"))
                 .collect::<Vec<_>>()
                 .join(", "),
-            if i + 1 < system.observables.len() { "," } else { "" }
+            if i + 1 < system.observables.len() {
+                ","
+            } else {
+                ""
+            }
         ));
     }
     out.push_str("  }\n}\n");

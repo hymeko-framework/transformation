@@ -20,9 +20,9 @@
 
 mod common;
 
-use hymeko_dynamics::analysis::{Complex, eigenvalues, modes};
-use hymeko_dynamics::run::{run, Integrator};
 use hymeko_dynamics::System;
+use hymeko_dynamics::analysis::{Complex, eigenvalues, modes};
+use hymeko_dynamics::run::{Integrator, run};
 
 const BODIES: usize = 6;
 const MASS: f64 = 0.5;
@@ -75,7 +75,11 @@ fn frequencies(system: &System) -> Vec<f64> {
 #[test]
 fn the_chain_reproduces_the_closed_form_spectrum() {
     let Some(system) = lossless() else { return };
-    assert_eq!(system.dim(), 2 * BODIES + 1, "six momenta and seven extensions");
+    assert_eq!(
+        system.dim(),
+        2 * BODIES + 1,
+        "six momenta and seven extensions"
+    );
 
     let found = frequencies(&system);
     let want = closed_form(STIFFNESS, MASS, BODIES);
@@ -343,7 +347,10 @@ fn a_probe_across_the_chain_is_the_difference_of_its_ends() {
         scale = scale.max(want.abs());
     }
     assert!(scale > 1e-3, "the two ends move differently: {scale} m/s");
-    assert!(worst < 1e-11 * scale, "the span reads {worst} off the difference");
+    assert!(
+        worst < 1e-11 * scale,
+        "the span reads {worst} off the difference"
+    );
 }
 
 // ─── and it is still a port-Hamiltonian system ──────────────────────────────────────────────────
@@ -361,7 +368,10 @@ fn the_energy_balance_holds_on_a_mechanism() {
         4096,
         Integrator::DiscreteGradient,
     );
-    println!("worst balance residual over two seconds: {:e}", trace.worst_balance);
+    println!(
+        "worst balance residual over two seconds: {:e}",
+        trace.worst_balance
+    );
     assert!(
         trace.worst_balance < 1e-18,
         "the discrete gradient should keep the balance to round-off, not {:e}",
@@ -379,8 +389,10 @@ fn a_lossless_chain_left_alone_keeps_its_energy() {
                 "damping:    kind.parameter { unit pu.newton_second_per_metre; value 0.35; }",
                 "damping:    kind.parameter { unit pu.newton_second_per_metre; value 0.0; }",
             ),
-            ("shake_amplitude: kind.parameter { unit pu.newton; value 6.0; }",
-             "shake_amplitude: kind.parameter { unit pu.newton; value 0.0; }"),
+            (
+                "shake_amplitude: kind.parameter { unit pu.newton; value 6.0; }",
+                "shake_amplitude: kind.parameter { unit pu.newton; value 0.0; }",
+            ),
         ],
     ) else {
         return;
@@ -391,7 +403,14 @@ fn a_lossless_chain_left_alone_keeps_its_energy() {
     start[2] = 0.4; // p_3, a momentum
     let before = system.energy(&start);
 
-    let trace = run(&system, &start, 4.0, 1.0e-4, 4096, Integrator::DiscreteGradient);
+    let trace = run(
+        &system,
+        &start,
+        4.0,
+        1.0e-4,
+        4096,
+        Integrator::DiscreteGradient,
+    );
     let after = system.energy(&trace.final_state);
     let drift = (after - before).abs() / before;
     println!("energy {before:.9} J -> {after:.9} J, drift {drift:e}");

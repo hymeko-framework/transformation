@@ -25,23 +25,33 @@ fn main() {
     );
     let program = store.compile(p).expect("compile");
     let engine = QueryEngine::new(&program.ir, &store.it);
-    println!("{root}: {} declarations in the arena", program.ir.decl_nodes.len());
+    println!(
+        "{root}: {} declarations in the arena",
+        program.ir.decl_nodes.len()
+    );
 
     let time = |name: &str, n: usize, f: &mut dyn FnMut()| {
         f();
         let t = std::time::Instant::now();
-        for _ in 0..n { f(); }
+        for _ in 0..n {
+            f();
+        }
         let us = t.elapsed().as_secs_f64() * 1e6 / n as f64;
         println!("  {name:<40} {us:>9.2} us");
         us
     };
 
-    println!("  {:<40} {compile_ms:>9.2} ms", "compile (parse + resolve + lower)");
+    println!(
+        "  {:<40} {compile_ms:>9.2} ms",
+        "compile (parse + resolve + lower)"
+    );
     let q_link = time("query inherits(link)", 200, &mut || {
         std::hint::black_box(engine.query(&Predicate::node().and(Predicate::inherits("link"))));
     });
     let q_joint = time("query inherits(rev_joint)", 200, &mut || {
-        std::hint::black_box(engine.query(&Predicate::edge().and(Predicate::inherits("rev_joint"))));
+        std::hint::black_box(
+            engine.query(&Predicate::edge().and(Predicate::inherits("rev_joint"))),
+        );
     });
     let extract = time("extract_kinematic_model (6 queries)", 50, &mut || {
         std::hint::black_box(extract_kinematic_model(&engine, root));
@@ -58,6 +68,8 @@ fn main() {
         std::hint::black_box(&poses);
     });
     let _ = (q_link, q_joint, plan);
-    println!("\n  one load = {:.2} ms compile + {extract:.0} us extract; then {fk:.2} us per pose",
-        compile_ms);
+    println!(
+        "\n  one load = {:.2} ms compile + {extract:.0} us extract; then {fk:.2} us per pose",
+        compile_ms
+    );
 }

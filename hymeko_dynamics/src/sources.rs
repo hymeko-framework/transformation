@@ -12,7 +12,7 @@ use hymeko::resolution::interner::Interner;
 use hymeko::util::real_parser::RealParser;
 pub use hymeko_sources::MemoryProvider;
 
-use crate::read::{project, ReadError};
+use crate::read::{ReadError, project};
 use crate::system::System;
 
 /// Why a set of sources could not become a system.

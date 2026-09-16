@@ -13,29 +13,25 @@
 //! [`DomainTransform`]: hymeko_geometry::transforms::DomainTransform
 //! [`TransformRegistry`]: hymeko_geometry::transforms::TransformRegistry
 
-#![allow(
-    clippy::collapsible_if,
-    clippy::get_first,
-    clippy::needless_borrow,
-)]
+#![allow(clippy::collapsible_if, clippy::get_first, clippy::needless_borrow)]
 
 pub mod binary_graph;
 pub mod codegen;
 pub mod gazebo;
 pub mod mesh;
-pub mod texture;
 pub mod sdf;
 pub mod snapshot;
+pub mod texture;
 pub mod transforms;
 pub mod urdf;
 pub mod xml_util;
 
 pub use binary_graph::{BinaryEdge, BinaryGraph};
-pub use codegen::{generate_description, CodegenError, OutputFormat};
+pub use codegen::{CodegenError, OutputFormat, generate_description};
 pub use transforms::{
-    DotTransform, GazeboWorldTransform, MermaidTransform, MjcfTransform,
-    RequirementsDotTransform, RequirementsSysmlTransform, SdfTransform,
-    SysmlTransform, TorchDataflowTransform, UrdfTransform,
+    DotTransform, GazeboWorldTransform, MermaidTransform, MjcfTransform, RequirementsDotTransform,
+    RequirementsSysmlTransform, SdfTransform, SysmlTransform, TorchDataflowTransform,
+    UrdfTransform,
 };
 
 use hymeko_geometry::transforms::TransformRegistry;

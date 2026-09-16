@@ -10,7 +10,7 @@
 //! the deltas verbatim (they `#[derive(Serialize, Deserialize)]`).
 
 use serde::{Deserialize, Serialize};
-use slotmap::{new_key_type, SlotMap};
+use slotmap::{SlotMap, new_key_type};
 use thiserror::Error;
 
 new_key_type! {
@@ -82,19 +82,47 @@ pub struct Patch {
 /// `hymeko_wire`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IRDelta {
-    AddVertex { data: Vertex },
-    RemoveVertex { key: VertexKey },
-    AddHyperEdge { data: HyperEdge },
-    RemoveEdge { key: EdgeKey },
-    MoveVertex { key: VertexKey, position: Position },
-    UpdateWeight { key: EdgeKey, weight: f64 },
-    UpdateSign { key: EdgeKey, arc_index: usize, sign: Sign },
-    AttachAttribute { key: VertexKey, attr: Attribute },
-    DetachAttribute { key: VertexKey, name: String },
-    AddPatch { data: Patch },
+    AddVertex {
+        data: Vertex,
+    },
+    RemoveVertex {
+        key: VertexKey,
+    },
+    AddHyperEdge {
+        data: HyperEdge,
+    },
+    RemoveEdge {
+        key: EdgeKey,
+    },
+    MoveVertex {
+        key: VertexKey,
+        position: Position,
+    },
+    UpdateWeight {
+        key: EdgeKey,
+        weight: f64,
+    },
+    UpdateSign {
+        key: EdgeKey,
+        arc_index: usize,
+        sign: Sign,
+    },
+    AttachAttribute {
+        key: VertexKey,
+        attr: Attribute,
+    },
+    DetachAttribute {
+        key: VertexKey,
+        name: String,
+    },
+    AddPatch {
+        data: Patch,
+    },
     /// Bulk apply — succeeds-or-fails as one unit; useful for CRDT
     /// gossip and for the bridge's "rebuild after n edits" pattern.
-    Batch { deltas: Vec<IRDelta> },
+    Batch {
+        deltas: Vec<IRDelta>,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -148,11 +176,17 @@ impl HyMeKoEditorIR {
                 Ok(())
             }
             IRDelta::MoveVertex { key, position } => {
-                self.vertices.get_mut(key).ok_or(IRError::NotFound)?.position = Some(position);
+                self.vertices
+                    .get_mut(key)
+                    .ok_or(IRError::NotFound)?
+                    .position = Some(position);
                 Ok(())
             }
             IRDelta::UpdateWeight { key, weight } => {
-                self.hyperedges.get_mut(key).ok_or(IRError::NotFound)?.weight = weight;
+                self.hyperedges
+                    .get_mut(key)
+                    .ok_or(IRError::NotFound)?
+                    .weight = weight;
                 Ok(())
             }
             IRDelta::UpdateSign {

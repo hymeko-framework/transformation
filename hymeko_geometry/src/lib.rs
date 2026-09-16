@@ -32,30 +32,29 @@ pub mod articulated;
 pub mod collide;
 pub mod contact;
 pub mod engine;
-pub mod forward;
-pub mod mesh;
-pub mod material;
 pub mod force_field;
+pub mod forward;
 pub mod kinematics;
+pub mod material;
+pub mod mesh;
 pub mod transforms;
 
 pub use articulated::{AbaPlan, AbaScratch};
-pub use engine::{Engine, FreeFlight};
-pub use contact::{
-    Limit,
-    ground_constraints, ground_contacts, Constraint, ConstraintSolver, ContactParameters,
-    GroundContact,
-};
 pub use collide::{
-    colliders_of, intersects, intersects_at, place, BroadPhase, Collider, Contact, Convex,
-    Placement,
+    BroadPhase, Collider, Contact, Convex, Placement, colliders_of, intersects, intersects_at,
+    place,
 };
-pub use forward::{forward_kinematics, FkError, LinkPoses};
+pub use contact::{
+    Constraint, ConstraintSolver, ContactParameters, GroundContact, Limit, ground_constraints,
+    ground_contacts,
+};
+pub use engine::{Engine, FreeFlight};
+pub use forward::{FkError, LinkPoses, forward_kinematics};
 pub use kinematics::joints::{JointInfo, JointLimits, JointType};
 pub use kinematics::kinematic::{
-    extract_kinematic_model, GeometryInfo, GeometryShape, KinematicModel, LinkInfo,
+    GeometryInfo, GeometryShape, KinematicModel, LinkInfo, extract_kinematic_model,
 };
-pub use transforms::{extract, ModelKind, ModelView, TransformEngine};
+pub use transforms::{ModelKind, ModelView, TransformEngine, extract};
 
 /// $SE(n)$ re-exported from the Tensor pillar, so a consumer needs one geometry dependency.
 pub use hymeko_clifford::Se;

@@ -22,7 +22,7 @@ mod common;
 
 use hymeko_dynamics::layout::{arrange, bends};
 use hymeko_dynamics::read::ReadError;
-use hymeko_dynamics::run::{run, Integrator};
+use hymeko_dynamics::run::{Integrator, run};
 use hymeko_dynamics::{SourceError, System};
 
 /// The divider as a port-Hamiltonian system, or `None` where `core` is not in this checkout.
@@ -52,9 +52,18 @@ const STEP_S: f64 = 1.0e-9;
 /// The divider with every hand-placed coordinate taken out of it: what the studio's Arrange button
 /// writes, and what a model that never placed anything would have said in the first place.
 const STRIPPED: [(&str, &str); 12] = [
-    ("supply_rail: layout.terminal { at [-2.6,  1.5, 0.0]; }", "supply_rail: layout.terminal {}"),
-    ("node_a:      layout.terminal { at [ 1.4,  1.5, 0.0]; }", "node_a:      layout.terminal {}"),
-    ("ground_rail: layout.terminal { at [-2.6, -1.6, 0.0]; }", "ground_rail: layout.terminal {}"),
+    (
+        "supply_rail: layout.terminal { at [-2.6,  1.5, 0.0]; }",
+        "supply_rail: layout.terminal {}",
+    ),
+    (
+        "node_a:      layout.terminal { at [ 1.4,  1.5, 0.0]; }",
+        "node_a:      layout.terminal {}",
+    ),
+    (
+        "ground_rail: layout.terminal { at [-2.6, -1.6, 0.0]; }",
+        "ground_rail: layout.terminal {}",
+    ),
     ("via [ 1.4, -1.6, 0.0];", ""),
     ("via [ 3.1, -0.2, 0.0];", ""),
     // Every `centre` and `axis`, including the two shapes that share a line with another.
@@ -160,9 +169,7 @@ fn the_drops_around_every_loop_sum_to_zero() {
     for state in arbitrary_states(system.dim()) {
         for &time in &[0.0, 1.0e-7, 3.3e-7] {
             let drops = system.branch_drops(&state, time);
-            let scale = drops
-                .iter()
-                .fold(f64::MIN_POSITIVE, |m, v| m.max(v.abs()));
+            let scale = drops.iter().fold(f64::MIN_POSITIVE, |m, v| m.max(v.abs()));
             let residual = system
                 .kirchhoff_residual(&state, time)
                 .expect("the model draws a circuit");
@@ -318,8 +325,22 @@ fn a_model_with_no_positions_still_draws_the_same_circuit() {
 
     // The layout is presentation, so the answer may not move by a single bit.
     let initial = vec![0.0; declared.dim()];
-    let one = run(&declared, &initial, SPAN_S, STEP_S, 4096, Integrator::DiscreteGradient);
-    let two = run(&derived, &initial, SPAN_S, STEP_S, 4096, Integrator::DiscreteGradient);
+    let one = run(
+        &declared,
+        &initial,
+        SPAN_S,
+        STEP_S,
+        4096,
+        Integrator::DiscreteGradient,
+    );
+    let two = run(
+        &derived,
+        &initial,
+        SPAN_S,
+        STEP_S,
+        4096,
+        Integrator::DiscreteGradient,
+    );
     assert_eq!(
         one.columns[column(&declared, "V_A")],
         two.columns[column(&derived, "V_A")],
@@ -358,9 +379,8 @@ fn the_parasitics_follow_the_circuit_they_belong_to() {
             .expect("a terminal")
             .at
     };
-    let near = |a: [f64; 3], b: [f64; 3]| {
-        (0..3).map(|k| (a[k] - b[k]).powi(2)).sum::<f64>().sqrt() < 1e-6
-    };
+    let near =
+        |a: [f64; 3], b: [f64; 3]| (0..3).map(|k| (a[k] - b[k]).powi(2)).sum::<f64>().sqrt() < 1e-6;
 
     // `charge_a` is the node's capacitance: no conductor carries it, so it hangs at the node the
     // conductors it exchanges energy with have in common, which is not the reference.
@@ -377,8 +397,15 @@ fn the_parasitics_follow_the_circuit_they_belong_to() {
         .find(|w| w.name.ends_with("wire_r1"))
         .expect("a conductor");
     let middle = wire.via.unwrap_or_else(|| {
-        let (a, b) = (derived.terminals[wire.from].at, derived.terminals[wire.to].at);
-        [0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1]), 0.5 * (a[2] + b[2])]
+        let (a, b) = (
+            derived.terminals[wire.from].at,
+            derived.terminals[wire.to].at,
+        );
+        [
+            0.5 * (a[0] + b[0]),
+            0.5 * (a[1] + b[1]),
+            0.5 * (a[2] + b[2]),
+        ]
     });
     assert!(
         near(place("coil_1").centre, middle),
@@ -389,13 +416,23 @@ fn the_parasitics_follow_the_circuit_they_belong_to() {
     // And it points along the run, which a shunt store's orientation is not implied by — so that one
     // keeps the default rather than being given a direction the circuit never stated.
     let along = {
-        let (a, b) = (derived.terminals[wire.from].at, derived.terminals[wire.to].at);
+        let (a, b) = (
+            derived.terminals[wire.from].at,
+            derived.terminals[wire.to].at,
+        );
         let d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
         let n = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
         [d[0] / n, d[1] / n, d[2] / n]
     };
-    assert!(near(place("coil_1").axis, along), "the coil lies along its conductor");
-    assert_eq!(place("node_plate").axis, [0.0, 1.0, 0.0], "the plate keeps the default");
+    assert!(
+        near(place("coil_1").axis, along),
+        "the coil lies along its conductor"
+    );
+    assert_eq!(
+        place("node_plate").axis,
+        [0.0, 1.0, 0.0],
+        "the plate keeps the default"
+    );
 }
 
 #[test]
@@ -422,9 +459,7 @@ fn a_derived_layout_is_reproducible() {
 #[test]
 fn a_cycle_is_drawn_as_a_cycle() {
     let placed = arrange(3, &[(0, 1), (1, 2), (2, 0)], &vec![None; 3]);
-    let gap = |a: [f64; 3], b: [f64; 3]| {
-        (0..3).map(|k| (a[k] - b[k]).powi(2)).sum::<f64>().sqrt()
-    };
+    let gap = |a: [f64; 3], b: [f64; 3]| (0..3).map(|k| (a[k] - b[k]).powi(2)).sum::<f64>().sqrt();
     let sides = [
         gap(placed[0], placed[1]),
         gap(placed[1], placed[2]),
@@ -441,12 +476,7 @@ fn a_cycle_is_drawn_as_a_cycle() {
 /// Two anchors fix the frame; the rest of the drawing arrives inside it.
 #[test]
 fn pinned_terminals_carry_the_derived_ones_with_them() {
-    let pins = vec![
-        Some([-3.0, 0.0, 0.0]),
-        None,
-        Some([3.0, 0.0, 0.0]),
-        None,
-    ];
+    let pins = vec![Some([-3.0, 0.0, 0.0]), None, Some([3.0, 0.0, 0.0]), None];
     let placed = arrange(4, &[(0, 1), (1, 2), (2, 3), (3, 0)], &pins);
     assert_eq!(placed[0], [-3.0, 0.0, 0.0]);
     assert_eq!(placed[2], [3.0, 0.0, 0.0]);

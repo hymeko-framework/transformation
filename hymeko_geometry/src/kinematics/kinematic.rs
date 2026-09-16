@@ -5,11 +5,11 @@
 //! DeclIds from query results, extracting links, joints, topology,
 //! geometry, axes, and origin transforms.
 
+use crate::kinematics::joints::{JointInfo, JointLimits, JointType};
 use hymeko::common::ids::DeclId;
 use hymeko::ir::ir::{Ir, ValueR};
-use crate::kinematics::joints::{JointInfo, JointLimits, JointType};
-use hymeko_query::{Predicate, QueryEngine};
 use hymeko_query::traits::NameResolver;
+use hymeko_query::{Predicate, QueryEngine};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GeometryShape {
@@ -53,10 +53,6 @@ pub struct LinkInfo {
     pub inertia_com: Option<[f64; 6]>,
 }
 
-
-
-
-
 #[derive(Debug, Clone)]
 pub struct KinematicModel {
     pub name: String,
@@ -83,29 +79,34 @@ pub fn extract_kinematic_model<R: NameResolver>(
     let res = engine.resolver();
 
     // Query links
-    let link_matches = engine.query(
-        &Predicate::node().and(Predicate::inherits("link"))
-    );
+    let link_matches = engine.query(&Predicate::node().and(Predicate::inherits("link")));
 
-    let links: Vec<LinkInfo> = link_matches.iter().map(|m| {
-        let mass = find_child_num(ir, res, m.id, "mass");
-        let geometry = extract_geometry(ir, res, m.id);
-        let origin = find_child_list(ir, res, m.id, "origin");
-        let color = find_child_ref_value_list(ir, res, m.id, "color");
-        let inertia_com = ir.decl_children(m.id).find(|c| res.resolve(ir.decl_nodes[c.raw()].name) == "inertia_com")
-            .map(|c| ["xx", "yy", "zz", "xy", "xz", "yz"].map(|key|
-                find_child_num(ir, res, c, key).unwrap_or(f64::NAN)));
+    let links: Vec<LinkInfo> = link_matches
+        .iter()
+        .map(|m| {
+            let mass = find_child_num(ir, res, m.id, "mass");
+            let geometry = extract_geometry(ir, res, m.id);
+            let origin = find_child_list(ir, res, m.id, "origin");
+            let color = find_child_ref_value_list(ir, res, m.id, "color");
+            let inertia_com = ir
+                .decl_children(m.id)
+                .find(|c| res.resolve(ir.decl_nodes[c.raw()].name) == "inertia_com")
+                .map(|c| {
+                    ["xx", "yy", "zz", "xy", "xz", "yz"]
+                        .map(|key| find_child_num(ir, res, c, key).unwrap_or(f64::NAN))
+                });
 
-        LinkInfo {
-            did: m.id,
-            name: m.name.clone(),
-            mass,
-            geometry,
-            origin,
-            color,
-            inertia_com,
-        }
-    }).collect();
+            LinkInfo {
+                did: m.id,
+                name: m.name.clone(),
+                mass,
+                geometry,
+                origin,
+                color,
+                inertia_com,
+            }
+        })
+        .collect();
 
     let frames: Vec<String> = engine
         .query(&Predicate::node().and(Predicate::inherits("frame")))
@@ -123,9 +124,7 @@ pub fn extract_kinematic_model<R: NameResolver>(
     ];
 
     for (base_name, jtype) in &joint_types {
-        let results = engine.query(
-            &Predicate::edge().and(Predicate::inherits(base_name))
-        );
+        let results = engine.query(&Predicate::edge().and(Predicate::inherits(base_name)));
 
         for m in &results {
             // Read directly from bindings — no re-query needed
@@ -234,14 +233,21 @@ fn find_child_list<R: NameResolver>(ir: &Ir, res: &R, did: DeclId, name: &str) -
 /// Find a child that has a Ref value (like `color -> body_color;`),
 /// follow the ref to the target, and extract its value as Vec<f64>.
 fn find_child_ref_value_list<R: NameResolver>(
-    ir: &Ir, res: &R, did: DeclId, child_name: &str,
+    ir: &Ir,
+    res: &R,
+    did: DeclId,
+    child_name: &str,
 ) -> Option<Vec<f64>> {
     ir.decl_children(did).find_map(|cid| {
         let child = &ir.decl_nodes[cid.raw()];
-        if res.resolve(child.name) != child_name { return None; }
+        if res.resolve(child.name) != child_name {
+            return None;
+        }
         match &child.anno.value {
             Some(ValueR::Ref(target_did)) => {
-                if target_did.is_none() { return None; }
+                if target_did.is_none() {
+                    return None;
+                }
                 let target = &ir.decl_nodes[target_did.raw()];
                 extract_num_list(&target.anno.value)
             }
@@ -260,16 +266,16 @@ fn find_child_ref_target(ir: &Ir, did: DeclId) -> Option<DeclId> {
     })
 }
 
-
 fn extract_num_list(val: &Option<ValueR>) -> Option<Vec<f64>> {
     match val {
         Some(ValueR::List(items)) => {
-            let nums: Vec<f64> = items.iter().filter_map(|v| {
-                match v {
+            let nums: Vec<f64> = items
+                .iter()
+                .filter_map(|v| match v {
                     ValueR::Num(n) => Some(*n),
                     _ => None,
-                }
-            }).collect();
+                })
+                .collect();
             if nums.is_empty() { None } else { Some(nums) }
         }
         _ => None,
@@ -288,37 +294,49 @@ fn extract_geometry<R: NameResolver>(ir: &Ir, res: &R, link_did: DeclId) -> Opti
         .and_then(|cid| geometry_decl(ir, res, cid).unwrap_or_else(|message| panic!("{message}")))
 }
 
-pub(super) fn geometry_decl<R: NameResolver>(ir: &Ir, res: &R, cid: DeclId) -> Result<Option<GeometryInfo>, String> {
-        if let Some(nid) = ir.as_node(cid) {
-            let mut unknown_shape: Option<String> = None;
-            for base in &ir.nodes[nid.raw()].bases {
-                let target = base.target();
-                if target.is_none() { continue; }
-                let base_name = res.resolve(ir.decl_nodes[target.raw()].name);
-                let shape = match base_name {
-                    "box"      => Some(GeometryShape::Box),
-                    "cylinder" => Some(GeometryShape::Cylinder),
-                    "sphere"   => Some(GeometryShape::Sphere),
-                    "capsule"  => Some(GeometryShape::Capsule),
-                    other      => { unknown_shape = Some(other.to_string()); None }
-                };
-                if let Some(shape) = shape {
-                    let dims = find_child_list(ir, res, cid, "dimension")
-                        .unwrap_or_default();
-                    let collision = extract_collision(ir, res, cid);
-                    return Ok(Some(GeometryInfo { shape, dimensions: dims, collision }));
-                }
+pub(super) fn geometry_decl<R: NameResolver>(
+    ir: &Ir,
+    res: &R,
+    cid: DeclId,
+) -> Result<Option<GeometryInfo>, String> {
+    if let Some(nid) = ir.as_node(cid) {
+        let mut unknown_shape: Option<String> = None;
+        for base in &ir.nodes[nid.raw()].bases {
+            let target = base.target();
+            if target.is_none() {
+                continue;
             }
-            // An EXPLICITLY supplied but unknown geometry shape must hard-fail (not silently disappear).
-            // Missing geometry (no shape base at all) remains allowed and returns None below.
-            if let Some(bad) = unknown_shape {
-                return Err(format!(
-                    "unknown geometry shape {bad:?} in `link_geometry` (decl {cid:?}); \
-                     expected one of box / cylinder / sphere / capsule"
-                ));
+            let base_name = res.resolve(ir.decl_nodes[target.raw()].name);
+            let shape = match base_name {
+                "box" => Some(GeometryShape::Box),
+                "cylinder" => Some(GeometryShape::Cylinder),
+                "sphere" => Some(GeometryShape::Sphere),
+                "capsule" => Some(GeometryShape::Capsule),
+                other => {
+                    unknown_shape = Some(other.to_string());
+                    None
+                }
+            };
+            if let Some(shape) = shape {
+                let dims = find_child_list(ir, res, cid, "dimension").unwrap_or_default();
+                let collision = extract_collision(ir, res, cid);
+                return Ok(Some(GeometryInfo {
+                    shape,
+                    dimensions: dims,
+                    collision,
+                }));
             }
         }
-        Ok(None)
+        // An EXPLICITLY supplied but unknown geometry shape must hard-fail (not silently disappear).
+        // Missing geometry (no shape base at all) remains allowed and returns None below.
+        if let Some(bad) = unknown_shape {
+            return Err(format!(
+                "unknown geometry shape {bad:?} in `link_geometry` (decl {cid:?}); \
+                     expected one of box / cylinder / sphere / capsule"
+            ));
+        }
+    }
+    Ok(None)
 }
 
 /// Read an optional `collision {{ contype ...; conaffinity ...; }}` sub-node of a `link_geometry` node.
@@ -330,11 +348,12 @@ fn extract_collision<R: NameResolver>(ir: &Ir, res: &R, geom_did: DeclId) -> Opt
         }
         let contype = find_child_num(ir, res, cid, "contype")? as i64;
         let conaffinity = find_child_num(ir, res, cid, "conaffinity")? as i64;
-        Some(CollisionMask { contype, conaffinity })
+        Some(CollisionMask {
+            contype,
+            conaffinity,
+        })
     })
 }
-
-
 
 fn extract_3vec_from_value(val: Option<&ValueR>) -> Option<[f64; 3]> {
     match val? {
@@ -368,26 +387,44 @@ fn extract_3vec(val: &ValueR) -> Option<[f64; 3]> {
 
 /// Simple transitive inheritance check (standalone, not requiring QueryEngine).
 fn check_inherits_simple<R: NameResolver>(
-    ir: &Ir, res: &R, did: DeclId, base_name: &str, depth: usize,
+    ir: &Ir,
+    res: &R,
+    did: DeclId,
+    base_name: &str,
+    depth: usize,
 ) -> bool {
-    if depth == 0 || did.is_none() { return false; }
+    if depth == 0 || did.is_none() {
+        return false;
+    }
 
     if let Some(nid) = ir.as_node(did) {
         for base_ref in &ir.nodes[nid.raw()].bases {
             let target = base_ref.target();
-            if target.is_none() { continue; }
+            if target.is_none() {
+                continue;
+            }
             let tname = res.resolve(ir.decl_nodes[target.raw()].name);
-            if tname == base_name { return true; }
-            if check_inherits_simple(ir, res, target, base_name, depth - 1) { return true; }
+            if tname == base_name {
+                return true;
+            }
+            if check_inherits_simple(ir, res, target, base_name, depth - 1) {
+                return true;
+            }
         }
     }
     if let Some(eid) = ir.as_edge(did) {
         for base_ref in &ir.edges[eid.raw()].bases {
             let target = base_ref.target();
-            if target.is_none() { continue; }
+            if target.is_none() {
+                continue;
+            }
             let tname = res.resolve(ir.decl_nodes[target.raw()].name);
-            if tname == base_name { return true; }
-            if check_inherits_simple(ir, res, target, base_name, depth - 1) { return true; }
+            if tname == base_name {
+                return true;
+            }
+            if check_inherits_simple(ir, res, target, base_name, depth - 1) {
+                return true;
+            }
         }
     }
 
@@ -405,7 +442,11 @@ fn check_inherits_simple<R: NameResolver>(
 /// Returns `Some(target)` for the nearest `name`-named ref (own children before bases),
 /// else `None`.
 fn find_inherited_ref_target<R: NameResolver>(
-    ir: &Ir, res: &R, did: DeclId, name: &str, depth: usize,
+    ir: &Ir,
+    res: &R,
+    did: DeclId,
+    name: &str,
+    depth: usize,
 ) -> Option<DeclId> {
     if did.is_none() || depth == 0 {
         return None;
@@ -437,9 +478,7 @@ fn find_inherited_ref_target<R: NameResolver>(
     None
 }
 
-fn extract_joint_limits<R: NameResolver>(
-    ir: &Ir, res: &R, did: DeclId,
-) -> Option<JointLimits> {
+fn extract_joint_limits<R: NameResolver>(ir: &Ir, res: &R, did: DeclId) -> Option<JointLimits> {
     // Legacy form: `limit_lower`/`limit_upper`/... as direct children of the joint.
     let mut lower = find_child_num(ir, res, did, "limit_lower");
     let mut upper = find_child_num(ir, res, did, "limit_upper");
@@ -474,15 +513,32 @@ fn extract_joint_limits<R: NameResolver>(
 impl LinkInfo {
     /// A physical inertia has positive principal moments and satisfies their triangle inequalities.
     pub fn valid_inertia(&self) -> bool {
-        let Some([xx, yy, zz, xy, xz, yz]) = self.inertia_com else { return true; };
+        let Some([xx, yy, zz, xy, xz, yz]) = self.inertia_com else {
+            return true;
+        };
         if ![xx, yy, zz, xy, xz, yz].iter().all(|x| x.is_finite())
-            || self.mass.is_none_or(|m| !m.is_finite() || m <= 0.0) { return false; }
-        let determinant = xx * yy * zz + 2.0 * xy * xz * yz - xx * yz * yz - yy * xz * xz - zz * xy * xy;
-        if xx <= 0.0 || xx * yy <= xy * xy || determinant <= 0.0 { return false; }
+            || self.mass.is_none_or(|m| !m.is_finite() || m <= 0.0)
+        {
+            return false;
+        }
+        let determinant =
+            xx * yy * zz + 2.0 * xy * xz * yz - xx * yz * yz - yy * xz * xz - zz * xy * xy;
+        if xx <= 0.0 || xx * yy <= xy * xy || determinant <= 0.0 {
+            return false;
+        }
         // S = trace(I)/2 E - I is the second moment matrix; it must be positive semidefinite.
-        let [a,b,c] = [(yy+zz-xx)/2.0, (xx+zz-yy)/2.0, (xx+yy-zz)/2.0];
-        let eps = 1e-12 * (xx+yy+zz).powi(3);
-        a >= 0.0 && b >= 0.0 && c >= 0.0 && a*b >= xy*xy && a*c >= xz*xz && b*c >= yz*yz
-            && a*b*c - 2.0*xy*xz*yz - a*yz*yz - b*xz*xz - c*xy*xy >= -eps
+        let [a, b, c] = [
+            (yy + zz - xx) / 2.0,
+            (xx + zz - yy) / 2.0,
+            (xx + yy - zz) / 2.0,
+        ];
+        let eps = 1e-12 * (xx + yy + zz).powi(3);
+        a >= 0.0
+            && b >= 0.0
+            && c >= 0.0
+            && a * b >= xy * xy
+            && a * c >= xz * xz
+            && b * c >= yz * yz
+            && a * b * c - 2.0 * xy * xz * yz - a * yz * yz - b * xz * xz - c * xy * xy >= -eps
     }
 }

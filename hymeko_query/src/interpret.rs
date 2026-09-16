@@ -15,9 +15,9 @@
 //!   - `@edge { +x -y }` → arc ref match
 //!   - Value after name → value match
 
+use crate::{NamedQuery, Predicate, ValuePredicate};
 use hymeko::ir::ir::DeclKind;
 use parser::ast::*;
-use crate::{NamedQuery, Predicate, ValuePredicate};
 
 /// Convert a parsed .hymeko description into a list of named queries.
 ///
@@ -91,7 +91,10 @@ fn interpret_items_as_queries_opts(
                 } else {
                     n.inner.name.to_string()
                 };
-                queries.push(NamedQuery { label, predicate: pred });
+                queries.push(NamedQuery {
+                    label,
+                    predicate: pred,
+                });
             }
             HyperItem::Edge(e) => {
                 let pred = interpret_edge_pattern_opts(e, use_name_as_filter);
@@ -100,7 +103,10 @@ fn interpret_items_as_queries_opts(
                 } else {
                     e.inner.name.to_string()
                 };
-                queries.push(NamedQuery { label, predicate: pred });
+                queries.push(NamedQuery {
+                    label,
+                    predicate: pred,
+                });
             }
             HyperItem::Arc(_) => { /* top-level arcs in a query are unusual — skip */ }
         }
@@ -170,8 +176,11 @@ fn interpret_node_pattern_opts(n: &NodeDecl<'_, &str>, use_name_as_filter: bool)
         }
     }
 
-    if parts.len() == 1 { parts.into_iter().next().unwrap() }
-    else { Predicate::And(parts) }
+    if parts.len() == 1 {
+        parts.into_iter().next().unwrap()
+    } else {
+        Predicate::And(parts)
+    }
 }
 
 /// Interpret an `EdgeDecl` as an edge-matching predicate.
@@ -206,10 +215,10 @@ fn interpret_edge_pattern_opts(e: &EdgeDecl<'_, &str>, use_name_as_filter: bool)
                     let (sign, target_pred) = interpret_signed_ref(sref);
                     let boxed = Box::new(target_pred);
                     match sign {
-                        1  => parts.push(Predicate::HasPlusRef(boxed)),
+                        1 => parts.push(Predicate::HasPlusRef(boxed)),
                         -1 => parts.push(Predicate::HasMinusRef(boxed)),
-                        0  => parts.push(Predicate::HasNeutralRef(boxed)),
-                        _  => parts.push(Predicate::HasRef(boxed)),
+                        0 => parts.push(Predicate::HasNeutralRef(boxed)),
+                        _ => parts.push(Predicate::HasRef(boxed)),
                     }
                 }
             }
@@ -224,16 +233,19 @@ fn interpret_edge_pattern_opts(e: &EdgeDecl<'_, &str>, use_name_as_filter: bool)
         }
     }
 
-    if parts.len() == 1 { parts.into_iter().next().unwrap() }
-    else { Predicate::And(parts) }
+    if parts.len() == 1 {
+        parts.into_iter().next().unwrap()
+    } else {
+        Predicate::And(parts)
+    }
 }
 
 /// Interpret a signed reference as a (sign, target_predicate) pair.
 fn interpret_signed_ref(sref: &SignedRef<'_, &str>) -> (i8, Predicate) {
     let (sign, atom) = match sref {
-        SignedRef::Plus(a)    => ( 1i8, a),
-        SignedRef::Minus(a)   => (-1i8, a),
-        SignedRef::Neutral(a) => ( 0i8, a),
+        SignedRef::Plus(a) => (1i8, a),
+        SignedRef::Minus(a) => (-1i8, a),
+        SignedRef::Neutral(a) => (0i8, a),
     };
 
     let mut parts: Vec<Predicate> = Vec::new();
@@ -299,12 +311,12 @@ fn make_comparison(op: &str, val: &Value<'_, &str>) -> Option<ValuePredicate> {
         _ => return None,
     };
     Some(match op {
-        "gt"  => ValuePredicate::NumGt(n),
-        "lt"  => ValuePredicate::NumLt(n),
+        "gt" => ValuePredicate::NumGt(n),
+        "lt" => ValuePredicate::NumLt(n),
         "gte" => ValuePredicate::NumGte(n),
         "lte" => ValuePredicate::NumLte(n),
-        "eq"  => ValuePredicate::NumEq(n),
-        "ne"  => ValuePredicate::NumLt(n), // placeholder; ideally a separate NumNe
+        "eq" => ValuePredicate::NumEq(n),
+        "ne" => ValuePredicate::NumLt(n), // placeholder; ideally a separate NumNe
         _ => return None,
     })
 }
