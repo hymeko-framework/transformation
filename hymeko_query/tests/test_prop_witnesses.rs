@@ -18,7 +18,7 @@
 #[cfg(test)]
 mod test_prop_witnesses {
     use crate::test_helpers::load_and_lower;
-    use hymeko::ir::hash::hash_doc;
+    use hymeko::ir::semantic_digest::semantic_model_digest;
     use hymeko_formats::default_registry;
     use hymeko_formats::gazebo::generate_gazebo_world;
     use hymeko_formats::sdf::generate_sdf;
@@ -120,8 +120,8 @@ mod test_prop_witnesses {
                     .unwrap_or_else(|e| panic!("compile {baseline}: {e:?}"));
                 let (a_store, a) =
                     load_and_lower(alias).unwrap_or_else(|e| panic!("compile {alias}: {e:?}"));
-                let h_b = hash_doc(&b.idx, &b_store.it);
-                let h_a = hash_doc(&a.idx, &a_store.it);
+                let h_b = semantic_model_digest(&b.ir, &b_store.it);
+                let h_a = semantic_model_digest(&a.ir, &a_store.it);
                 assert_eq!(
                     h_b, h_a,
                     "Prop 2 violated: surface variants of the same denotation hash to different digests for ({baseline}, {alias})",
@@ -132,7 +132,7 @@ mod test_prop_witnesses {
         #[test]
         fn distinct_robots_produce_distinct_doc_digests() {
             // Sanity bound on the hash: it actually distinguishes
-            // structures. If this ever fired, hash_doc would be
+            // structures. If this ever fired, the semantic digest would be
             // collapsing distinct IRs to the same digest.
             let pairs = [
                 "../data/robotics/robots/anthropomorphic_arm.hymeko",
@@ -143,7 +143,7 @@ mod test_prop_witnesses {
                 .iter()
                 .map(|p| {
                     let (s, c) = load_and_lower(p).unwrap();
-                    hash_doc(&c.idx, &s.it)
+                    semantic_model_digest(&c.ir, &s.it)
                 })
                 .collect();
             for i in 0..digests.len() {
@@ -170,8 +170,8 @@ mod test_prop_witnesses {
                 load_and_lower("../data/minimal_examples/constants/mini_literals.hymeko")
                     .expect("compile literal fixture");
             assert_eq!(
-                hash_doc(&consts.idx, &consts_store.it),
-                hash_doc(&literals.idx, &literals_store.it),
+                semantic_model_digest(&consts.ir, &consts_store.it),
+                semantic_model_digest(&literals.ir, &literals_store.it),
                 "Prop 2 violated: const-bearing fixture and literal-equivalent fixture have different digests",
             );
         }

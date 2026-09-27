@@ -75,8 +75,13 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
     /// own name if it's a reference).
     ///
     /// Supports dotted paths: `"geometry.shape"` → find child "geometry",
-    /// then find its child "shape".
+    /// then find its child "shape". An empty path reads the matched declaration
+    /// itself, consistent with `resolve_field_decl("")`. Intermediate value
+    /// references are followed; terminal references retain their own identity.
     pub fn get_field(&self, field_path: &str) -> FieldValue {
+        if field_path.is_empty() {
+            return self.decl_value(self.match_result.id);
+        }
         let segments: Vec<&str> = field_path.split('.').collect();
         self.get_field_at(self.match_result.id, &segments)
     }
@@ -96,6 +101,7 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
         if segments.is_empty() {
             return Some(parent);
         }
+        let parent = self.reference_scope(parent)?;
         let target_name = segments[0];
         let rest = &segments[1..];
         for child in self.ir.decl_children(parent) {
@@ -112,6 +118,10 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
             // Return the value of this declaration itself
             return self.decl_value(parent);
         }
+
+        let Some(parent) = self.reference_scope(parent) else {
+            return FieldValue::Missing;
+        };
 
         let target_name = segments[0];
         let rest = &segments[1..];
@@ -154,6 +164,18 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
         }
 
         FieldValue::Missing
+    }
+
+    // Reference aliases are not containment. Bound traversal independently of
+    // path length so cyclic aliases cannot recurse indefinitely.
+    fn reference_scope(&self, mut id: DeclId) -> Option<DeclId> {
+        for _ in 0..32 {
+            match self.ir.decl_node(id)?.anno.value {
+                Some(ValueR::Ref(target)) => id = target,
+                _ => return Some(id),
+            }
+        }
+        None
     }
 
     /// Extract the value from a declaration node.
@@ -253,5 +275,36 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
             .filter(|b| b.sign < 0)
             .map(|b| b.target_name.clone())
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Predicate, QueryEngine};
+    use hymeko::module_store::{execution::CompiledModel, source_provider::MemProvider};
+    use hymeko::util::real_parser::RealParser;
+
+    #[test]
+    fn dotted_fields_follow_aliases_but_preserve_terminal_reference_identity() {
+        let mut files = MemProvider::default();
+        files.insert_file("/references.hymeko", "description {} state { value 7; } alias -> state; item { observation -> alias; } cycle { next -> loop; } loop -> cycle.next;");
+        let model = CompiledModel::compile(files, RealParser, std::path::Path::new("/references.hymeko")).unwrap();
+        let ir = &model.program().ir;
+        let query = QueryEngine::new(ir, model.interner());
+        let declarations = query.query(&Predicate::Any);
+        let item = declarations.iter().find(|d| d.name == "item").unwrap();
+        let context = MatchContext::new(ir, model.interner(), item);
+        assert!(matches!(context.get_field("observation.value"), FieldValue::Num(7.)));
+        let value = context.resolve_field_decl("observation.value").unwrap();
+        assert_eq!(model.interner().resolve(ir.decl_node(value).unwrap().name), "value");
+        let reference = context.resolve_field_decl("observation").unwrap();
+        assert_eq!(model.interner().resolve(ir.decl_node(reference).unwrap().name), "observation");
+        assert!(matches!(context.get_field("observation"), FieldValue::Str(name) if name == "alias"));
+        assert!(context.get_field("observation.missing").is_missing());
+        let cycle = declarations.iter().find(|d| d.name == "cycle").unwrap();
+        let context = MatchContext::new(ir, model.interner(), cycle);
+        assert!(context.get_field("next.value").is_missing());
+        assert!(context.resolve_field_decl("next.value").is_none());
     }
 }

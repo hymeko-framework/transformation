@@ -90,6 +90,12 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
         self.query_iter(pred).next()
     }
 
+    /// Test an identity from this document without scanning unrelated declarations.
+    /// Missing or out-of-range identities never match, including `Any`.
+    pub fn query_decl(&self, id: DeclId, pred: &Predicate) -> Option<QueryMatch> {
+        (self.ir.decl_node(id).is_some() && self.matches(id, pred, 0)).then(|| self.build_match(id))
+    }
+
     /// Batch: run multiple named queries, return results keyed by label.
     pub fn query_batch(&self, queries: &[NamedQuery]) -> Vec<(String, Vec<QueryMatch>)> {
         queries
@@ -112,7 +118,14 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
             Predicate::NamePrefix(p) => self.resolver.resolve(decl.name).starts_with(p.as_str()),
 
             Predicate::InheritsFrom(base) => {
-                self.check_inheritance(did, base, self.config.max_inherit_depth)
+                self.check_inheritance(did, self.config.max_inherit_depth, &|target| {
+                    self.resolver.resolve(self.ir.decl_nodes[target.raw()].name) == base
+                })
+            }
+            Predicate::InheritsFromId(base) => {
+                self.check_inheritance(did, self.config.max_inherit_depth, &|target| {
+                    target == *base
+                })
             }
 
             Predicate::HasTag(tag) => decl
@@ -154,7 +167,12 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
     }
 
     /// Walk the base chain up to max_depth.
-    fn check_inheritance(&self, did: DeclId, target_base: &str, max_depth: usize) -> bool {
+    fn check_inheritance(
+        &self,
+        did: DeclId,
+        max_depth: usize,
+        is_base: &impl Fn(DeclId) -> bool,
+    ) -> bool {
         if max_depth == 0 {
             return false;
         }
@@ -176,13 +194,10 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
             for b in bases {
                 let target_did = b.target();
                 if !target_did.is_none() {
-                    let bn = self
-                        .resolver
-                        .resolve(self.ir.decl_nodes[target_did.raw()].name);
-                    if bn == target_base {
+                    if is_base(target_did) {
                         return true;
                     }
-                    if self.check_inheritance(target_did, target_base, max_depth - 1) {
+                    if self.check_inheritance(target_did, max_depth - 1, is_base) {
                         return true;
                     }
                 }

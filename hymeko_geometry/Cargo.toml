@@ -20,17 +20,23 @@ crate-type = ["rlib"]
 # pattern-matching query engine; a robot's links and joints are not pattern matching. The query core
 # never referenced them, so the split is clean and one-directional.
 [dependencies]
-hymeko_core = { workspace = true }
-hymeko_query = { path = "../hymeko_query" }
+hymeko_core = { workspace = true, optional = true }
+hymeko_query = { path = "../hymeko_query", optional = true }
 # Spatial candidate search belongs to Graph SBSH; no second partition in geometry.
-hymeko_sbsh = { workspace = true }
+hymeko_sbsh = { workspace = true, optional = true }
 # SE(n) comes from the Tensor pillar's pinned geometric algebra package.
-hymeko_clifford = { workspace = true }
-log = { workspace = true }
+hymeko_clifford = { workspace = true, optional = true }
+# User-approved NURBS owner; dependency-free on native and WASM.
+hymeko_spline = { git = "ssh://git@192.168.1.228:2222/hymeko/tensor.git", rev = "eb65203c7b8bda2b09a8da46e6129af7989a3053", optional = true }
+log = { workspace = true, optional = true }
 serde = { version = "1", features = ["derive", "rc"] }
 meshopt = { version = "=0.6.2", optional = true }
 
 [features]
+# Visualization consumers need only mesh/material data; numerical and IR domain
+# projection modules remain enabled by default for all existing consumers.
+default = ["simulation"]
+simulation = ["dep:hymeko_core", "dep:hymeko_query", "dep:hymeko_sbsh", "dep:hymeko_clifford", "dep:hymeko_spline", "dep:log"]
 mesh-optimization = ["dep:meshopt"]
 
 [dev-dependencies]

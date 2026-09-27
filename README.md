@@ -55,3 +55,32 @@ and `node --test tools/diagram/render.test.mjs`.
 `hymeko_dynamics` projects physical systems, including linear elasticity, into the
 existing Tensor numerical kernels. Graph owns signed incidence and octree structure.
 This name does not rename crates, add dependencies, or imply full MuJoCo parity.
+
+The [local stack integration](docs/stack-integration.md) records the shared
+Geometry owner used by Simulator, Kawamirai, Quest and the XRobotAssist bridge.
+
+Geometry's kinematic field reader accepts inherited physical properties and
+material colors on canonical IR. Local declarations take precedence, followed
+by bases in authored depth-first order; repeated/cyclic bases terminate. Invalid
+local values do not silently fall back to inherited values. Use untyped property
+mixins for reusable defaults: a template inheriting `link` is itself a physical
+link. Inherited references retain their canonical target; they do not retarget
+to same-named children of a derived instance. Core/Parser semantics are unchanged.
+
+### Host robot visual import ? 2026-09-24
+
+`hymeko_formats/tools/robot-mesh.py` exports explicitly selected URDF/COLLADA visual
+links as validated-client Geometry TriangleMesh JSON assets. NumPy is a host-tool
+requirement; no Rust runtime dependency was added. Use `--urdf`, `--frames`,
+`--visual-links`, `--output`, `--manifest`, and `--package-root`. It bakes fixed
+joint/visual/mesh transforms in metres, preserves normals and reflected winding,
+and rejects unsupported formats instead of guessing. HIVE transports the output;
+Kawamirai owns its decoded presentation cache. `test_robot_mesh.py` has three
+correctness fixtures. COLLADA material bindings split visual geometry by diffuse
+RGBA; URDF material colors override them where declared. Each manifest part has
+its own immutable asset ID, RGBA and unchanged observed-link frame. Textures are
+explicitly unsupported. Limits remain 1M vertices / 6M indices per source geometry,
+with at most 32 material groups. The UR5 export has 20 parts and 95,694 triangles.
+COLLADA matrix interpretation follows the Khronos 1.5.1 errata (XML rows, column
+vectors): https://www.khronos.org/files/collada_1_5_1_release_notes.pdf .
+URDF visual-origin semantics: https://docs.ros.org/en/kilted/Tutorials/Intermediate/URDF/Building-a-Visual-Robot-Model-with-URDF-from-Scratch.html .

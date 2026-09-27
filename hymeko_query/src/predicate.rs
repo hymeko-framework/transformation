@@ -71,6 +71,9 @@ pub enum Predicate {
     NamePrefix(String),
     /// Match element that transitively inherits from `base_name`.
     InheritsFrom(String),
+    /// Match inheritance of this exact declaration in the borrowed IR document.
+    /// Unlike a name predicate, equally named types in other scopes cannot match.
+    InheritsFromId(hymeko::common::ids::DeclId),
     /// Match element whose annotation contains `tag_name`.
     HasTag(String),
     /// Match element that has at least one child matching `inner`.

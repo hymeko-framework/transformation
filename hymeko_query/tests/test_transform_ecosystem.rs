@@ -446,7 +446,7 @@ mod test_transform_ecosystem {
     //
     // Fixtures ending in `_using.hymeko` exercise the `using <path> as <alias>;`
     // namespace-alias syntax (grammar in parser/src/hymeko.lalrpop, lowered via
-    // ModuleStore::compile() → apply_usings()). These tests guarantee that the
+    // ModuleStore::compile() and its module-local alias environments). These tests guarantee that the
     // aliased sources produce the same kinematic model and the same transform
     // output as their non-alias counterparts — i.e. alias resolution is a pure
     // desugaring step with no semantic drift.

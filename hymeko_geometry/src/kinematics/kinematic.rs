@@ -203,57 +203,33 @@ pub fn extract_kinematic_model<R: NameResolver>(
 // IR navigation helpers
 // ============================================================
 
-/// Find a direct child node by name and return its numeric value.
+/// Read a physical numeric property through the shared inherited field reader.
 fn find_child_num<R: NameResolver>(ir: &Ir, res: &R, did: DeclId, name: &str) -> Option<f64> {
-    ir.decl_children(did).find_map(|cid| {
-        let child = &ir.decl_nodes[cid.raw()];
-        if res.resolve(child.name) == name {
-            match &child.anno.value {
-                Some(ValueR::Num(v)) => Some(*v),
-                _ => None,
-            }
-        } else {
-            None
-        }
-    })
+    match (super::actuation::Fields { ir, res, did }).value(name).ok()? {
+        ValueR::Num(value) => Some(*value),
+        _ => None,
+    }
 }
 
-/// Find a direct child node by name and return its list value as Vec<f64>.
 fn find_child_list<R: NameResolver>(ir: &Ir, res: &R, did: DeclId, name: &str) -> Option<Vec<f64>> {
-    ir.decl_children(did).find_map(|cid| {
-        let child = &ir.decl_nodes[cid.raw()];
-        if res.resolve(child.name) == name {
-            extract_num_list(&child.anno.value)
-        } else {
-            None
-        }
-    })
+    let fields = super::actuation::Fields { ir, res, did };
+    extract_num_list(fields.value(name).ok())
 }
 
-/// Find a child that has a Ref value (like `color -> body_color;`),
-/// follow the ref to the target, and extract its value as Vec<f64>.
 fn find_child_ref_value_list<R: NameResolver>(
     ir: &Ir,
     res: &R,
     did: DeclId,
-    child_name: &str,
+    name: &str,
 ) -> Option<Vec<f64>> {
-    ir.decl_children(did).find_map(|cid| {
-        let child = &ir.decl_nodes[cid.raw()];
-        if res.resolve(child.name) != child_name {
-            return None;
-        }
-        match &child.anno.value {
-            Some(ValueR::Ref(target_did)) => {
-                if target_did.is_none() {
-                    return None;
-                }
-                let target = &ir.decl_nodes[target_did.raw()];
-                extract_num_list(&target.anno.value)
-            }
-            _ => None,
-        }
-    })
+    let fields = super::actuation::Fields { ir, res, did };
+    let value = fields.value(name).ok()?;
+    let value = if let ValueR::Ref(target) = value {
+        ir.decl_node(*target)?.anno.value.as_ref()?
+    } else {
+        value
+    };
+    extract_num_list(Some(value))
 }
 
 fn find_child_ref_target(ir: &Ir, did: DeclId) -> Option<DeclId> {
@@ -266,7 +242,8 @@ fn find_child_ref_target(ir: &Ir, did: DeclId) -> Option<DeclId> {
     })
 }
 
-fn extract_num_list(val: &Option<ValueR>) -> Option<Vec<f64>> {
+
+fn extract_num_list(val: Option<&ValueR>) -> Option<Vec<f64>> {
     match val {
         Some(ValueR::List(items)) => {
             let nums: Vec<f64> = items
@@ -283,15 +260,19 @@ fn extract_num_list(val: &Option<ValueR>) -> Option<Vec<f64>> {
 }
 fn extract_value_list(ir: &Ir, did: DeclId) -> Option<Vec<f64>> {
     let decl = &ir.decl_nodes[did.raw()];
-    extract_num_list(&decl.anno.value)
+    extract_num_list(decl.anno.value.as_ref())
 }
 
 /// Extract geometry from a child named `link_geometry` that inherits
 /// from box/cylinder/sphere.
 fn extract_geometry<R: NameResolver>(ir: &Ir, res: &R, link_did: DeclId) -> Option<GeometryInfo> {
-    ir.decl_children(link_did)
-        .find(|cid| res.resolve(ir.decl_nodes[cid.raw()].name) == "link_geometry")
-        .and_then(|cid| geometry_decl(ir, res, cid).unwrap_or_else(|message| panic!("{message}")))
+    super::actuation::Fields {
+        ir,
+        res,
+        did: link_did,
+    }
+    .child("link_geometry")
+    .and_then(|cid| geometry_decl(ir, res, cid).unwrap_or_else(|message| panic!("{message}")))
 }
 
 pub(super) fn geometry_decl<R: NameResolver>(
@@ -431,53 +412,6 @@ fn check_inherits_simple<R: NameResolver>(
     false
 }
 
-/// Find a direct child named `name` whose value is a resolved `Ref`, returning the ref
-/// target; if absent on `did`, walk `did`'s bases (node and edge) up to `depth` — a joint
-/// declares its `limit` directly (`@j0: rev_joint { limit -> joint0_limit; }`) **or**
-/// inherits it from `rev_joint`/`prismatic_joint`. Unresolved refs are skipped.
-///
-/// # Preconditions
-/// `depth` bounds the inheritance walk (cycle/overflow guard).
-/// # Postconditions
-/// Returns `Some(target)` for the nearest `name`-named ref (own children before bases),
-/// else `None`.
-fn find_inherited_ref_target<R: NameResolver>(
-    ir: &Ir,
-    res: &R,
-    did: DeclId,
-    name: &str,
-    depth: usize,
-) -> Option<DeclId> {
-    if did.is_none() || depth == 0 {
-        return None;
-    }
-    for cid in ir.decl_children(did) {
-        let child = &ir.decl_nodes[cid.raw()];
-        if res.resolve(child.name) == name {
-            if let Some(ValueR::Ref(target)) = &child.anno.value {
-                if !target.is_none() {
-                    return Some(*target);
-                }
-            }
-        }
-    }
-    if let Some(nid) = ir.as_node(did) {
-        for base in &ir.nodes[nid.raw()].bases {
-            if let Some(t) = find_inherited_ref_target(ir, res, base.target(), name, depth - 1) {
-                return Some(t);
-            }
-        }
-    }
-    if let Some(eid) = ir.as_edge(did) {
-        for base in &ir.edges[eid.raw()].bases {
-            if let Some(t) = find_inherited_ref_target(ir, res, base.target(), name, depth - 1) {
-                return Some(t);
-            }
-        }
-    }
-    None
-}
-
 fn extract_joint_limits<R: NameResolver>(ir: &Ir, res: &R, did: DeclId) -> Option<JointLimits> {
     // Legacy form: `limit_lower`/`limit_upper`/... as direct children of the joint.
     let mut lower = find_child_num(ir, res, did, "limit_lower");
@@ -489,13 +423,14 @@ fn extract_joint_limits<R: NameResolver>(ir: &Ir, res: &R, did: DeclId) -> Optio
     // declared on the joint or inherited from its base joint type. Follow the `limit` ref
     // and read the fields off the target node (named without the `limit_` prefix). Without
     // this the emitted joints are unlimited and the actuators carry no ctrlrange.
-    if lower.is_none() && upper.is_none() {
-        if let Some(limit_did) = find_inherited_ref_target(ir, res, did, "limit", 4) {
-            lower = find_child_num(ir, res, limit_did, "lower");
-            upper = find_child_num(ir, res, limit_did, "upper");
-            effort = find_child_num(ir, res, limit_did, "effort");
-            velocity = find_child_num(ir, res, limit_did, "velocity");
-        }
+    if lower.is_none()
+        && upper.is_none()
+        && let Ok(limit_did) = (super::actuation::Fields { ir, res, did }).reference("limit")
+    {
+        lower = find_child_num(ir, res, limit_did, "lower");
+        upper = find_child_num(ir, res, limit_did, "upper");
+        effort = find_child_num(ir, res, limit_did, "effort");
+        velocity = find_child_num(ir, res, limit_did, "velocity");
     }
 
     // Only produce limits if at least lower+upper are present

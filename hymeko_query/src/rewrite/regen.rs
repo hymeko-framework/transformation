@@ -457,7 +457,6 @@ mod tests {
             next_sibling: DeclId::NONE,
             anno: AnnoR::default(),
         });
-        ir.decl_hash.push(None);
         if parent.is_some() {
             let first = ir.decl_nodes[parent.raw()].first_child;
             if first.is_none() {
