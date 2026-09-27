@@ -2,11 +2,14 @@
 //!
 //! This is the public semantic read boundary for renderers and perception adapters. It keeps
 //! [`DeclId`] as identity and borrows text from the core interner; it does not create another scene
-//! graph or retain runtime tracking state.
+//! graph or retain runtime tracking state. Frame, anchor and entity attributes are effective
+//! fields: an instance's own value, else the value its kind declares (see
+//! [`QueryEngine::effective_value`]). Relation poses are read from the relation itself.
 
 use hymeko::common::ids::{DeclId, SymId};
 use hymeko::ir::ir::{Ir, ValueR};
 use hymeko::resolution::interner::Interner;
+use hymeko_query::QueryEngine;
 
 use super::{attr_value, child_named, edge_participants_into, find_root, isa_transitive};
 
@@ -85,6 +88,10 @@ pub enum SpatialQueryError {
     MalformedRelation { relation: DeclId },
     MissingAttribute { decl: DeclId, attr: SymId },
     InvalidAttribute { decl: DeclId, attr: SymId },
+    /// A room must hold exactly one room frame.
+    RoomFrame { room: DeclId, found: u32 },
+    /// At most one fiducial registers a room frame.
+    RoomRoot { room: DeclId, found: u32 },
 }
 
 impl std::fmt::Display for SpatialQueryError {
@@ -147,6 +154,7 @@ impl SpatialRegistry {
 pub struct SpatialQuery<'a> {
     ir: &'a Ir,
     interner: &'a Interner,
+    engine: QueryEngine<'a, Interner>,
     registry: SpatialRegistry,
 }
 
@@ -157,6 +165,7 @@ impl<'a> SpatialQuery<'a> {
         Ok(Self {
             ir,
             interner,
+            engine: QueryEngine::new(ir, interner),
             registry,
         })
     }
@@ -169,13 +178,58 @@ impl<'a> SpatialQuery<'a> {
 
     /// External optical/runtime name assigned to an authored spatial frame.
     pub fn external_frame_id(&self, frame: DeclId) -> Option<&'a str> {
-        string_attr(
-            self.ir,
-            self.interner,
-            frame,
-            self.registry.external_frame_id,
-        )
-        .filter(|value| !value.is_empty())
+        self.string_attr(frame, self.registry.external_frame_id)
+            .filter(|value| !value.is_empty())
+    }
+
+    /// The effective value of `attr`: the declaration's own, else its nearest kind's.
+    pub(crate) fn attribute(&self, decl: DeclId, attr: SymId) -> Option<&'a ValueR> {
+        self.engine.effective_value(decl, self.interner.resolve(attr))
+    }
+
+    pub(crate) fn required_string(&self, decl: DeclId, attr: SymId) -> Result<&'a str, SpatialQueryError> {
+        match self.attribute(decl, attr) {
+            Some(ValueR::Str(value)) => {
+                let text = self.interner.resolve(*value);
+                if text.is_empty() {
+                    Err(SpatialQueryError::InvalidAttribute { decl, attr })
+                } else {
+                    Ok(text)
+                }
+            }
+            Some(_) => Err(SpatialQueryError::InvalidAttribute { decl, attr }),
+            None => Err(SpatialQueryError::MissingAttribute { decl, attr }),
+        }
+    }
+
+    fn required_u32(&self, decl: DeclId, attr: SymId) -> Result<u32, SpatialQueryError> {
+        match self.attribute(decl, attr) {
+            Some(ValueR::Num(value))
+                if value.is_finite()
+                    && *value >= 0.0
+                    && *value <= u32::MAX as f64
+                    && value.fract() == 0.0 =>
+            {
+                Ok(*value as u32)
+            }
+            Some(_) => Err(SpatialQueryError::InvalidAttribute { decl, attr }),
+            None => Err(SpatialQueryError::MissingAttribute { decl, attr }),
+        }
+    }
+
+    pub(crate) fn positive(&self, decl: DeclId, attr: SymId) -> Result<f64, SpatialQueryError> {
+        match self.attribute(decl, attr) {
+            Some(ValueR::Num(value)) if value.is_finite() && *value > 0.0 => Ok(*value),
+            Some(_) => Err(SpatialQueryError::InvalidAttribute { decl, attr }),
+            None => Err(SpatialQueryError::MissingAttribute { decl, attr }),
+        }
+    }
+
+    pub(crate) fn string_attr(&self, decl: DeclId, attr: SymId) -> Option<&'a str> {
+        match self.attribute(decl, attr) {
+            Some(ValueR::Str(value)) => Some(self.interner.resolve(*value)),
+            _ => None,
+        }
     }
 
     pub fn frames(&self) -> Vec<SpatialFrame<'a>> {
@@ -202,17 +256,10 @@ impl<'a> SpatialQuery<'a> {
                     && isa_transitive(self.ir, *decl, self.registry.camera_frame)
             })
             .map(|(decl, node)| {
-                let external_frame_id = required_string(
-                    self.ir,
-                    self.interner,
-                    decl,
-                    self.registry.external_frame_id,
-                )?;
-                let camera_id = required_u32(self.ir, decl, self.registry.camera_id)?;
-                let image_encoding =
-                    required_string(self.ir, self.interner, decl, self.registry.image_encoding)?;
-                let color_space =
-                    required_string(self.ir, self.interner, decl, self.registry.color_space)?;
+                let external_frame_id = self.required_string(decl, self.registry.external_frame_id)?;
+                let camera_id = self.required_u32(decl, self.registry.camera_id)?;
+                let image_encoding = self.required_string(decl, self.registry.image_encoding)?;
+                let color_space = self.required_string(decl, self.registry.color_space)?;
                 Ok(CameraFrame {
                     decl,
                     name: self.interner.resolve(node.name),
@@ -296,36 +343,7 @@ impl<'a> SpatialQuery<'a> {
             let (Some(tracked_frame), Some(anchor)) = (tracked_frame, anchor) else {
                 return Err(SpatialQueryError::MalformedRelation { relation });
             };
-            let kind_text =
-                required_string(self.ir, self.interner, anchor, self.registry.fiducial_kind)?;
-            let kind = match kind_text {
-                "aruco" => FiducialKind::Aruco,
-                "qr" => FiducialKind::Qr,
-                _ => {
-                    return Err(SpatialQueryError::InvalidAttribute {
-                        decl: anchor,
-                        attr: self.registry.fiducial_kind,
-                    });
-                }
-            };
-            let family = required_string(self.ir, self.interner, anchor, self.registry.family)?;
-            let identifier =
-                required_string(self.ir, self.interner, anchor, self.registry.identifier)?;
-            let size_m = match attr_value(self.ir, anchor, self.registry.size_m) {
-                Some(ValueR::Num(value)) if value.is_finite() && *value > 0.0 => *value,
-                Some(_) => {
-                    return Err(SpatialQueryError::InvalidAttribute {
-                        decl: anchor,
-                        attr: self.registry.size_m,
-                    });
-                }
-                None => {
-                    return Err(SpatialQueryError::MissingAttribute {
-                        decl: anchor,
-                        attr: self.registry.size_m,
-                    });
-                }
-            };
+            let (kind, family, identifier, size_m) = self.fiducial(anchor)?;
             result.push(FiducialBinding {
                 relation,
                 tracked_frame,
@@ -338,6 +356,28 @@ impl<'a> SpatialQuery<'a> {
         }
         Ok(result)
     }
+
+    /// Kind, family, identifier and physical side length of a fiducial anchor.
+    pub(crate) fn fiducial(&self, anchor: DeclId) -> Result<(FiducialKind, &'a str, &'a str, f64), SpatialQueryError> {
+        let kind = match self.required_string(anchor, self.registry.fiducial_kind)? {
+            "aruco" => FiducialKind::Aruco,
+            "qr" => FiducialKind::Qr,
+            _ => {
+                return Err(SpatialQueryError::InvalidAttribute {
+                    decl: anchor,
+                    attr: self.registry.fiducial_kind,
+                });
+            }
+        };
+        let family = self.required_string(anchor, self.registry.family)?;
+        let identifier = self.required_string(anchor, self.registry.identifier)?;
+        let size_m = self.positive(anchor, self.registry.size_m)?;
+        Ok((kind, family, identifier, size_m))
+    }
+
+    pub(crate) fn ir(&self) -> &'a Ir {
+        self.ir
+    }
 }
 
 fn exactly_one(participants: &[(i8, DeclId)], sign: i8) -> Option<DeclId> {
@@ -347,48 +387,6 @@ fn exactly_one(participants: &[(i8, DeclId)], sign: i8) -> Option<DeclId> {
         .map(|(_, decl)| *decl);
     let first = values.next()?;
     values.next().is_none().then_some(first)
-}
-
-fn required_string<'a>(
-    ir: &Ir,
-    interner: &'a Interner,
-    decl: DeclId,
-    attr: SymId,
-) -> Result<&'a str, SpatialQueryError> {
-    match attr_value(ir, decl, attr) {
-        Some(ValueR::Str(value)) => {
-            let text = interner.resolve(*value);
-            if text.is_empty() {
-                Err(SpatialQueryError::InvalidAttribute { decl, attr })
-            } else {
-                Ok(text)
-            }
-        }
-        Some(_) => Err(SpatialQueryError::InvalidAttribute { decl, attr }),
-        None => Err(SpatialQueryError::MissingAttribute { decl, attr }),
-    }
-}
-
-fn required_u32(ir: &Ir, decl: DeclId, attr: SymId) -> Result<u32, SpatialQueryError> {
-    match attr_value(ir, decl, attr) {
-        Some(ValueR::Num(value))
-            if value.is_finite()
-                && *value >= 0.0
-                && *value <= u32::MAX as f64
-                && value.fract() == 0.0 =>
-        {
-            Ok(*value as u32)
-        }
-        Some(_) => Err(SpatialQueryError::InvalidAttribute { decl, attr }),
-        None => Err(SpatialQueryError::MissingAttribute { decl, attr }),
-    }
-}
-
-fn string_attr<'a>(ir: &Ir, interner: &'a Interner, decl: DeclId, attr: SymId) -> Option<&'a str> {
-    match attr_value(ir, decl, attr) {
-        Some(ValueR::Str(value)) => Some(interner.resolve(*value)),
-        _ => None,
-    }
 }
 
 fn pose_of(

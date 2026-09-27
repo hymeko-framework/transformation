@@ -776,6 +776,7 @@ name = "hymeko_webxr"
 version = "0.1.0"
 dependencies = [
  "hymeko_core",
+ "hymeko_query",
 ]
 
 [[package]]

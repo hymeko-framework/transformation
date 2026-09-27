@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**12 package(s), 624 public symbol(s).**
+**12 package(s), 632 public symbol(s).**
 
 ## generated (python)
 
@@ -768,13 +768,17 @@ docstring are all excluded for a stated reason rather than by luck.
 
 ### structs
 
+- `ArucoMarker` — `hymeko_webxr/src/room.rs`
 - `CameraFrame` — `hymeko_webxr/src/query.rs`
 - `FiducialBinding` — `hymeko_webxr/src/query.rs`
 - `FrameParent` — `hymeko_webxr/src/query.rs`
 - `Placement` — `hymeko_webxr/src/query.rs`
 - `Pose` — `hymeko_webxr/src/query.rs`
+- `Room` — `hymeko_webxr/src/room.rs`
+- `RoomQuery` — `hymeko_webxr/src/room.rs`
 - `SpatialFrame` — `hymeko_webxr/src/query.rs`
 - `SpatialQuery` — `hymeko_webxr/src/query.rs`
+- `TrackedDevice` — `hymeko_webxr/src/room.rs`
 
 ### enums
 
@@ -790,9 +794,13 @@ docstring are all excluded for a stated reason rather than by luck.
 - `fiducial_bindings` — `hymeko_webxr/src/query.rs`
 - `frame_parents` — `hymeko_webxr/src/query.rs`
 - `frames` — `hymeko_webxr/src/query.rs`
+- `markers` — `hymeko_webxr/src/room.rs`
 - `name` — `hymeko_webxr/src/query.rs`
 - `new` — `hymeko_webxr/src/query.rs`
+- `new` — `hymeko_webxr/src/room.rs`
 - `placements` — `hymeko_webxr/src/query.rs`
+- `rooms` — `hymeko_webxr/src/room.rs`
+- `spatial` — `hymeko_webxr/src/room.rs`
 - `validate` — `hymeko_webxr/src/lib.rs`
 
 ## transforms (python)

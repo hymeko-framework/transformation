@@ -12,6 +12,8 @@ crate-type = ["rlib"]
 
 [dependencies]
 hymeko_core = { workspace = true }
+# Effective fields (a kind's value as the instance default); the query interpreter is not needed.
+hymeko_query = { path = "../hymeko_query", default-features = false }
 
 [[test]]
 name = "integration"

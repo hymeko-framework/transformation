@@ -28,10 +28,17 @@ use hymeko::ir::ir::{DeclKind, Ir, ValueR};
 use hymeko::resolution::interner::Interner;
 
 pub mod query;
+pub mod room;
 pub use query::{
     CameraFrame, FiducialBinding, FiducialKind, FrameParent, Placement, Pose, SpatialFrame,
     SpatialQuery, SpatialQueryError,
 };
+pub use room::{ArucoMarker, Room, RoomQuery, TrackedDevice};
+
+/// Vocabulary sources. HyMeKo imports resolve beside the importing file, so room models carry
+/// copies of these; the copies are checked against these texts, which remain the originals.
+pub const META_SPATIAL: &str = include_str!("../data/webxr/meta_spatial.hymeko");
+pub const META_ROOM: &str = include_str!("../data/webxr/meta_room.hymeko");
 
 /// The tolerance below which a quaternion's norm is treated as un-normalizable (zero quaternion).
 const QUAT_NORM_EPSILON: f64 = 1.0e-6;

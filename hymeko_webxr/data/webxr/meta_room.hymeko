@@ -1,0 +1,27 @@
+// meta_room — authored XR rooms, a specialisation of meta_spatial (imports it; one Ir).
+//
+// A room is a scene with exactly one room frame. At most one fiducial registers that frame, via
+// meta_spatial's @fiducial_registration (+ room frame, ~ marker): that marker is the room root.
+// Every other fiducial inside the room is a landmark. A tracked device is a frame whose pose a
+// runtime reports into the room.
+//
+// Observation slots (`sample`) belong to instances, never to a kind here: a slot declared on a
+// kind would be inherited, and so shared, by every instance of it. Readers bind by these kinds,
+// never by declaration names or paths.
+meta_room {
+    @"meta_spatial.hymeko";
+    using meta_spatial.spatial as s;
+}
+
+xr_room {
+    kinds {
+        room:           + <isa> s.kinds.scene {}
+        room_frame:     + <isa> s.kinds.spatial_frame {}
+        // An ArUco marker: identifier is the decimal marker id, family the OpenCV dictionary.
+        aruco_marker:   + <isa> s.kinds.fiducial_anchor {
+            fiducial_kind "aruco";
+            convention "opencv_marker_x_right_y_up_z_out";   // +X right, +Y up, +Z out of the face
+        }
+        tracked_device: + <isa> s.kinds.spatial_frame {}
+    }
+}

@@ -67,6 +67,47 @@ The reader is therefore \texttt{QueryEngine::effective\_child(decl, key)} and
 \texttt{resolver()} now return the engine's \texttt{'a} borrow, so a value outlives a temporary
 engine (widening, source-compatible for callers). Duplication back to 384 clones / 6053 lines.
 
+\paragraph{Amendment 2026-09-27 03:11 +02:00 (WP2--WP4, user decisions after 02:51)} Option A: the
+room builds on the spatial vocabulary in \texttt{hymeko\_webxr}. Approved dependencies:
+\texttt{hymeko\_webxr} $\rightarrow$ \texttt{hymeko\_query}; \texttt{hymeko\_quest} $\rightarrow$
+\texttt{hymeko\_webxr}; generated, byte-checked vocabulary copies beside the room sources.
+ETA 3.5--4 h (until about 07:00).
+\begin{itemize}
+\item \textbf{WP2} (\texttt{transformation}): new \texttt{data/webxr/meta\_room.hymeko} importing
+  \texttt{meta\_spatial}: kinds \texttt{room} (scene), \texttt{room\_frame} (spatial frame),
+  \texttt{aruco\_marker} (fiducial anchor with defaults \texttt{fiducial\_kind "aruco"},
+  \texttt{convention}), \texttt{tracked\_device} (spatial frame). No observation slot on a kind:
+  a slot inherited from a kind would be shared by every instance. The root is expressed as a
+  relation, reusing \texttt{@fiducial\_registration (+ room\_frame, \textasciitilde{} marker)}.
+  New \texttt{RoomQuery} (\texttt{src/room.rs}): rooms, the room frame (exactly one), the optional
+  root registration (at most one), landmarks (other fiducials inside the room), tracked devices,
+  and all ArUco markers of the model, each with its own \texttt{sample} slot; fields read through
+  \texttt{QueryEngine::effective\_value}. \texttt{SpatialQuery}'s attribute reads use the same
+  effective rule (a kind's default is inherited; the validator's reserved-field check stays
+  direct). Vocabulary texts exported as constants for the copy check.
+\item \textbf{WP3} (\texttt{middleware\_hymeko}, new \texttt{feat/declarative-room}): copies of
+  \texttt{meta\_spatial.hymeko} and \texttt{meta\_room.hymeko} in \texttt{examples/}, written by
+  \texttt{hymeko\_webxr/tools/sync-vocabulary.ps1}; \texttt{ros-ur5.hymeko} imports them; the room
+  becomes \texttt{+ <isa> room} with a room frame and the root registration; the five markers and
+  the headset gain the spatial bases; markers gain \texttt{family}/\texttt{identifier} beside
+  \texttt{dictionary}/\texttt{marker\_id} (expand step; readers switch in P2). Paths unchanged;
+  \texttt{ros.meta.hymeko} unchanged (two middleware tests compile it standalone and imports are
+  not transitive). \texttt{hive-room.hymeko} unchanged: it declares no marker or device.
+  Room objects stay with \texttt{RoomLayout} (the kit is appended to arbitrary workspaces and
+  cannot import the vocabulary); typing them is a P2 item.
+\item \textbf{WP4} (\texttt{xr}, new \texttt{feat/declarative-room}): \texttt{hymeko\_quest} test
+  dependency use of \texttt{RoomQuery}: for the UR5 room and \texttt{hive-room}, the path readers
+  in \texttt{lan.rs} (\texttt{marker\_at}, landmarks, observer slot) and \texttt{RoomQuery} yield the
+  same root, landmark set and headset slot; \texttt{family}/\texttt{identifier} equal
+  \texttt{dictionary}/\texttt{marker\_id}; the middleware copies equal the exported vocabulary.
+  CLI gate on \texttt{meta\_room.hymeko} and \texttt{ros-ur5.hymeko}; middleware tests re-run.
+\end{itemize}
+Affected files: \texttt{transformation/hymeko\_webxr/\{Cargo.toml, src/lib.rs, src/query.rs,
+src/room.rs, data/webxr/meta\_room.hymeko, tools/sync-vocabulary.ps1, tests\}},
+\texttt{Cargo.lock}; \texttt{middleware\_hymeko/examples/\{ros-ur5.hymeko, meta\_spatial.hymeko,
+meta\_room.hymeko\}}, README; \texttt{xr/hymeko\_quest/\{Cargo.toml, src/lan.rs\}}, \texttt{Cargo.lock}, README.
+CORE.YAML items touched: none.
+
 \paragraph{Tests} Unit: own value overrides a base; bases in authored order; multi-level
 inheritance; diamond and cycle terminate; missing field; dotted path through an inherited block.
 Regression: \texttt{hymeko\_geometry} inherited-material/geometry and actuation tests unchanged.
