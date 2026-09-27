@@ -32,6 +32,13 @@ pub struct TrackedDevice<'a> {
     pub sample: Option<DeclId>,
 }
 
+/// An object people may move: `manipulable` kind with its own placement `sample`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Manipulable {
+    pub decl: DeclId,
+    pub sample: DeclId,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Room<'a> {
     pub decl: DeclId,
@@ -50,6 +57,8 @@ struct RoomKinds {
     room_frame: DeclId,
     aruco_marker: DeclId,
     tracked_device: DeclId,
+    /// Absent from vocabulary copies that predate it; such a model has no manipulable objects.
+    manipulable: Option<DeclId>,
     sample: Option<SymId>,
     transport: Option<SymId>,
     convention: SymId,
@@ -67,6 +76,7 @@ impl RoomKinds {
             room_frame: child_named(ir, it, kinds, "room_frame")?,
             aruco_marker: child_named(ir, it, kinds, "aruco_marker")?,
             tracked_device: child_named(ir, it, kinds, "tracked_device")?,
+            manipulable: child_named(ir, it, kinds, "manipulable"),
             sample: it.get_id("sample"),
             transport: it.get_id("transport"),
             convention: it.get_id("convention")?,
@@ -135,6 +145,23 @@ impl<'a> RoomQuery<'a> {
                     })
                     .collect();
                 Ok(Room { decl: room, frame, root, landmarks, devices })
+            })
+            .collect()
+    }
+
+    /// Every manipulable instance with its own `sample`, anywhere in the model. One without its
+    /// own slot is refused: a slot inherited from a profile would move every object sharing it.
+    pub fn manipulable(&self) -> Result<Vec<Manipulable>, SpatialQueryError> {
+        let Some(kind) = self.kinds.manipulable else { return Ok(Vec::new()) };
+        // With no `sample` anywhere in the model, the kind's own name names the missing field.
+        let attr = self.kinds.sample.or_else(|| Some(self.spatial.ir().decl_node(kind)?.name));
+        self.instances(kind)
+            .map(|decl| {
+                let sample = self.own(decl, self.kinds.sample).ok_or(match attr {
+                    Some(attr) => SpatialQueryError::MissingAttribute { decl, attr },
+                    None => SpatialQueryError::VocabularyMissing,
+                })?;
+                Ok(Manipulable { decl, sample })
             })
             .collect()
     }

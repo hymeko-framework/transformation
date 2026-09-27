@@ -33,7 +33,7 @@ pub use query::{
     CameraFrame, FiducialBinding, FiducialKind, FrameParent, Placement, Pose, SpatialFrame,
     SpatialQuery, SpatialQueryError,
 };
-pub use room::{ArucoMarker, Room, RoomQuery, TrackedDevice};
+pub use room::{ArucoMarker, Manipulable, Room, RoomQuery, TrackedDevice};
 
 /// Vocabulary sources. HyMeKo imports resolve beside the importing file, so room models carry
 /// copies of these; the copies are checked against these texts, which remain the originals.

@@ -156,6 +156,42 @@ fn room_cardinality_and_marker_fields_are_checked() {
 }
 
 #[test]
+fn manipulable_objects_bind_their_own_placement_slot() {
+    let (ir, interner) = compile(&format!("{HEADER}{}", r#"room: + <isa> rk.room {
+        frame: + <isa> rk.room_frame {}
+        table: + <isa> rk.manipulable {
+            sample [0,0,1, 0.5,0,1, 1,0,0,0];
+            top { kind "Box"; pose_anchor -> sample; sx 0.5; sy 0.02; sz 0.3; }
+        }
+        cabinet { kind "Box"; }
+    }"#));
+    let query = RoomQuery::new(&ir, &interner).unwrap();
+    let objects = query.manipulable().unwrap();
+    assert_eq!(objects.len(), 1, "only the declared kind is manipulable, never by shape");
+    assert_eq!(name(&interner, &ir, objects[0].decl), "table");
+    assert_eq!(name(&interner, &ir, objects[0].sample), "sample");
+    assert_eq!(ir.parent_of(objects[0].sample), Some(objects[0].decl));
+
+    let (ir, interner) = compile(&format!("{HEADER}{}", r#"crate_profile: + <isa> rk.manipulable { sample [0,0,1,0,0,0,1,0,0,0]; }
+        a: + <isa> crate_profile {} b: + <isa> crate_profile {}"#));
+    let refused = RoomQuery::new(&ir, &interner).unwrap().manipulable();
+    assert!(matches!(refused, Err(SpatialQueryError::MissingAttribute { .. })),
+        "an inherited slot would move every crate at once: {refused:?}");
+
+    // A vocabulary copy that predates the kind still binds rooms and has no manipulable objects.
+    let older = META_ROOM.lines().filter(|line| !line.contains("manipulable:")).collect::<Vec<_>>().join("\n");
+    let provider = MemProvider::default()
+        .with_file("/meta_spatial.hymeko", META_SPATIAL)
+        .with_file("/meta_room.hymeko", older.as_str())
+        .with_file("/room.hymeko", format!("{HEADER}{ROOM}").as_str());
+    let mut store = ModuleStore::new(provider, RealParser);
+    let program = store.compile(Path::new("/room.hymeko")).unwrap();
+    let query = RoomQuery::new(&program.ir, &store.it).unwrap();
+    assert_eq!(query.rooms().unwrap().len(), 1);
+    assert!(query.manipulable().unwrap().is_empty());
+}
+
+#[test]
 fn a_model_without_the_room_vocabulary_has_no_room_query() {
     let provider = MemProvider::default()
         .with_file("/meta_spatial.hymeko", META_SPATIAL)

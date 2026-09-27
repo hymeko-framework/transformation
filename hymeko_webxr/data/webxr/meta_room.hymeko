@@ -23,5 +23,8 @@ xr_room {
             convention "opencv_marker_x_right_y_up_z_out";   // +X right, +Y up, +Z out of the face
         }
         tracked_device: + <isa> s.kinds.spatial_frame {}
+        // An object people may move in the room. Its own `sample` places it (epoch, sequence,
+        // valid, room XYZ, WXYZ); its visuals follow through `pose_anchor -> sample`.
+        manipulable:    + <isa> s.kinds.affordance {}
     }
 }
