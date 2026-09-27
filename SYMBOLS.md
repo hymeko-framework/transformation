@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**12 package(s), 621 public symbol(s).**
+**12 package(s), 624 public symbol(s).**
 
 ## generated (python)
 
@@ -697,6 +697,9 @@ docstring are all excluded for a stated reason rather than by luck.
 - `decl_scoped_in` — `hymeko_query/src/predicate_expr.rs`
 - `edge` — `hymeko_query/src/predicate.rs`
 - `edges_in` — `hymeko_query/src/rewrite/split.rs`
+- `effective_child` — `hymeko_query/src/fields.rs`
+- `effective_field` — `hymeko_query/src/rewrite/match_context.rs`
+- `effective_value` — `hymeko_query/src/fields.rs`
 - `emit_split_rewrite` — `hymeko_query/src/rewrite/regen.rs`
 - `execute_transform` — `hymeko_query/src/rewrite/template.rs`
 - `from_dir` — `hymeko_query/src/rewrite/template.rs`

@@ -59,10 +59,11 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
         }
     }
 
-    pub fn ir(&self) -> &Ir {
+    /// Borrowed for the engine's `'a`, so results outlive a temporary engine.
+    pub fn ir(&self) -> &'a Ir {
         self.ir
     }
-    pub fn resolver(&self) -> &R {
+    pub fn resolver(&self) -> &'a R {
         self.resolver
     }
 

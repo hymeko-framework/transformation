@@ -86,6 +86,25 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
         self.get_field_at(self.match_result.id, &segments)
     }
 
+    /// Like [`get_field`](Self::get_field), but every segment is read through
+    /// [`QueryEngine::effective_child`](crate::QueryEngine::effective_child): a declaration
+    /// without its own child uses its bases'. Opt-in, so emitters built on `get_field` keep
+    /// their output.
+    pub fn effective_field(&self, field_path: &str) -> FieldValue {
+        let engine = crate::QueryEngine::new(self.ir, self.resolver);
+        let mut decl = self.match_result.id;
+        for segment in field_path.split('.').filter(|segment| !segment.is_empty()) {
+            let child = self
+                .reference_scope(decl)
+                .and_then(|scope| engine.effective_child(scope, segment));
+            let Some(child) = child else {
+                return FieldValue::Missing;
+            };
+            decl = child;
+        }
+        self.decl_value(decl)
+    }
+
     /// Resolve a dotted field path to the underlying `DeclId` without
     /// pulling its value — used by `{{#inherits}}` to inspect the base
     /// chain of a nested declaration.
@@ -306,5 +325,28 @@ mod tests {
         let context = MatchContext::new(ir, model.interner(), cycle);
         assert!(context.get_field("next.value").is_missing());
         assert!(context.resolve_field_decl("next.value").is_none());
+    }
+
+    #[test]
+    fn effective_fields_read_inherited_blocks_while_get_field_stays_direct() {
+        let mut files = MemProvider::default();
+        files.insert_file(
+            "/inherited.hymeko",
+            "description {} marker { size_m 0.08; sample { valid 0; } } \
+             root: + <isa> marker { sample { valid 1; } } landmark: + <isa> marker {}",
+        );
+        let model = CompiledModel::compile(files, RealParser, std::path::Path::new("/inherited.hymeko")).unwrap();
+        let ir = &model.program().ir;
+        let query = QueryEngine::new(ir, model.interner());
+        let declarations = query.query(&Predicate::Any);
+        let named = |name: &str| declarations.iter().find(|d| d.name == name).unwrap();
+        let landmark = MatchContext::new(ir, model.interner(), named("landmark"));
+        assert!(landmark.get_field("size_m").is_missing(), "get_field keeps its direct-child contract");
+        assert!(matches!(landmark.effective_field("size_m"), FieldValue::Num(v) if v == 0.08));
+        assert!(matches!(landmark.effective_field("sample.valid"), FieldValue::Num(v) if v == 0.));
+        let root = MatchContext::new(ir, model.interner(), named("root"));
+        assert!(matches!(root.effective_field("sample.valid"), FieldValue::Num(v) if v == 1.), "own block overrides");
+        assert!(matches!(root.effective_field("size_m"), FieldValue::Num(v) if v == 0.08));
+        assert!(root.effective_field("sample.missing").is_missing());
     }
 }

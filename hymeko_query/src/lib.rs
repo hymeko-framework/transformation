@@ -26,6 +26,7 @@
 
 pub mod engine;
 pub mod entropy;
+pub mod fields;
 pub mod predicate;
 pub mod predicate_expr;
 

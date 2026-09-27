@@ -218,29 +218,10 @@ pub(crate) struct Fields<'a, R> {
     pub(crate) did: DeclId,
 }
 impl<R: NameResolver> Fields<'_, R> {
-    /// Physical attributes prefer an own declaration, then bases in authored order.
-    /// Only canonical resolved identities are traversed; repeated bases/cycles terminate.
+    /// Physical attributes prefer an own declaration, then bases in authored order
+    /// (the shared [`QueryEngine::effective_child`] rule).
     pub(crate) fn child(&self, key: &str) -> Option<DeclId> {
-        let mut pending = vec![self.did];
-        let mut visited = std::collections::HashSet::new();
-        while let Some(did) = pending.pop() {
-            if self.ir.decl_node(did).is_none() || !visited.insert(did) {
-                continue;
-            }
-            if let Some(child) = self
-                .ir
-                .decl_children(did)
-                .find(|c| self.res.resolve(self.ir.decl_node(*c).unwrap().name) == key)
-            {
-                return Some(child);
-            }
-            if let Some((_, node)) = self.ir.node_for_decl(did) {
-                pending.extend(node.bases.iter().rev().map(|b| b.target()));
-            } else if let Some((_, edge)) = self.ir.edge_for_decl(did) {
-                pending.extend(edge.bases.iter().rev().map(|b| b.target()));
-            }
-        }
-        None
+        QueryEngine::new(self.ir, self.res).effective_child(self.did, key)
     }
     pub(crate) fn has(&self, key: &str) -> bool {
         self.child(key).is_some()

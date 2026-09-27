@@ -1,0 +1,12 @@
+\begin{tikzpicture}[>=Stealth,font=\small,node distance=7mm and 9mm,
+  box/.style={draw,rounded corners,align=center,minimum width=30mm,fill=blue!8},
+  ext/.style={draw,rounded corners,align=center,minimum width=30mm,fill=orange!15}]
+\node[box] (fields) {hymeko\_query\\EffectiveFields};
+\node[box,right=of fields] (geom) {hymeko\_geometry\\Fields::child delegates};
+\node[box,below=of fields] (room) {room projection (WP2)\\bound by type};
+\node[ext,left=of room] (src) {room sources\\role types, paths kept};
+\node[ext,right=of room] (old) {today's path readers\\(xr, SDK, Kawamirai)};
+\node[box,below=of room] (eq) {equivalence tests\\same bindings};
+\draw[->] (fields)--(geom); \draw[->] (fields)--(room); \draw[->] (src)--(room);
+\draw[->] (room)--(eq); \draw[->] (old)--(eq);
+\end{tikzpicture}
