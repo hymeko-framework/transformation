@@ -11,7 +11,7 @@ mod active_set;
 #[cfg(test)]
 mod active_set_tests;
 mod admm;
-mod dense;
+pub(crate) mod dense;
 #[cfg(test)]
 mod diagnostics;
 mod local;

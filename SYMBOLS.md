@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**12 package(s), 632 public symbol(s).**
+**12 package(s), 639 public symbol(s).**
 
 ## generated (python)
 
@@ -376,6 +376,9 @@ docstring are all excluded for a stated reason rather than by luck.
 - `GazeboPluginInfo` — `hymeko_geometry/src/kinematics/gazebo_plugins.rs`
 - `GeometryInfo` — `hymeko_geometry/src/kinematics/kinematic.rs`
 - `GroundContact` — `hymeko_geometry/src/contact.rs`
+- `IkOptions` — `hymeko_geometry/src/kinematics/ik.rs`
+- `IkSolution` — `hymeko_geometry/src/kinematics/ik.rs`
+- `IkTarget` — `hymeko_geometry/src/kinematics/ik.rs`
 - `JointInfo` — `hymeko_geometry/src/kinematics/joints.rs`
 - `JointLimits` — `hymeko_geometry/src/kinematics/joints.rs`
 - `JointTopology` — `hymeko_geometry/src/kinematics/joints.rs`
@@ -422,6 +425,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `FreeFlight` — `hymeko_geometry/src/engine.rs`
 - `GazeboPluginKind` — `hymeko_geometry/src/kinematics/gazebo_plugins.rs`
 - `GeometryShape` — `hymeko_geometry/src/kinematics/kinematic.rs`
+- `IkError` — `hymeko_geometry/src/kinematics/ik.rs`
 - `JointEncoding` — `hymeko_geometry/src/kinematics/joints.rs`
 - `JointType` — `hymeko_geometry/src/kinematics/joints.rs`
 - `Limit` — `hymeko_geometry/src/contact.rs`
@@ -543,6 +547,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `solve` — `hymeko_geometry/src/contact/replay.rs`
 - `solve_factorised` — `hymeko_geometry/src/articulated.rs`
 - `solve_factorised_over` — `hymeko_geometry/src/articulated.rs`
+- `solve_standard_dh` — `hymeko_geometry/src/kinematics/ik.rs`
 - `standard_dh_chain` — `hymeko_geometry/src/kinematics/dh.rs`
 - `standard_dh_transform` — `hymeko_geometry/src/kinematics/joints.rs`
 - `state` — `hymeko_geometry/src/vehicle.rs`
@@ -772,6 +777,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `CameraFrame` — `hymeko_webxr/src/query.rs`
 - `FiducialBinding` — `hymeko_webxr/src/query.rs`
 - `FrameParent` — `hymeko_webxr/src/query.rs`
+- `Manipulable` — `hymeko_webxr/src/room.rs`
 - `Placement` — `hymeko_webxr/src/query.rs`
 - `Pose` — `hymeko_webxr/src/query.rs`
 - `Room` — `hymeko_webxr/src/room.rs`
@@ -794,6 +800,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `fiducial_bindings` — `hymeko_webxr/src/query.rs`
 - `frame_parents` — `hymeko_webxr/src/query.rs`
 - `frames` — `hymeko_webxr/src/query.rs`
+- `manipulable` — `hymeko_webxr/src/room.rs`
 - `markers` — `hymeko_webxr/src/room.rs`
 - `name` — `hymeko_webxr/src/query.rs`
 - `new` — `hymeko_webxr/src/query.rs`

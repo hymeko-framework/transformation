@@ -1,4 +1,5 @@
-//! Dense f64 elimination with partial pivoting shared by the replay experiments.
+//! Dense f64 elimination with partial pivoting shared by the replay experiments and the DH
+//! inverse kinematics (`kinematics::ik`).
 //!
 //! One implementation serves the local 3×3 Alart-Curnier Newton direction and the reduced
 //! active-set solve. The operation order is fixed, so the local Newton directions are
@@ -11,7 +12,7 @@
 ///
 /// # Errors
 /// `None` for a nonfinite input or result, or a pivot of at most `64 ε max|a_ij|`.
-pub(super) fn solve_in_place(matrix: &mut [f64], rhs: &mut [f64], n: usize) -> Option<()> {
+pub(crate) fn solve_in_place(matrix: &mut [f64], rhs: &mut [f64], n: usize) -> Option<()> {
     debug_assert!(matrix.len() == n * n && rhs.len() == n);
     if matrix.iter().chain(rhs.iter()).any(|v| !v.is_finite()) {
         return None;
