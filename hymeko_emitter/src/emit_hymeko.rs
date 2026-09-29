@@ -17,7 +17,7 @@
 use std::fmt::Write;
 
 use hymeko::common::ids::DeclId;
-use hymeko::ir::canonical_hash::DerivedPathIndex;
+use hymeko::ir::canonical_hash::{DerivedPathIndex, build_path_index};
 use hymeko::ir::ir::{DeclKind, Ir, SignedRefR, ValueR};
 use hymeko::resolution::interner::Interner;
 
@@ -241,7 +241,7 @@ pub fn emit_hymeko(ir: &Ir, interner: &Interner, description_name: &str) -> Stri
     // A canonical compiled model has a coherent hierarchy. Preserve the public
     // string API's existing precondition (valid IR plus its matching interner).
     let paths =
-        DerivedPathIndex::new(ir).expect("source emission requires a coherent canonical IR");
+        build_path_index(ir).expect("source emission requires a coherent canonical IR");
     let emitter = SourceEmitter {
         ir,
         it: interner,

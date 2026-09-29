@@ -54,6 +54,23 @@ and `node --test tools/diagram/render.test.mjs`.
 
 ## Kawakern physics engine
 
+The generated adversarial grid can import the reusable Cyberdisc actor and
+export a real Kawakern scene through the existing Formats example:
+
+```bash
+cargo run -p hymeko_formats --example adversarial_grid --locked --offline -- \
+  --export-physics GRID.hymeko ../robotics/examples/cyberdisc/actor.hymeko NEW_DIRECTORY
+```
+
+The directory must not exist. The export validates the grid through Query,
+retains the Graph route witness, and maps cells to a centred 2 m grid. Geometry
+verifies actor footprint (including collider offsets) and all 64 fixed box
+colliders. Outputs are `model.hymeko`, `scene.hymeko` and `composition.json`.
+This is data composition; Simulator executes physics on Amaterasu and Kawamirai
+renders its actual state. See the local
+[integration report](reports/2026-09-29-adversarial-cyberdisc.md), archived under
+`\\192.168.1.228\hymeko\reports\by-repository`.
+
 **Kawakern** names the existing HyMeKo physical engine family used by Kawamirai.
 `hymeko_geometry::engine::Engine` owns articulated rigid dynamics and ground contact;
 `hymeko_dynamics` projects physical systems, including linear elasticity, into the
