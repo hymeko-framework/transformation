@@ -37,6 +37,20 @@ spatial {
             color_space "sRGB";                              // interpretation of decoded colour channels
         }
         spatial_entity: + <isa> spatial_thing {}            // a placeable thing with identity
+        // A drawn entity. It declares a flat template, read as effective fields: primitive `kind`,
+        // size `sx sy sz`, colour `r g b a`, position `px py pz`, orientation `qw qx qy qz` (w first;
+        // absent or all zero is the identity), optional `mesh_asset`, `mesh_group`, `mesh_fallback`,
+        // `name`, `role`. It may share another visual's pose through `pose_source`, and a pose source
+        // may follow its own `pose_sample` (live) or `pose_anchor` (surveyed) numeric sample.
+        visual:         + <isa> spatial_entity {
+            a 1.0;                                           // opaque unless declared otherwise
+        }
+        // A declared light with glTF KHR_lights_punctual meaning: `light_kind` "directional", "point"
+        // or "spot", `intensity` (lux or candela), optional `r g b` (white), `range`, cone `inner`
+        // and `outer` in radians, `casts_shadow` 0 or 1. Placed like a visual; it aims along -Z.
+        light:          + <isa> spatial_entity {
+            light_kind "";                                   // every light must choose one
+        }
         visual_asset:   + <isa> spatial_thing {}            // a referenced asset (URI/media-type/role only)
         appearance:     + <isa> spatial_thing {}            // material / appearance hint
         semantic_anchor: + <isa> spatial_thing {}           // a durable spatial attachment point (semantic)

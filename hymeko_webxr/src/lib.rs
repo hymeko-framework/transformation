@@ -29,11 +29,13 @@ use hymeko::resolution::interner::Interner;
 
 pub mod query;
 pub mod room;
+pub mod visual;
 pub use query::{
     CameraFrame, FiducialBinding, FiducialKind, FrameParent, Placement, Pose, SpatialFrame,
     SpatialQuery, SpatialQueryError,
 };
-pub use room::{ArucoMarker, Manipulable, Room, RoomQuery, TrackedDevice};
+pub use room::{ArucoMarker, Manipulable, PoseSample, PoseSampleError, Room, RoomQuery, TrackedDevice};
+pub use visual::{DeclaredLight, LightKind, Observation, Visual};
 
 /// Vocabulary sources. HyMeKo imports resolve beside the importing file, so room models carry
 /// copies of these; the copies are checked against these texts, which remain the originals.

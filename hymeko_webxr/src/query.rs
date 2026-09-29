@@ -6,12 +6,16 @@
 //! fields: an instance's own value, else the value its kind declares (see
 //! [`QueryEngine::effective_value`]). Relation poses are read from the relation itself.
 
+use std::cell::OnceCell;
+use std::collections::HashSet;
+
 use hymeko::common::ids::{DeclId, SymId};
 use hymeko::ir::ir::{Ir, ValueR};
 use hymeko::resolution::interner::Interner;
 use hymeko_query::QueryEngine;
 
-use super::{attr_value, child_named, edge_participants_into, find_root, isa_transitive};
+use super::room::PoseSampleError;
+use super::{MAX_WALK_DEPTH, attr_value, child_named, each_base, edge_participants_into, find_root, isa_transitive};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Pose {
@@ -92,6 +96,8 @@ pub enum SpatialQueryError {
     RoomFrame { room: DeclId, found: u32 },
     /// At most one fiducial registers a room frame.
     RoomRoot { room: DeclId, found: u32 },
+    /// A numeric sample leaf is not a pose sample.
+    InvalidSample { leaf: DeclId, reason: PoseSampleError },
 }
 
 impl std::fmt::Display for SpatialQueryError {
@@ -103,6 +109,11 @@ impl std::fmt::Display for SpatialQueryError {
 impl std::error::Error for SpatialQueryError {}
 
 struct SpatialRegistry {
+    /// Vocabulary roots (`spatial`, and `xr_room` when imported); their declarations are kinds.
+    vocabularies: Vec<DeclId>,
+    /// Absent from vocabulary copies that predate them; such a model has no visuals or lights.
+    visual: Option<DeclId>,
+    light: Option<DeclId>,
     spatial_frame: DeclId,
     camera_frame: DeclId,
     spatial_entity: DeclId,
@@ -129,6 +140,9 @@ impl SpatialRegistry {
         let kinds = child_named(ir, it, spatial, "kinds")?;
         let relations = child_named(ir, it, spatial, "relations")?;
         Some(Self {
+            vocabularies: std::iter::once(spatial).chain(find_root(ir, it, "xr_room")).collect(),
+            visual: child_named(ir, it, kinds, "visual"),
+            light: child_named(ir, it, kinds, "light"),
             spatial_frame: child_named(ir, it, kinds, "spatial_frame")?,
             camera_frame: child_named(ir, it, kinds, "camera_frame")?,
             spatial_entity: child_named(ir, it, kinds, "spatial_entity")?,
@@ -156,6 +170,9 @@ pub struct SpatialQuery<'a> {
     interner: &'a Interner,
     engine: QueryEngine<'a, Interner>,
     registry: SpatialRegistry,
+    /// Declarations some other declaration inherits from: kinds and shared profiles. Built on the
+    /// first instance query.
+    bases: OnceCell<HashSet<DeclId>>,
 }
 
 impl<'a> SpatialQuery<'a> {
@@ -167,6 +184,7 @@ impl<'a> SpatialQuery<'a> {
             interner,
             engine: QueryEngine::new(ir, interner),
             registry,
+            bases: OnceCell::new(),
         })
     }
 
@@ -377,6 +395,63 @@ impl<'a> SpatialQuery<'a> {
 
     pub(crate) fn ir(&self) -> &'a Ir {
         self.ir
+    }
+
+    pub(crate) fn interner(&self) -> &'a Interner {
+        self.interner
+    }
+
+    pub(crate) fn visual_kind(&self) -> Option<DeclId> {
+        self.registry.visual
+    }
+
+    pub(crate) fn light_kind(&self) -> Option<DeclId> {
+        self.registry.light
+    }
+
+    /// The effective value of the attribute called `name`.
+    pub(crate) fn value(&self, decl: DeclId, name: &str) -> Option<&'a ValueR> {
+        self.engine.effective_value(decl, name)
+    }
+
+    /// The model's instances of `kind`: not inside a vocabulary root and not itself inherited
+    /// from (a declaration others inherit from is a kind or a shared profile, not an instance).
+    pub(crate) fn instances(&self, kind: DeclId) -> impl Iterator<Item = DeclId> + '_ {
+        let bases = self.bases.get_or_init(|| {
+            let mut bases = HashSet::new();
+            for (decl, _) in self.ir.decls() {
+                each_base(self.ir, decl, &mut |base| {
+                    bases.insert(base);
+                });
+            }
+            bases
+        });
+        self.ir.decls().map(|(decl, _)| decl).filter(move |decl| {
+            isa_transitive(self.ir, *decl, kind)
+                && !bases.contains(decl)
+                && !self.registry.vocabularies.iter().any(|root| self.within(*decl, *root))
+        })
+    }
+
+    /// `decl` is `ancestor` or nested below it (bounded parent walk).
+    pub(crate) fn within(&self, decl: DeclId, ancestor: DeclId) -> bool {
+        let mut current = Some(decl);
+        for _ in 0..MAX_WALK_DEPTH {
+            match current {
+                Some(d) if d == ancestor => return true,
+                Some(d) => current = self.ir.parent_of(d),
+                None => return false,
+            }
+        }
+        false
+    }
+
+    /// The declaration's own child `name`, never an inherited one.
+    pub(crate) fn own(&self, decl: DeclId, name: Option<SymId>) -> Option<DeclId> {
+        let name = name?;
+        self.ir
+            .child_decls(decl)
+            .find(|child| self.ir.decl_node(*child).is_some_and(|node| node.name == name))
     }
 }
 

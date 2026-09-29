@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**12 package(s), 639 public symbol(s).**
+**12 package(s), 649 public symbol(s).**
 
 ## generated (python)
 
@@ -775,20 +775,26 @@ docstring are all excluded for a stated reason rather than by luck.
 
 - `ArucoMarker` — `hymeko_webxr/src/room.rs`
 - `CameraFrame` — `hymeko_webxr/src/query.rs`
+- `DeclaredLight` — `hymeko_webxr/src/visual.rs`
 - `FiducialBinding` — `hymeko_webxr/src/query.rs`
 - `FrameParent` — `hymeko_webxr/src/query.rs`
 - `Manipulable` — `hymeko_webxr/src/room.rs`
 - `Placement` — `hymeko_webxr/src/query.rs`
 - `Pose` — `hymeko_webxr/src/query.rs`
+- `PoseSample` — `hymeko_webxr/src/room.rs`
 - `Room` — `hymeko_webxr/src/room.rs`
 - `RoomQuery` — `hymeko_webxr/src/room.rs`
 - `SpatialFrame` — `hymeko_webxr/src/query.rs`
 - `SpatialQuery` — `hymeko_webxr/src/query.rs`
 - `TrackedDevice` — `hymeko_webxr/src/room.rs`
+- `Visual` — `hymeko_webxr/src/visual.rs`
 
 ### enums
 
 - `FiducialKind` — `hymeko_webxr/src/query.rs`
+- `LightKind` — `hymeko_webxr/src/visual.rs`
+- `Observation` — `hymeko_webxr/src/visual.rs`
+- `PoseSampleError` — `hymeko_webxr/src/room.rs`
 - `RoleReason` — `hymeko_webxr/src/lib.rs`
 - `SemanticError` — `hymeko_webxr/src/lib.rs`
 - `SpatialQueryError` — `hymeko_webxr/src/query.rs`
@@ -800,15 +806,19 @@ docstring are all excluded for a stated reason rather than by luck.
 - `fiducial_bindings` — `hymeko_webxr/src/query.rs`
 - `frame_parents` — `hymeko_webxr/src/query.rs`
 - `frames` — `hymeko_webxr/src/query.rs`
+- `from_values` — `hymeko_webxr/src/room.rs`
+- `lights` — `hymeko_webxr/src/visual.rs`
 - `manipulable` — `hymeko_webxr/src/room.rs`
 - `markers` — `hymeko_webxr/src/room.rs`
 - `name` — `hymeko_webxr/src/query.rs`
 - `new` — `hymeko_webxr/src/query.rs`
 - `new` — `hymeko_webxr/src/room.rs`
 - `placements` — `hymeko_webxr/src/query.rs`
+- `read` — `hymeko_webxr/src/room.rs`
 - `rooms` — `hymeko_webxr/src/room.rs`
 - `spatial` — `hymeko_webxr/src/room.rs`
 - `validate` — `hymeko_webxr/src/lib.rs`
+- `visuals` — `hymeko_webxr/src/visual.rs`
 
 ## transforms (python)
 

@@ -5,14 +5,12 @@
 //! Observation slots are the instance's own `sample` child. A slot inherited from a kind is not
 //! a slot of the instance: every instance of that kind would share it.
 
-use std::collections::HashSet;
-
 use hymeko::common::ids::{DeclId, SymId};
-use hymeko::ir::ir::Ir;
+use hymeko::ir::ir::{Ir, ValueR};
 use hymeko::resolution::interner::Interner;
 
 use super::query::{FiducialKind, SpatialQuery, SpatialQueryError};
-use super::{MAX_WALK_DEPTH, child_named, each_base, find_root, isa_transitive};
+use super::{child_named, find_root, isa_transitive};
 
 /// An ArUco fiducial: dictionary family, decimal marker id and physical side length.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -51,8 +49,6 @@ pub struct Room<'a> {
 }
 
 struct RoomKinds {
-    /// Vocabulary roots; declarations inside them are kinds, not instances.
-    vocabularies: [DeclId; 2],
     room: DeclId,
     room_frame: DeclId,
     aruco_marker: DeclId,
@@ -71,7 +67,6 @@ impl RoomKinds {
         let root = find_root(ir, it, "xr_room")?;
         let kinds = child_named(ir, it, root, "kinds")?;
         Some(Self {
-            vocabularies: [root, find_root(ir, it, "spatial")?],
             room: child_named(ir, it, kinds, "room")?,
             room_frame: child_named(ir, it, kinds, "room_frame")?,
             aruco_marker: child_named(ir, it, kinds, "aruco_marker")?,
@@ -89,8 +84,6 @@ impl RoomKinds {
 pub struct RoomQuery<'a> {
     spatial: SpatialQuery<'a>,
     kinds: RoomKinds,
-    /// Declarations some other declaration inherits from: kinds and shared profiles.
-    bases: HashSet<DeclId>,
 }
 
 impl<'a> RoomQuery<'a> {
@@ -98,11 +91,7 @@ impl<'a> RoomQuery<'a> {
     pub fn new(ir: &'a Ir, interner: &'a Interner) -> Result<Self, SpatialQueryError> {
         let spatial = SpatialQuery::new(ir, interner)?;
         let kinds = RoomKinds::resolve(ir, interner).ok_or(SpatialQueryError::VocabularyMissing)?;
-        let mut bases = HashSet::new();
-        for (decl, _) in ir.decls() {
-            each_base(ir, decl, &mut |base| { bases.insert(base); });
-        }
-        Ok(Self { spatial, kinds, bases })
+        Ok(Self { spatial, kinds })
     }
 
     pub fn spatial(&self) -> &SpatialQuery<'a> {
@@ -184,36 +173,110 @@ impl<'a> RoomQuery<'a> {
         })
     }
 
-    /// The model's instances of `kind`: not inside a vocabulary root and not itself inherited
-    /// from (a declaration others inherit from is a kind or a shared profile, not an instance).
     fn instances(&self, kind: DeclId) -> impl Iterator<Item = DeclId> + '_ {
-        let ir = self.spatial.ir();
-        ir.decls().map(|(decl, _)| decl).filter(move |decl| {
-            isa_transitive(ir, *decl, kind)
-                && !self.bases.contains(decl)
-                && !self.kinds.vocabularies.iter().any(|root| self.within(*decl, *root))
+        self.spatial.instances(kind)
+    }
+
+    fn within(&self, decl: DeclId, ancestor: DeclId) -> bool {
+        self.spatial.within(decl, ancestor)
+    }
+
+    fn own(&self, decl: DeclId, name: Option<SymId>) -> Option<DeclId> {
+        self.spatial.own(decl, name)
+    }
+}
+
+/// One pose observation as a numeric sample, in room axes and metres:
+/// `[epoch, sequence, valid, x, y, z, qw, qx, qy, qz]`, optionally followed by
+/// `[confidence, observed_unix_ms]`, the quality a surveyed marker reports. The one reader of
+/// this layout.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PoseSample {
+    pub epoch: u64,
+    pub sequence: u64,
+    pub valid: bool,
+    pub position_m: [f64; 3],
+    /// Unit quaternion, w first as the sample writes it.
+    pub orientation_wxyz: [f64; 4],
+    pub confidence: Option<f64>,
+    pub observed_ms: Option<u64>,
+}
+
+/// Why a numeric list is not a pose sample.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PoseSampleError {
+    /// Neither 10 nor 12 entries, or an entry that is not a number.
+    Layout,
+    /// An entry is NaN or infinite.
+    NonFinite,
+    /// Epoch or sequence is not an exact integer in `0..=2^53-1`.
+    Identity,
+    /// Validity is neither 0 nor 1.
+    Validity,
+    /// A coordinate lies beyond 1000 m.
+    Bounds,
+    /// The quaternion is not unit length within 1e-3.
+    Quaternion,
+    /// Confidence outside `[0, 1]`, or an observation time that is not an exact integer in
+    /// `0..=2^53-1`.
+    Quality,
+}
+
+/// The largest integer every JavaScript and JSON reader holds exactly.
+const EXACT_INTEGER: f64 = 9_007_199_254_740_991.0;
+
+fn exact_integer(value: f64) -> bool {
+    (0.0..=EXACT_INTEGER).contains(&value) && value.fract() == 0.0
+}
+
+impl PoseSample {
+    /// Read a sample from its numbers.
+    pub fn from_values(v: &[f64]) -> Result<Self, PoseSampleError> {
+        if !matches!(v.len(), 10 | 12) {
+            return Err(PoseSampleError::Layout);
+        }
+        if v.iter().any(|n| !n.is_finite()) {
+            return Err(PoseSampleError::NonFinite);
+        }
+        if !exact_integer(v[0]) || !exact_integer(v[1]) {
+            return Err(PoseSampleError::Identity);
+        }
+        if v[2] != 0.0 && v[2] != 1.0 {
+            return Err(PoseSampleError::Validity);
+        }
+        if v[3..6].iter().any(|n| n.abs() > 1000.0) {
+            return Err(PoseSampleError::Bounds);
+        }
+        if (v[6..10].iter().map(|n| n * n).sum::<f64>() - 1.0).abs() > 1e-3 {
+            return Err(PoseSampleError::Quaternion);
+        }
+        let quality = v.get(10..12);
+        if quality.is_some_and(|q| !(0.0..=1.0).contains(&q[0]) || !exact_integer(q[1])) {
+            return Err(PoseSampleError::Quality);
+        }
+        Ok(Self {
+            epoch: v[0] as u64,
+            sequence: v[1] as u64,
+            valid: v[2] == 1.0,
+            position_m: [v[3], v[4], v[5]],
+            orientation_wxyz: [v[6], v[7], v[8], v[9]],
+            confidence: quality.map(|q| q[0]),
+            observed_ms: quality.map(|q| q[1] as u64),
         })
     }
 
-    /// `decl` is `ancestor` or nested below it (bounded parent walk).
-    fn within(&self, decl: DeclId, ancestor: DeclId) -> bool {
-        let ir = self.spatial.ir();
-        let mut current = Some(decl);
-        for _ in 0..MAX_WALK_DEPTH {
-            match current {
-                Some(d) if d == ancestor => return true,
-                Some(d) => current = ir.parent_of(d),
-                None => return false,
-            }
+    /// Read a sample from an IR value: a list of numbers.
+    pub fn read(value: &ValueR) -> Result<Self, PoseSampleError> {
+        let ValueR::List(items) = value else { return Err(PoseSampleError::Layout) };
+        let mut numbers = [0.0; 12];
+        if items.len() > numbers.len() {
+            return Err(PoseSampleError::Layout);
         }
-        false
-    }
-
-    /// The declaration's own child `name`, never an inherited one.
-    fn own(&self, decl: DeclId, name: Option<SymId>) -> Option<DeclId> {
-        let ir = self.spatial.ir();
-        let name = name?;
-        ir.child_decls(decl).find(|child| ir.decl_node(*child).is_some_and(|node| node.name == name))
+        for (out, item) in numbers.iter_mut().zip(items) {
+            let ValueR::Num(n) = item else { return Err(PoseSampleError::Layout) };
+            *out = *n;
+        }
+        Self::from_values(&numbers[..items.len()])
     }
 }
 
