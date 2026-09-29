@@ -18,7 +18,7 @@
 #[cfg(test)]
 mod test_prop_witnesses {
     use crate::test_helpers::load_and_lower;
-    use hymeko::ir::semantic_digest::semantic_model_digest;
+    use hymeko::ir::semantic_digest::semantic_model_digest_v2 as semantic_model_digest;
     use hymeko_formats::default_registry;
     use hymeko_formats::gazebo::generate_gazebo_world;
     use hymeko_formats::sdf::generate_sdf;

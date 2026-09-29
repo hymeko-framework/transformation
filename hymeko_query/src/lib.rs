@@ -24,6 +24,7 @@
     clippy::useless_conversion
 )]
 
+pub mod checks;
 pub mod engine;
 pub mod entropy;
 pub mod fields;
@@ -39,6 +40,7 @@ pub mod rewrite;
 pub mod traits;
 
 // Re-exports for convenience
+pub use checks::{MatchExpectation, QueryCheck};
 pub use engine::{ArcBinding, QueryConfig, QueryEngine, QueryMatch};
 pub use entropy::{StructuralEntropy, compute_entropy, compute_entropy_hierarchical};
 pub use predicate::{NamedQuery, Predicate, ValuePredicate};

@@ -84,6 +84,9 @@ pub enum Predicate {
     HasValue(ValuePredicate),
     /// Match element with a child named `name` whose value satisfies `pred`.
     ChildValue(String, ValuePredicate),
+    /// Match a named effective child value (local override, otherwise inherited).
+    /// `ChildValue` deliberately retains its direct-child semantics.
+    EffectiveChildValue(String, ValuePredicate),
 
     // --- Edge-specific predicates (arc ref matching) ---
     /// Edge has a Plus-signed ref whose target matches `inner`.
