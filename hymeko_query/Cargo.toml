@@ -14,14 +14,15 @@ crate-type = ["rlib", "cdylib"]
 [dependencies]
 hymeko_core = { workspace = true }
 parser = { workspace = true, optional = true }
-env_logger = "0.11.9"
-log = "0.4.29"
 
 [features]
 default = ["interpret"]
 interpret = ["parser"]  # AST-to-Predicate interpreter requires parser
 
 [dev-dependencies]
+# Test logging only; the library logs nothing, so consumers (renderers, wasm) do not carry a logger.
+env_logger = "0.11.9"
+log = "0.4.29"
 # The kinematics/transforms tests moved out with their modules but still live here; cargo permits a
 # dev-dependency cycle, so they can keep exercising the real crate rather than being duplicated.
 hymeko_geometry = { path = "../hymeko_geometry" }
