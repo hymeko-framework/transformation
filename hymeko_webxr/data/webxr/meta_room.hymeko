@@ -26,5 +26,17 @@ xr_room {
         // An object people may move in the room. Its own `sample` places it (epoch, sequence,
         // valid, room XYZ, WXYZ); its visuals follow through `pose_anchor -> sample`.
         manipulable:    + <isa> s.kinds.affordance {}
+        // A stereo camera producing in the room (a ZED 2i, say). Its instance is a producer: it
+        // names `source_id` and `transport` and streams what it detected into its detection slots
+        // as value samples. Images, depth and point clouds never enter the room. A spatial frame
+        // rather than a camera_frame: readers of camera_frame take every descendant for a stream.
+        stereo_camera:  + <isa> s.kinds.spatial_frame {
+            baseline_m 0.0;                                  // distance between the two optical centres
+        }
+        // One detected object, as its camera reports it. The instance declares its leaves: `sample`
+        // (epoch, sequence, valid, room XYZ, WXYZ, the layout a pose sample has), `class_id` (an
+        // index into the camera's `classes`), `confidence`, `track`, `velocity` (m/s, room axes)
+        // and `observed_ms`; its box visual follows `pose_sample -> sample`.
+        detection_slot: + <isa> s.kinds.spatial_entity {}
     }
 }

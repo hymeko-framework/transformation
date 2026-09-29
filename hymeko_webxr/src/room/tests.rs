@@ -63,6 +63,33 @@ fn name(interner: &Interner, ir: &Ir, decl: DeclId) -> String {
 }
 
 #[test]
+fn a_stereo_camera_and_its_detection_slots_bind_by_kind_and_leave_camera_streams_alone() {
+    let source = format!("{HEADER}{}", r#"
+room: + <isa> rk.room { frame: + <isa> rk.room_frame {} }
+zed: + <isa> rk.stereo_camera {
+    source_id "zed-2i"; transport "zenoh"; baseline_m 0.12; classes ["person", "box"];
+    slots {
+        s0: + <isa> rk.detection_slot {
+            sample [0,0,0,0,0,0,1,0,0,0]; class_id 0; confidence 0; track 0; velocity [0,0,0]; observed_ms 0;
+            box { kind "Box"; pose_sample -> sample; px 0; py 0; pz 0; sx 0.1; sy 0.1; sz 0.1; a 0.6; }
+        }
+    }
+}"#);
+    let (ir, interner) = compile(&source);
+    // Not a camera stream: the readers of camera_frame see neither the kind nor the instance.
+    assert!(crate::SpatialQuery::new(&ir, &interner).unwrap().camera_frames().unwrap().is_empty());
+    assert_eq!(RoomQuery::new(&ir, &interner).unwrap().rooms().unwrap().len(), 1);
+    let camera = ir.decls().find(|(_, d)| interner.resolve(d.name) == "zed").unwrap().0;
+    let stereo = ir.decls().find(|(_, d)| interner.resolve(d.name) == "stereo_camera").unwrap().0;
+    assert!(crate::isa_transitive(&ir, camera, stereo));
+    let slot = ir.decls().find(|(_, d)| interner.resolve(d.name) == "s0").unwrap().0;
+    let kind = ir.decls().find(|(_, d)| interner.resolve(d.name) == "detection_slot").unwrap().0;
+    assert!(crate::isa_transitive(&ir, slot, kind), "a slot is bound by its kind");
+    // The leaves are the instance's own; a kind declaring them would share them across rooms.
+    assert!(ir.decl_children(kind).next().is_none(), "the kind declares no shared observation slot");
+}
+
+#[test]
 fn rooms_bind_root_landmarks_and_devices_by_kind_not_by_name() {
     for renamed in [false, true] {
         let mut source = format!("{HEADER}{ROOM}");
