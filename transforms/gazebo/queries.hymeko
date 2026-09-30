@@ -9,4 +9,5 @@ context
     @prismatic_joints: prismatic_joint {}
     @sim_plugins: sim_plugin {}
     @control_plugins: control_plugin {}
+    obstacles: gazebo_static_box {}
 }

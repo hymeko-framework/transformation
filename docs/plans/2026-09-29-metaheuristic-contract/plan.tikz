@@ -1,0 +1,13 @@
+\begin{tikzpicture}[every node/.style={draw,rounded corners,align=center,font=\small},>=stealth]
+\node (source) at (0,0) {Authored DE\\HyMeKo source};
+\node (core) at (5,0) {Core compiler\\canonical IR + paths};
+\node (query) at (5,-2) {Existing Query\\DE contract checks};
+\node (ids) at (0,-2) {Validated JSON\\operator identities};
+\node (events) at (0,-4) {Recorded events\\identity binding};
+\node (stl) at (5,-4) {Existing HySTL\\scalar monitoring};
+\draw[->] (source)--(core);
+\draw[->] (core)--(query);
+\draw[->] (query)--(ids);
+\draw[->] (ids)--(events);
+\draw[->] (events)--(stl);
+\end{tikzpicture}
