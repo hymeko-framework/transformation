@@ -1,0 +1,13 @@
+flowchart TD
+    parameters[Seed and bounded layout parameters] --> core[Existing Core compiler and canonical IR]
+    core --> search[Existing Graph BFS and A star]
+    search --> validity[Reachability and path witness]
+    search --> score[Expanded nodes with fixed solver configuration]
+    validity --> selection[First feasible baseline and best of budget]
+    score --> selection
+    selection --> emitter[Existing HyMeKo emitter and recompile]
+    emitter --> sdf[Existing Gazebo query and template renderer]
+    sdf --> remote[Finite Gazebo validation on Amaterasu]
+    selection --> measurements[Amaterasu campaign measurements]
+    remote --> report[JSON plots path GIF and archived report]
+    measurements --> report

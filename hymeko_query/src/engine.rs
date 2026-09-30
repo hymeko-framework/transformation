@@ -151,6 +151,9 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
                 let cn = &self.ir.decl_nodes[c.raw()];
                 self.resolver.resolve(cn.name) == name.as_str() && self.match_value(c, vp)
             }),
+            Predicate::EffectiveChildValue(name, vp) => self
+                .effective_child(did, name)
+                .is_some_and(|child| self.match_value(child, vp)),
 
             Predicate::HasPlusRef(inner) => self.match_signed_ref(did, 1, inner),
             Predicate::HasMinusRef(inner) => self.match_signed_ref(did, -1, inner),
@@ -217,7 +220,7 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
         for &aid in &edge.arcs {
             let arc = &self.ir.arcs[aid.raw()];
             for r in &arc.refs {
-                if (sign == 0 || r.sign() == sign) && self.matches(r.target(), inner, 0) {
+                if r.sign() == sign && self.matches(r.target(), inner, 0) {
                     return true;
                 }
             }
