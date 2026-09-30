@@ -15,7 +15,7 @@ use hymeko::resolution::interner::Interner;
 use hymeko_query::QueryEngine;
 
 use super::room::PoseSampleError;
-use super::{MAX_WALK_DEPTH, attr_value, child_named, each_base, edge_participants_into, find_root, isa_transitive};
+use super::{MAX_WALK_DEPTH, attr_value, child_named, edge_participants_into, find_root, isa_transitive};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Pose {
@@ -420,9 +420,7 @@ impl<'a> SpatialQuery<'a> {
         let bases = self.bases.get_or_init(|| {
             let mut bases = HashSet::new();
             for (decl, _) in self.ir.decls() {
-                each_base(self.ir, decl, &mut |base| {
-                    bases.insert(base);
-                });
+                bases.extend(hymeko_query::bases::bases(self.ir, decl, hymeko_query::BasePolicy::All));
             }
             bases
         });
@@ -446,12 +444,9 @@ impl<'a> SpatialQuery<'a> {
         false
     }
 
-    /// The declaration's own child `name`, never an inherited one.
+    /// The declaration's own child `name`, never an inherited one (the query crate's slot rule).
     pub(crate) fn own(&self, decl: DeclId, name: Option<SymId>) -> Option<DeclId> {
-        let name = name?;
-        self.ir
-            .child_decls(decl)
-            .find(|child| self.ir.decl_node(*child).is_some_and(|node| node.name == name))
+        hymeko_query::fields::own_child(self.ir, decl, name?)
     }
 }
 

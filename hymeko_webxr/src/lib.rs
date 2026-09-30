@@ -317,41 +317,11 @@ fn children(ir: &Ir, parent: DeclId) -> Vec<DeclId> {
     ir.child_decls(parent).collect()
 }
 
-/// Invoke `f` for each direct inheritance base of `d`, borrowing (no allocation).
-#[inline]
-fn each_base(ir: &Ir, d: DeclId, f: &mut impl FnMut(DeclId)) {
-    if let Some((_, node)) = ir.node_for_decl(d) {
-        for base in &node.bases {
-            f(base.target());
-        }
-        return;
-    }
-    if let Some((_, edge)) = ir.edge_for_decl(d) {
-        for base in &edge.bases {
-            f(base.target());
-        }
-    }
-}
-
-/// Transitive `<isa>`: does `d` reach `target` through inheritance bases? Allocation-free and
-/// depth-bounded ([`MAX_WALK_DEPTH`]), so an inheritance cycle terminates instead of looping.
+/// Transitive is-a over every base, through the query crate's one walk. The vocabulary counts all
+/// bases as inheritance. A cycle or a dangling base is not an answer, so it reads as "not a", as
+/// the bounded walk this replaces did once its budget ran out.
 fn isa_transitive(ir: &Ir, d: DeclId, target: DeclId) -> bool {
-    fn go(ir: &Ir, d: DeclId, target: DeclId, budget: u32) -> bool {
-        if d == target {
-            return true;
-        }
-        if budget == 0 {
-            return false;
-        }
-        let mut hit = false;
-        each_base(ir, d, &mut |b| {
-            if !hit && go(ir, b, target, budget - 1) {
-                hit = true;
-            }
-        });
-        hit
-    }
-    go(ir, d, target, MAX_WALK_DEPTH)
+    hymeko_query::bases::is_a(ir, d, target, hymeko_query::BasePolicy::All).unwrap_or(false)
 }
 
 /// Fill `buf` with the signed incidence participants `(sign, target)` of a relation edge instance
