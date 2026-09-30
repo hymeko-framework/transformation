@@ -18,7 +18,7 @@
 #[cfg(test)]
 mod test_prop_witnesses {
     use crate::test_helpers::load_and_lower;
-    use hymeko::ir::semantic_digest::semantic_model_digest;
+    use hymeko::ir::canonical_hash::Canon;
     use hymeko_formats::default_registry;
     use hymeko_formats::gazebo::generate_gazebo_world;
     use hymeko_formats::sdf::generate_sdf;
@@ -120,8 +120,8 @@ mod test_prop_witnesses {
                     .unwrap_or_else(|e| panic!("compile {baseline}: {e:?}"));
                 let (a_store, a) =
                     load_and_lower(alias).unwrap_or_else(|e| panic!("compile {alias}: {e:?}"));
-                let h_b = semantic_model_digest(&b.ir, &b_store.it);
-                let h_a = semantic_model_digest(&a.ir, &a_store.it);
+                let h_b = Canon::new(&b.ir, &b_store.it).hash();
+                let h_a = Canon::new(&a.ir, &a_store.it).hash();
                 assert_eq!(
                     h_b, h_a,
                     "Prop 2 violated: surface variants of the same denotation hash to different digests for ({baseline}, {alias})",
@@ -143,7 +143,7 @@ mod test_prop_witnesses {
                 .iter()
                 .map(|p| {
                     let (s, c) = load_and_lower(p).unwrap();
-                    semantic_model_digest(&c.ir, &s.it)
+                    Canon::new(&c.ir, &s.it).hash()
                 })
                 .collect();
             for i in 0..digests.len() {
@@ -170,8 +170,8 @@ mod test_prop_witnesses {
                 load_and_lower("../data/minimal_examples/constants/mini_literals.hymeko")
                     .expect("compile literal fixture");
             assert_eq!(
-                semantic_model_digest(&consts.ir, &consts_store.it),
-                semantic_model_digest(&literals.ir, &literals_store.it),
+                Canon::new(&consts.ir, &consts_store.it).hash(),
+                Canon::new(&literals.ir, &literals_store.it).hash(),
                 "Prop 2 violated: const-bearing fixture and literal-equivalent fixture have different digests",
             );
         }

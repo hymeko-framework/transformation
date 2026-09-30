@@ -17,7 +17,7 @@
 use std::fmt::Write;
 
 use hymeko::common::ids::DeclId;
-use hymeko::ir::canonical_hash::DerivedPathIndex;
+use hymeko::ir::canonical_hash::{DerivedPathIndex, build_path_index};
 use hymeko::ir::ir::{DeclKind, Ir, SignedRefR, ValueR};
 use hymeko::resolution::interner::Interner;
 
@@ -241,7 +241,7 @@ pub fn emit_hymeko(ir: &Ir, interner: &Interner, description_name: &str) -> Stri
     // A canonical compiled model has a coherent hierarchy. Preserve the public
     // string API's existing precondition (valid IR plus its matching interner).
     let paths =
-        DerivedPathIndex::new(ir).expect("source emission requires a coherent canonical IR");
+        build_path_index(ir).expect("source emission requires a coherent canonical IR");
     let emitter = SourceEmitter {
         ir,
         it: interner,
@@ -287,7 +287,7 @@ pub fn emit_hymeko(ir: &Ir, interner: &Interner, description_name: &str) -> Stri
 mod tests {
     use super::*;
     use hymeko::{
-        ir::semantic_digest::semantic_model_digest,
+        ir::canonical_hash::Canon,
         module_store::{execution::CompiledModel, source_provider::MemProvider},
         util::real_parser::RealParser,
     };
@@ -317,8 +317,8 @@ mod tests {
         assert!(source.contains("scene.right.target"));
         let restored = compile(&source);
         assert_eq!(
-            semantic_model_digest(&original.program().ir, original.interner()),
-            semantic_model_digest(&restored.program().ir, restored.interner())
+            Canon::new(&original.program().ir, original.interner()).hash(),
+            Canon::new(&restored.program().ir, restored.interner()).hash()
         );
     }
 }
