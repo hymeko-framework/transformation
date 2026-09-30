@@ -1,0 +1,5 @@
+grid_validation {}
+context {
+    cells: grid_cell {}
+    obstacles: gazebo_static_box {}
+}

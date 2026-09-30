@@ -75,7 +75,11 @@ pub fn layered(count: usize, edges: &[(usize, usize)]) -> Option<Vec<[f64; 2]>> 
 ///
 /// `edges` are terminal index pairs, one per conductor; parallel edges and self-loops are tolerated
 /// (a self-loop contributes nothing, which is what it means).
-pub fn arrange(count: usize, edges: &[(usize, usize)], pinned: &[Option<[f64; 3]>]) -> Vec<[f64; 3]> {
+pub fn arrange(
+    count: usize,
+    edges: &[(usize, usize)],
+    pinned: &[Option<[f64; 3]>],
+) -> Vec<[f64; 3]> {
     if count == 0 {
         return Vec::new();
     }
@@ -204,11 +208,17 @@ pub fn place_store(
     if let Some(run) = carried(false).or_else(|| carried(true)) {
         let along = sub(terminals[run.to], terminals[run.from]);
         let length = norm(along);
-        return Some((run.middle, (length > 1e-9).then(|| scale(along, 1.0 / length))));
+        return Some((
+            run.middle,
+            (length > 1e-9).then(|| scale(along, 1.0 / length)),
+        ));
     }
 
     let mut tally = vec![0usize; terminals.len()];
-    for run in conductors.iter().filter(|c| coupled.contains(&c.coordinate)) {
+    for run in conductors
+        .iter()
+        .filter(|c| coupled.contains(&c.coordinate))
+    {
         tally[run.from] += 1;
         tally[run.to] += 1;
     }
@@ -269,7 +279,11 @@ fn spectral(nodes: &[usize], edges: &[(usize, usize)]) -> Vec<[f64; 2]> {
                     .then(b.cmp(&a))
             })
             .expect("a component has at least one node");
-        let sign = if vectors[lead * n + k] < 0.0 { -1.0 } else { 1.0 };
+        let sign = if vectors[lead * n + k] < 0.0 {
+            -1.0
+        } else {
+            1.0
+        };
         for i in 0..n {
             out[i][taken] = sign * vectors[i * n + k];
         }

@@ -282,27 +282,21 @@ fn incident_vertices_that_are_edges_in_arena_are_filtered_on_reverse() {
         anno: AnnoR::default(),
     };
 
-    let push = |ir: &mut Ir, d: DeclNode| {
-        let id = ir.push_decl(d);
-        ir.decl_hash.push(None);
-        id
-    };
-
-    let node_did = push(&mut ir, fresh(DeclKind::Node, node_sym));
+    let node_did = ir.push_decl(fresh(DeclKind::Node, node_sym));
     ir.nodes.push(NodeRec::new(node_did, Vec::new()));
     ir.bind_node_decl(node_did, NodeId::new(0))
         .expect("fresh decl: NONE slot, in-range record");
 
-    let edge1_did = push(&mut ir, fresh(DeclKind::Edge, edge1_sym));
+    let edge1_did = ir.push_decl(fresh(DeclKind::Edge, edge1_sym));
     ir.edges.push(EdgeRec::new(edge1_did, Vec::new()));
     ir.bind_edge_decl(edge1_did, EdgeId::new(0))
         .expect("fresh decl: NONE slot, in-range record");
 
-    let edge2_did = push(&mut ir, fresh(DeclKind::Edge, edge2_sym));
+    let edge2_did = ir.push_decl(fresh(DeclKind::Edge, edge2_sym));
     let mut e2 = EdgeRec::new(edge2_did, Vec::new());
 
     // Arc references `a` (node, allowed) and `e1` (edge, should be filtered).
-    let arc_did = push(&mut ir, fresh(DeclKind::HyperArc, SymId::new(0)));
+    let arc_did = ir.push_decl(fresh(DeclKind::HyperArc, SymId::new(0)));
     let atom = RefAtomR::plain;
     ir.arcs.push(ArcRec {
         anno: AnnoR::default(),

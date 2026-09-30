@@ -40,6 +40,29 @@
       </link>
     </model>
 
+{{#each obstacles}}
+    <model name="{{name}}">
+      <static>true</static>
+      <pose>{{field:x}} {{field:y}} {{field:z}} 0 0 0</pose>
+      <link name="body">
+        <collision name="collision">
+          <geometry>
+            <box><size>{{field:size_x}} {{field:size_y}} {{field:size_z}}</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>{{field:size_x}} {{field:size_y}} {{field:size_z}}</size></box>
+          </geometry>
+          <material>
+            <ambient>0.15 0.22 0.30 1</ambient>
+            <diffuse>0.25 0.35 0.45 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+{{/each}}
+
 {{#each sim_plugins}}
     <plugin filename="{{field:filename}}" name="{{field:plugin}}">
 {{#if field:parameters}}

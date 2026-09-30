@@ -19,12 +19,12 @@
 mod test_anthropomorphic_generation {
     use hymeko_formats::sdf::generate_sdf;
     use hymeko_formats::urdf::generate_urdf;
-    use hymeko_query::engine::QueryEngine;
     use hymeko_geometry::kinematics::joints::{JointInfo, JointType};
     use hymeko_geometry::kinematics::kinematic::*;
     use hymeko_geometry::transforms::{
         DomainTransform, ModelView, TransformConfig, TransformRegistry,
     };
+    use hymeko_query::engine::QueryEngine;
     use hymeko_query::{Predicate, ValuePredicate};
     use log::info;
     use std::time::Instant;
@@ -157,13 +157,22 @@ mod test_anthropomorphic_generation {
 
         // B-004: the six revolute joints must be present (the template emitted none).
         let n_joints = mjcf.matches("<joint ").count();
-        assert_eq!(n_joints, 6, "expected 6 hinge joints in MJCF, got {n_joints}");
+        assert_eq!(
+            n_joints, 6,
+            "expected 6 hinge joints in MJCF, got {n_joints}"
+        );
 
         // B-005: mixed per-joint axes survive to the emitted scene. The canonical arm uses only
         // local X and Z (no Y token) — both must be present (mixedness), proving axes are not
         // collapsed onto a single direction.
-        assert!(mjcf.contains("axis=\"1 0 0\""), "MJCF missing an X-axis joint (B-005)");
-        assert!(mjcf.contains("axis=\"0 0 1\""), "MJCF missing a Z-axis joint (B-005)");
+        assert!(
+            mjcf.contains("axis=\"1 0 0\""),
+            "MJCF missing an X-axis joint (B-005)"
+        );
+        assert!(
+            mjcf.contains("axis=\"0 0 1\""),
+            "MJCF missing a Z-axis joint (B-005)"
+        );
 
         // world frame maps onto the implicit worldbody — no colliding `<body name="world">`.
         assert!(
@@ -173,7 +182,10 @@ mod test_anthropomorphic_generation {
 
         // every `<inertial>` carries the required `pos` attribute.
         for line in mjcf.lines().filter(|l| l.contains("<inertial")) {
-            assert!(line.contains("pos="), "<inertial> missing required pos: {line}");
+            assert!(
+                line.contains("pos="),
+                "<inertial> missing required pos: {line}"
+            );
         }
     }
 

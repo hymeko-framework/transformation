@@ -1,7 +1,7 @@
-use hymeko::common::ids::DeclId;
-use hymeko::ir::ir::{DeclKind, Ir, ValueR};
 use crate::predicate::*;
 use crate::traits::NameResolver;
+use hymeko::common::ids::DeclId;
+use hymeko::ir::ir::{DeclKind, Ir, ValueR};
 
 /// A single match result with captured arc bindings.
 #[derive(Debug, Clone)]
@@ -37,7 +37,11 @@ pub struct QueryConfig {
 }
 
 impl Default for QueryConfig {
-    fn default() -> Self { Self { max_inherit_depth: 8 } }
+    fn default() -> Self {
+        Self {
+            max_inherit_depth: 8,
+        }
+    }
 }
 
 pub struct QueryEngine<'a, R: NameResolver> {
@@ -48,17 +52,23 @@ pub struct QueryEngine<'a, R: NameResolver> {
 
 impl<'a, R: NameResolver> QueryEngine<'a, R> {
     pub fn new(ir: &'a Ir, resolver: &'a R) -> Self {
-        Self { ir, resolver, config: QueryConfig::default() }
+        Self {
+            ir,
+            resolver,
+            config: QueryConfig::default(),
+        }
     }
 
-    pub fn ir(&self) -> &Ir { self.ir }
-    pub fn resolver(&self) -> &R { self.resolver }
+    /// Borrowed for the engine's `'a`, so results outlive a temporary engine.
+    pub fn ir(&self) -> &'a Ir {
+        self.ir
+    }
+    pub fn resolver(&self) -> &'a R {
+        self.resolver
+    }
 
     /// Iterator-based core: lazy evaluation, early exit possible.
-    pub fn query_iter<'b>(
-        &'b self,
-        pred: &'b Predicate,
-    ) -> impl Iterator<Item = QueryMatch> + 'b {
+    pub fn query_iter<'b>(&'b self, pred: &'b Predicate) -> impl Iterator<Item = QueryMatch> + 'b {
         let ir = self.ir;
         (0..ir.decl_nodes.len())
             .map(DeclId::new)
@@ -81,16 +91,25 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
         self.query_iter(pred).next()
     }
 
+    /// Test an identity from this document without scanning unrelated declarations.
+    /// Missing or out-of-range identities never match, including `Any`.
+    pub fn query_decl(&self, id: DeclId, pred: &Predicate) -> Option<QueryMatch> {
+        (self.ir.decl_node(id).is_some() && self.matches(id, pred, 0)).then(|| self.build_match(id))
+    }
+
     /// Batch: run multiple named queries, return results keyed by label.
     pub fn query_batch(&self, queries: &[NamedQuery]) -> Vec<(String, Vec<QueryMatch>)> {
-        queries.iter().map(|nq| {
-            (nq.label.clone(), self.query(&nq.predicate))
-        }).collect()
+        queries
+            .iter()
+            .map(|nq| (nq.label.clone(), self.query(&nq.predicate)))
+            .collect()
     }
 
     /// Check if a DeclId matches a predicate.
     fn matches(&self, did: DeclId, pred: &Predicate, depth: usize) -> bool {
-        if did.is_none() { return false; }
+        if did.is_none() {
+            return false;
+        }
         let decl = &self.ir.decl_nodes[did.raw()];
 
         match pred {
@@ -100,16 +119,26 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
             Predicate::NamePrefix(p) => self.resolver.resolve(decl.name).starts_with(p.as_str()),
 
             Predicate::InheritsFrom(base) => {
-                self.check_inheritance(did, base, self.config.max_inherit_depth)
+                self.check_inheritance(did, self.config.max_inherit_depth, &|target| {
+                    self.resolver.resolve(self.ir.decl_nodes[target.raw()].name) == base
+                })
+            }
+            Predicate::InheritsFromId(base) => {
+                self.check_inheritance(did, self.config.max_inherit_depth, &|target| {
+                    target == *base
+                })
             }
 
-            Predicate::HasTag(tag) => {
-                decl.anno.tags.iter().any(|&t| self.resolver.resolve(t) == tag.as_str())
-            }
+            Predicate::HasTag(tag) => decl
+                .anno
+                .tags
+                .iter()
+                .any(|&t| self.resolver.resolve(t) == tag.as_str()),
 
-            Predicate::HasChild(inner) => {
-                self.ir.decl_children(did).any(|c| self.matches(c, inner, depth + 1))
-            }
+            Predicate::HasChild(inner) => self
+                .ir
+                .decl_children(did)
+                .any(|c| self.matches(c, inner, depth + 1)),
 
             Predicate::HasParent(inner) => {
                 let parent = self.ir.parent(did);
@@ -118,13 +147,13 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
 
             Predicate::HasValue(vp) => self.match_value(did, vp),
 
-            Predicate::ChildValue(name, vp) => {
-                self.ir.decl_children(did).any(|c| {
-                    let cn = &self.ir.decl_nodes[c.raw()];
-                    self.resolver.resolve(cn.name) == name.as_str()
-                        && self.match_value(c, vp)
-                })
-            }
+            Predicate::ChildValue(name, vp) => self.ir.decl_children(did).any(|c| {
+                let cn = &self.ir.decl_nodes[c.raw()];
+                self.resolver.resolve(cn.name) == name.as_str() && self.match_value(c, vp)
+            }),
+            Predicate::EffectiveChildValue(name, vp) => self
+                .effective_child(did, name)
+                .is_some_and(|child| self.match_value(child, vp)),
 
             Predicate::HasPlusRef(inner) => self.match_signed_ref(did, 1, inner),
             Predicate::HasMinusRef(inner) => self.match_signed_ref(did, -1, inner),
@@ -142,13 +171,26 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
     }
 
     /// Walk the base chain up to max_depth.
-    fn check_inheritance(&self, did: DeclId, target_base: &str, max_depth: usize) -> bool {
-        if max_depth == 0 { return false; }
+    fn check_inheritance(
+        &self,
+        did: DeclId,
+        max_depth: usize,
+        is_base: &impl Fn(DeclId) -> bool,
+    ) -> bool {
+        if max_depth == 0 {
+            return false;
+        }
 
         let decl = &self.ir.decl_nodes[did.raw()];
         let bases = match decl.kind {
-            DeclKind::Node => self.ir.as_node(did).map(|nid| &self.ir.nodes[nid.raw()].bases),
-            DeclKind::Edge => self.ir.as_edge(did).map(|eid| &self.ir.edges[eid.raw()].bases),
+            DeclKind::Node => self
+                .ir
+                .as_node(did)
+                .map(|nid| &self.ir.nodes[nid.raw()].bases),
+            DeclKind::Edge => self
+                .ir
+                .as_edge(did)
+                .map(|eid| &self.ir.edges[eid.raw()].bases),
             DeclKind::HyperArc => None,
         };
 
@@ -156,11 +198,10 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
             for b in bases {
                 let target_did = b.target();
                 if !target_did.is_none() {
-                    let bn = self.resolver.resolve(self.ir.decl_nodes[target_did.raw()].name);
-                    if bn == target_base {
+                    if is_base(target_did) {
                         return true;
                     }
-                    if self.check_inheritance(target_did, target_base, max_depth - 1) {
+                    if self.check_inheritance(target_did, max_depth - 1, is_base) {
                         return true;
                     }
                 }
@@ -171,13 +212,15 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
 
     /// Check signed arc references for an edge declaration.
     fn match_signed_ref(&self, did: DeclId, sign: i8, inner: &Predicate) -> bool {
-        let Some(eid) = self.ir.as_edge(did) else { return false; };
+        let Some(eid) = self.ir.as_edge(did) else {
+            return false;
+        };
         let edge = &self.ir.edges[eid.raw()];
 
         for &aid in &edge.arcs {
             let arc = &self.ir.arcs[aid.raw()];
             for r in &arc.refs {
-                if (sign == 0 || r.sign() == sign) && self.matches(r.target(), inner, 0) {
+                if r.sign() == sign && self.matches(r.target(), inner, 0) {
                     return true;
                 }
             }
@@ -207,7 +250,9 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
                 for r in &arc.refs {
                     let atom = r.atom();
                     let target_name = if !atom.target.is_none() {
-                        self.resolver.resolve(self.ir.decl_nodes[atom.target.raw()].name).to_string()
+                        self.resolver
+                            .resolve(self.ir.decl_nodes[atom.target.raw()].name)
+                            .to_string()
                     } else {
                         String::new()
                     };

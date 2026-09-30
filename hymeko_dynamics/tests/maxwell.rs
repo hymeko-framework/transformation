@@ -13,7 +13,7 @@ mod common;
 
 use common::Parameters;
 use hymeko_dynamics::analysis::{modes, response};
-use hymeko_dynamics::run::{run, Integrator};
+use hymeko_dynamics::run::{Integrator, run};
 
 macro_rules! system {
     () => {
@@ -41,12 +41,18 @@ macro_rules! variant {
 
 /// Zeroing every loss and the drive: what the closed-form oracles are derived for.
 const LOSSLESS: &[(&str, &str)] = &[
-    ("R: kind.parameter { unit u.ohm;    value 12.0; }",
-     "R: kind.parameter { unit u.ohm;    value 0.0; }"),
-    ("sigma:   kind.parameter { unit pu.siemens; value 0.00025; }",
-     "sigma:   kind.parameter { unit pu.siemens; value 0.0; }"),
-    ("source_amplitude: kind.parameter { unit u.volt;   value 10.0; }",
-     "source_amplitude: kind.parameter { unit u.volt;   value 0.0; }"),
+    (
+        "R: kind.parameter { unit u.ohm;    value 12.0; }",
+        "R: kind.parameter { unit u.ohm;    value 0.0; }",
+    ),
+    (
+        "sigma:   kind.parameter { unit pu.siemens; value 0.00025; }",
+        "sigma:   kind.parameter { unit pu.siemens; value 0.0; }",
+    ),
+    (
+        "source_amplitude: kind.parameter { unit u.volt;   value 10.0; }",
+        "source_amplitude: kind.parameter { unit u.volt;   value 0.0; }",
+    ),
 ];
 
 // ─── 1. against the hand-written implementation ─────────────────────────────────────────────────
@@ -77,7 +83,10 @@ fn the_assembled_structure_reproduces_the_hand_written_matrix() {
         0.0, 0.0, -p.g, 0.0,
     ];
     assert_eq!(j, want, "the declared chain is not the hand-written J");
-    assert_eq!(system.port_hamiltonian.dissipation, vec![0.0, r, sigma, 0.0]);
+    assert_eq!(
+        system.port_hamiltonian.dissipation,
+        vec![0.0, r, sigma, 0.0]
+    );
 
     // `Q = diag(1/C, 1/L, 1/Cf, 1/Lf)` — the hand-written `hessian()`, from the declared capacities.
     let energy = &system.port_hamiltonian.energy;
@@ -98,7 +107,12 @@ fn the_assembled_structure_reproduces_the_hand_written_matrix() {
         .collect();
     assert_eq!(
         names,
-        vec!["charge", "circuit_flux", "displacement_flux", "magnetic_flux"]
+        vec![
+            "charge",
+            "circuit_flux",
+            "displacement_flux",
+            "magnetic_flux"
+        ]
     );
 }
 
@@ -198,11 +212,16 @@ fn the_coupling_splits_the_modes_and_preserves_their_product() {
         );
     }
     // At zero coupling the two are exactly the uncoupled frequencies.
-    let system = variant!(&[LOSSLESS, &[(
-        "k_coupling: kind.parameter { unit u.dimensionless; value 0.36; }",
-        "k_coupling: kind.parameter { unit u.dimensionless; value 0.0; }",
-    )]]
-    .concat());
+    let system = variant!(
+        &[
+            LOSSLESS,
+            &[(
+                "k_coupling: kind.parameter { unit u.dimensionless; value 0.36; }",
+                "k_coupling: kind.parameter { unit u.dimensionless; value 0.0; }",
+            )]
+        ]
+        .concat()
+    );
     let found = modes(&system).expect("the analysis is trustworthy");
     let uncoupled = [wc.min(wf), wc.max(wf)];
     for (mode, want) in found.iter().zip(uncoupled) {
@@ -219,7 +238,14 @@ fn the_lossless_system_conserves_its_energy() {
     let system = variant!(LOSSLESS);
     // Start with charge on the capacitor and nothing else: one store full, three empty.
     let initial = [1.0e-6, 0.0, 0.0, 0.0];
-    let trace = run(&system, &initial, 4.0e-3, 2.0e-7, 50, Integrator::DiscreteGradient);
+    let trace = run(
+        &system,
+        &initial,
+        4.0e-3,
+        2.0e-7,
+        50,
+        Integrator::DiscreteGradient,
+    );
 
     assert!(
         trace.energy_drift() < 1e-12,
@@ -243,7 +269,14 @@ fn the_balance_is_exact_for_the_structure_preserving_step() {
     let system = system!();
     let initial = [0.0; 4];
 
-    let structured = run(&system, &initial, 2.0e-3, 2.0e-7, 100, Integrator::DiscreteGradient);
+    let structured = run(
+        &system,
+        &initial,
+        2.0e-3,
+        2.0e-7,
+        100,
+        Integrator::DiscreteGradient,
+    );
     let blind = run(&system, &initial, 2.0e-3, 2.0e-7, 100, Integrator::Rk4);
 
     println!(
@@ -284,7 +317,10 @@ fn the_analysis_predicts_the_transient() {
     probes.push(0.5 * (found[0].frequency_hz + found[1].frequency_hz));
     probes.sort_by(f64::total_cmp);
 
-    println!("  {:>10}  {:>14}  {:>14}  {:>10}", "drive Hz", "predicted V", "simulated V", "rel.err");
+    println!(
+        "  {:>10}  {:>14}  {:>14}  {:>10}",
+        "drive Hz", "predicted V", "simulated V", "rel.err"
+    );
     for probe in probes {
         let system = variant!(&[(
             "source_frequency: kind.parameter { unit pu.hertz; value 6000.0; }",
@@ -297,7 +333,14 @@ fn the_analysis_predicts_the_transient() {
 
         // Long enough for the transient to die: the slowest mode decays at a few hundred per
         // second, so ten milliseconds is dozens of time constants.
-        let trace = run(&system, &[0.0; 4], 1.2e-2, 1.0e-7, 20, Integrator::DiscreteGradient);
+        let trace = run(
+            &system,
+            &[0.0; 4],
+            1.2e-2,
+            1.0e-7,
+            20,
+            Integrator::DiscreteGradient,
+        );
         let simulated = trace.amplitude(observable, 0.15);
 
         let error = (simulated - predicted).abs() / predicted.max(1e-12);
@@ -323,7 +366,14 @@ fn the_poynting_readout_is_the_power_crossing_the_curl_port() {
     let electric = system.observable_of("electric_effort").expect("declared");
     let magnetic = system.observable_of("magnetic_effort").expect("declared");
 
-    let trace = run(&system, &[0.0; 4], 1.0e-3, 2.0e-7, 20, Integrator::DiscreteGradient);
+    let trace = run(
+        &system,
+        &[0.0; 4],
+        1.0e-3,
+        2.0e-7,
+        20,
+        Integrator::DiscreteGradient,
+    );
     let mut worst: f64 = 0.0;
     let mut scale: f64 = 0.0;
     for k in 0..trace.times.len() {
@@ -460,7 +510,10 @@ fn the_geometry_implies_the_declared_capacity() {
         "every coordinate needs a mode before a field can be drawn"
     );
 
-    println!("  {:<34} {:>16} {:>16} {:>10}", "region", "declared", "implied", "rel.err");
+    println!(
+        "  {:<34} {:>16} {:>16} {:>10}",
+        "region", "declared", "implied", "rel.err"
+    );
     for region in &system.regions {
         let declared = system.coordinates[region.coordinate].capacity;
         let implied = region.shape.implied_capacity();
@@ -489,7 +542,14 @@ fn the_geometry_implies_the_declared_capacity() {
 #[test]
 fn the_field_energy_is_the_stored_energy() {
     let system = system!();
-    let trace = run(&system, &[0.0; 4], 2.0e-3, 2.0e-7, 40, Integrator::DiscreteGradient);
+    let trace = run(
+        &system,
+        &[0.0; 4],
+        2.0e-3,
+        2.0e-7,
+        40,
+        Integrator::DiscreteGradient,
+    );
 
     // Re-run recording the state, since the trace records observables.
     let mut x = vec![0.0; system.dim()];
@@ -515,9 +575,7 @@ fn the_field_energy_is_the_stored_energy() {
             worst = worst.max((from_geometry - hamiltonian).abs() / hamiltonian);
         }
     }
-    println!(
-        "peak stored energy {peak:.6e} J; worst field-vs-Hamiltonian disagreement {worst:e}"
-    );
+    println!("peak stored energy {peak:.6e} J; worst field-vs-Hamiltonian disagreement {worst:e}");
     assert!(
         worst < 1e-13,
         "the drawn field and the simulated coordinate hold different energies: {worst:e}"
@@ -548,8 +606,7 @@ fn the_regions_sample_a_field_a_renderer_can_draw() {
     let (width, depth) = electric.span();
     assert!((width - 0.0372704992233096_f64.sqrt()).abs() < 1e-12);
     assert!((depth - 0.001).abs() < 1e-15);
-    for sample in &samples {
-    }
+    for sample in &samples {}
     // Reversing the effort reverses the field rather than the geometry.
     let reversed = electric.sample(-100.0, 5);
     assert_eq!(reversed[0].direction, samples[0].direction);
@@ -571,7 +628,11 @@ fn the_regions_sample_a_field_a_renderer_can_draw() {
         panic!("the field coil is a solenoid");
     };
     assert!((round[0].magnitude - turns / length).abs() / round[0].magnitude < 1e-15);
-    assert!((round[0].magnitude - 3518.1).abs() < 1.0, "{} A/m", round[0].magnitude);
+    assert!(
+        (round[0].magnitude - 3518.1).abs() < 1.0,
+        "{} A/m",
+        round[0].magnitude
+    );
 }
 
 // ─── compiling without a file system ────────────────────────────────────────────────────────────

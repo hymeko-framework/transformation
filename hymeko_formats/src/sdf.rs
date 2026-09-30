@@ -2,9 +2,11 @@
 //! SDF 1.7 format for Gazebo compatibility.
 
 use hymeko::ir::ir::Ir;
-use hymeko_query::QueryEngine;
 use hymeko_geometry::kinematics::joints::JointType;
-use hymeko_geometry::kinematics::kinematic::{extract_kinematic_model, GeometryInfo, GeometryShape, KinematicModel};
+use hymeko_geometry::kinematics::kinematic::{
+    GeometryInfo, GeometryShape, KinematicModel, extract_kinematic_model,
+};
+use hymeko_query::QueryEngine;
 use hymeko_query::traits::NameResolver;
 
 /// Generate SDF XML string from a compiled IR.
@@ -55,7 +57,8 @@ pub fn generate_sdf_from_model(model: &KinematicModel) -> String {
     for joint in &model.joints {
         out.push_str(&format!(
             "    <joint name=\"{}\" type=\"{}\">\n",
-            joint.name, joint.joint_type.sdf_str()
+            joint.name,
+            joint.joint_type.sdf_str()
         ));
         out.push_str(&format!("      <parent>{}</parent>\n", joint.parent_link));
         out.push_str(&format!("      <child>{}</child>\n", joint.child_link));
@@ -109,17 +112,12 @@ pub fn generate_sdf_from_model(model: &KinematicModel) -> String {
                     JointType::Revolute | JointType::Prismatic => {
                         if let Some(ref lim) = joint.limits {
                             out.push_str("        <limit>\n");
+                            out.push_str(&format!("          <lower>{}</lower>\n", lim.lower,));
+                            out.push_str(&format!("          <upper>{}</upper>\n", lim.upper,));
+                            out.push_str(&format!("          <effort>{}</effort>\n", lim.effort,));
                             out.push_str(&format!(
-                                "          <lower>{}</lower>\n", lim.lower,
-                            ));
-                            out.push_str(&format!(
-                                "          <upper>{}</upper>\n", lim.upper,
-                            ));
-                            out.push_str(&format!(
-                                "          <effort>{}</effort>\n", lim.effort,
-                            ));
-                            out.push_str(&format!(
-                                "          <velocity>{}</velocity>\n", lim.velocity,
+                                "          <velocity>{}</velocity>\n",
+                                lim.velocity,
                             ));
                             out.push_str("        </limit>\n");
                         }

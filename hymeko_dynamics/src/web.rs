@@ -10,7 +10,7 @@
 use wasm_bindgen::prelude::*;
 
 use crate::analysis::modes;
-use crate::run::{run, Integrator};
+use crate::run::{Integrator, run};
 use crate::sources::project_sources;
 use crate::system::Readout;
 
@@ -39,8 +39,8 @@ pub fn transient(
         .map(String::as_str)
         .zip(texts.iter().map(String::as_str))
         .collect();
-    let (system, _, _) = project_sources(&entry, &files)
-        .map_err(|e| JsValue::from_str(&format!("{e:?}")))?;
+    let (system, _, _) =
+        project_sources(&entry, &files).map_err(|e| JsValue::from_str(&format!("{e:?}")))?;
 
     let found = modes(&system).map_err(|e| JsValue::from_str(&format!("analysis: {e:?}")))?;
     // Forty time constants of the slowest decay leaves under 1e-17 of the transient; thirty samples
@@ -49,10 +49,7 @@ pub fn transient(
         .iter()
         .map(|m| m.damping_per_s)
         .fold(f64::INFINITY, f64::min);
-    let fastest = found
-        .iter()
-        .map(|m| m.frequency_hz)
-        .fold(0.0, f64::max);
+    let fastest = found.iter().map(|m| m.frequency_hz).fold(0.0, f64::max);
     let duration = if duration > 0.0 {
         duration
     } else if slowest.is_finite() && slowest > 0.0 {
@@ -190,8 +187,16 @@ pub fn scene(
         .map(|m| m.damping_per_s)
         .fold(f64::INFINITY, f64::min);
     let fastest = found.iter().map(|m| m.frequency_hz).fold(0.0, f64::max);
-    let duration = if slowest.is_finite() && slowest > 0.0 { 12.0 / slowest } else { 1.0 };
-    let step = if fastest > 0.0 { 1.0 / (fastest * 40.0) } else { duration / 4000.0 };
+    let duration = if slowest.is_finite() && slowest > 0.0 {
+        12.0 / slowest
+    } else {
+        1.0
+    };
+    let step = if fastest > 0.0 {
+        1.0 / (fastest * 40.0)
+    } else {
+        duration / 4000.0
+    };
     let steps = (duration / step).max(1.0) as usize;
     let stride = (steps / frames.clamp(30, 900)).max(1);
 
@@ -301,7 +306,10 @@ pub fn scene(
             .map(|r| {
                 format!(
                     "[{}]",
-                    r.iter().map(|v| format!("{v:.5e}")).collect::<Vec<_>>().join(",")
+                    r.iter()
+                        .map(|v| format!("{v:.5e}"))
+                        .collect::<Vec<_>>()
+                        .join(",")
                 )
             })
             .collect::<Vec<_>>()

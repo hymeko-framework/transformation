@@ -29,10 +29,7 @@ mod tests {
 
     #[test]
     fn escapes_all_five() {
-        assert_eq!(
-            xml_escape("&<>\"'"),
-            "&amp;&lt;&gt;&quot;&apos;"
-        );
+        assert_eq!(xml_escape("&<>\"'"), "&amp;&lt;&gt;&quot;&apos;");
     }
 
     #[test]

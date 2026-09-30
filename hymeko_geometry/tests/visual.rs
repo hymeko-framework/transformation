@@ -120,3 +120,23 @@ fn visual_groups_are_flat_and_bounded() {
     assert_eq!(project(&source(16, 64)).unwrap().1.instances.len(), 1024);
     assert!(project(&source(17, 64)).is_err());
 }
+
+#[test]
+fn inherited_material_and_geometry_match_explicit_links_with_local_overrides() {
+    let prefix = "m {} types { link {} sphere {} } blue { color [0.1,0.2,0.9,1]; } base { mass 2; origin [0,0,0]; link_geometry: types.sphere { dimension [0.1]; } }";
+    let inherited = format!("{prefix} robot {{ a: types.link, blue, base {{}} b: types.link, blue, base {{ mass 3; color [1,0,0,1]; link_geometry: types.sphere {{ dimension [0.2]; }} }} }}");
+    let explicit = "m {} types { link {} sphere {} } robot { a: types.link { mass 2; origin [0,0,0]; color [0.1,0.2,0.9,1]; link_geometry: types.sphere { dimension [0.1]; } } b: types.link { mass 3; origin [0,0,0]; color [1,0,0,1]; link_geometry: types.sphere { dimension [0.2]; } } }";
+    let (a, av) = project(&inherited).unwrap();
+    let (b, bv) = project(explicit).unwrap();
+    assert_eq!(a.links.len(), 2, "property templates must not become physical bodies");
+    for (a, b) in a.links.iter().zip(&b.links) {
+        assert_eq!((&a.name, a.mass, &a.origin, &a.color), (&b.name, b.mass, &b.origin, &b.color));
+        assert_eq!(format!("{:?}", a.geometry), format!("{:?}", b.geometry));
+    }
+    assert_eq!(av.instances.len(), bv.instances.len());
+    for (a, b) in av.instances.iter().zip(&bv.instances) {
+        assert_eq!(a.color, b.color);
+        assert_eq!(a.local_pose.apply(&[0.;3]), b.local_pose.apply(&[0.;3]));
+    }
+    assert!(project(&inherited.replace("color [1,0,0,1]", "color [2,0,0,1]")).is_err(), "invalid own material cannot silently fall back to a base");
+}

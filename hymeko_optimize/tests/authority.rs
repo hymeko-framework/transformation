@@ -15,7 +15,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use hymeko::ir::ir::DeclKind;
-use hymeko_optimize::backend::{multistart, starts, AugmentedLagrangian, Backend};
+use hymeko_optimize::backend::{AugmentedLagrangian, Backend, multistart, starts};
 use hymeko_optimize::problem::{Kind, Problem};
 use hymeko_optimize::read::project;
 
@@ -70,7 +70,11 @@ fn verdict_hymeko_semantic_owner() {
         "R2 moved to {}",
         solved.decisions[1].value
     );
-    assert!((solved.objective - 4.875).abs() < 1e-6, "{}", solved.objective);
+    assert!(
+        (solved.objective - 4.875).abs() < 1e-6,
+        "{}",
+        solved.objective
+    );
     assert!(
         (solved.value_of("V_A_disconnected").expect("a readout") - 2.5).abs() < 1e-6,
         "the new limit is the one that binds"
@@ -89,8 +93,10 @@ fn verdict_hymeko_semantic_owner() {
 fn infeasible_contract_is_reported() {
     let Some(variant) = variant_of(
         "resistor_divider.hymeko",
-        &[("kind.parameter { unit u.volt; value 1.5; }",
-           "kind.parameter { unit u.volt; value 2.5; }")],
+        &[(
+            "kind.parameter { unit u.volt; value 1.5; }",
+            "kind.parameter { unit u.volt; value 2.5; }",
+        )],
     ) else {
         eprintln!("skipped: core/data/optimization is not in this checkout");
         return;
@@ -198,7 +204,10 @@ fn verdict_one_editable_declaration() {
 
     // And this crate carries no copy of the model or the meta-model.
     for file in sources(&crate_root(), "hymeko") {
-        panic!("a copy of a model lives in the consumer: {}", file.display());
+        panic!(
+            "a copy of a model lives in the consumer: {}",
+            file.display()
+        );
     }
 }
 
@@ -235,7 +244,11 @@ fn verdict_scenario_identity_parity() {
     // one objective, one net list. A per-scenario copy of any of them would show up as a duplicate
     // declaration id.
     let ids: HashSet<_> = problem.quantities.iter().map(|q| q.decl).collect();
-    assert_eq!(ids.len(), problem.quantities.len(), "no quantity is declared twice");
+    assert_eq!(
+        ids.len(),
+        problem.quantities.len(),
+        "no quantity is declared twice"
+    );
     let ids: HashSet<_> = problem.nets.iter().collect();
     assert_eq!(ids.len(), problem.nets.len(), "no net is declared twice");
 
@@ -297,8 +310,10 @@ fn verdict_typed_projection_parity() {
     // the language cannot check it, and the backend must never see it.
     let Some(variant) = variant_of(
         "resistor_divider.hymeko",
-        &[("V_A_connected:    kind.derived { unit u.volt; }",
-           "V_A_connected:    kind.derived { unit u.ohm; }")],
+        &[(
+            "V_A_connected:    kind.derived { unit u.volt; }",
+            "V_A_connected:    kind.derived { unit u.ohm; }",
+        )],
     ) else {
         return;
     };
@@ -404,7 +419,10 @@ fn verdict_deterministic_multistart() {
         "starts disagreed by {spread:e}: {:#?}",
         converged
             .iter()
-            .map(|s| (s.start.clone(), s.decisions.iter().map(|d| d.value).collect::<Vec<_>>()))
+            .map(|s| (
+                s.start.clone(),
+                s.decisions.iter().map(|d| d.value).collect::<Vec<_>>()
+            ))
             .collect::<Vec<_>>()
     );
 }
@@ -442,9 +460,11 @@ fn verdict_clean_checkout_qualification() {
 
     // The model lives in its owner's repository and is reached by a relative path from this crate,
     // so a checkout without it skips rather than fails.
-    assert!(common::model_path("resistor_divider.hymeko")
-        .to_string_lossy()
-        .contains("core"));
+    assert!(
+        common::model_path("resistor_divider.hymeko")
+            .to_string_lossy()
+            .contains("core")
+    );
 }
 
 // ─── CoreIRChangeRequired ───────────────────────────────────────────────────────────────────────
@@ -578,7 +598,8 @@ fn strip_comments(text: &str, path: &Path) -> String {
             }
             if i + 2 < bytes.len() && bytes[i..i + 3].iter().collect::<String>() == "\"\"\"" {
                 i += 3;
-                while i + 2 < bytes.len() && bytes[i..i + 3].iter().collect::<String>() != "\"\"\"" {
+                while i + 2 < bytes.len() && bytes[i..i + 3].iter().collect::<String>() != "\"\"\""
+                {
                     i += 1;
                 }
                 i = (i + 3).min(bytes.len());

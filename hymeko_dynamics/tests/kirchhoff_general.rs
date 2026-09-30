@@ -65,12 +65,18 @@ fn the_interconnection_moves_power_and_does_not_make_it() {
 /// The general law applies where the circuit-specific ones do not exist.
 #[test]
 fn a_system_with_no_drawing_still_has_the_law() {
-    let Some(system) = load("maxwell_rlc.hymeko") else { return };
+    let Some(system) = load("maxwell_rlc.hymeko") else {
+        return;
+    };
     let laws = system.kirchhoff(&vec![1e-6; system.dim()], 0.0);
     assert!(system.wires.is_empty(), "this model draws no circuit");
     assert_eq!(laws.node, None, "no junctions, so no node law");
     assert_eq!(laws.loops, None, "no branches, so no loop law");
-    assert!(laws.tellegen < 1e-12, "and Tellegen still holds: {:e}", laws.tellegen);
+    assert!(
+        laws.tellegen < 1e-12,
+        "and Tellegen still holds: {:e}",
+        laws.tellegen
+    );
 }
 
 /// What the branches bring a junction equals what the store there absorbs.
@@ -108,7 +114,9 @@ fn a_branch_turned_round_breaks_the_node_law() {
     ) else {
         return;
     };
-    let Some(sound) = load("divider_maxwell.hymeko") else { return };
+    let Some(sound) = load("divider_maxwell.hymeko") else {
+        return;
+    };
 
     let x: Vec<f64> = (0..sound.dim())
         .map(|k| ((k * 7 + 3) as f64).sin() * 1e-5)

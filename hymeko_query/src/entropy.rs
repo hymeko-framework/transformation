@@ -244,7 +244,6 @@ mod tests {
             next_sibling: DeclId::NONE,
             anno: AnnoR::default(),
         });
-        ir.decl_hash.push(None);
 
         // Chain into parent's child list (append).
         if parent.is_some() {

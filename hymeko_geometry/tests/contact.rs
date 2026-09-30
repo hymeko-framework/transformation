@@ -8,15 +8,15 @@
 use hymeko::common::ids::DeclId;
 use hymeko_clifford::Se3;
 use hymeko_geometry::articulated::AbaPlan;
-use hymeko_geometry::collide::{colliders_of, place, Collider, Placement};
+use hymeko_geometry::collide::{Collider, Placement, colliders_of, place};
 use hymeko_geometry::contact::{
-    ground_constraints, ground_contacts, ConstraintSolver, ContactParameters, Constraint,
-    GroundContact,
+    Constraint, ConstraintSolver, ContactParameters, GroundContact, ground_constraints,
+    ground_contacts,
 };
 use hymeko_geometry::forward::FkPlan;
 use hymeko_geometry::kinematics::joints::{JointInfo, JointType};
 use hymeko_geometry::kinematics::kinematic::{
-    extract_kinematic_model, GeometryInfo, GeometryShape, KinematicModel, LinkInfo,
+    GeometryInfo, GeometryShape, KinematicModel, LinkInfo, extract_kinematic_model,
 };
 
 const G: f64 = 9.81;
@@ -323,7 +323,10 @@ fn the_dense_solve_is_the_size_of_the_contact_set_not_the_mechanism() {
     // Put the plane at the actual lowest support point of the authored geometry.
     e.plan.resolve_se3(&e.model, &e.q, &mut e.poses);
     place(&e.colliders, &e.poses, &mut e.placed);
-    e.ground_height = e.colliders.iter().zip(&e.placed)
+    e.ground_height = e
+        .colliders
+        .iter()
+        .zip(&e.placed)
         .map(|(collider, placed)| placed.support(&collider.shape, [0.0, 0.0, -1.0])[2])
         .fold(f64::INFINITY, f64::min);
     e.step(1.0 / 240.0, &vec![0.0; n]);
@@ -492,7 +495,11 @@ fn a_box_pushed_below_the_friction_limit_does_not_move() {
             "a push of {push} N against a limit of {limit} N moved it {} m",
             e.q[0]
         );
-        assert!(e.qd[0].abs() < 1e-9, "and left it sliding at {} m/s", e.qd[0]);
+        assert!(
+            e.qd[0].abs() < 1e-9,
+            "and left it sliding at {} m/s",
+            e.qd[0]
+        );
     }
 }
 

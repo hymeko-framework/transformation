@@ -61,12 +61,7 @@ impl GazeboPluginInfo {
 }
 
 /// Resolve a single string-valued child of `did` with the given name.
-fn find_child_str<R: NameResolver>(
-    ir: &Ir,
-    res: &R,
-    did: DeclId,
-    name: &str,
-) -> Option<String> {
+fn find_child_str<R: NameResolver>(ir: &Ir, res: &R, did: DeclId, name: &str) -> Option<String> {
     ir.decl_children(did).find_map(|cid| {
         let child = &ir.decl_nodes[cid.raw()];
         if res.resolve(child.name) != name {

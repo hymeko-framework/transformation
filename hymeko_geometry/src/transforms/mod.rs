@@ -20,7 +20,7 @@ pub mod model_view;
 pub mod transform_engine;
 
 // Re-exports
-pub use model_view::{ModelView, ModelKind, extract, extract_kinematic};
+pub use model_view::{ModelKind, ModelView, extract, extract_kinematic};
 pub use transform_engine::TransformEngine;
 
 use std::path::Path;
@@ -65,12 +65,14 @@ pub trait DomainTransform {
             for joint in &km.joints {
                 if !link_names.contains(joint.parent_link.as_str()) {
                     diags.push(Diagnostic::error(format!(
-                        "Joint '{}': unknown parent '{}'", joint.name, joint.parent_link
+                        "Joint '{}': unknown parent '{}'",
+                        joint.name, joint.parent_link
                     )));
                 }
                 if !link_names.contains(joint.child_link.as_str()) {
                     diags.push(Diagnostic::error(format!(
-                        "Joint '{}': unknown child '{}'", joint.name, joint.child_link
+                        "Joint '{}': unknown child '{}'",
+                        joint.name, joint.child_link
                     )));
                 }
             }
@@ -102,10 +104,12 @@ impl Default for TransformConfig {
 
 impl TransformConfig {
     pub fn with_name(mut self, name: &str) -> Self {
-        self.robot_name = name.into(); self
+        self.robot_name = name.into();
+        self
     }
     pub fn with_option(mut self, key: &str, value: &str) -> Self {
-        self.options.insert(key.into(), value.into()); self
+        self.options.insert(key.into(), value.into());
+        self
     }
 }
 
@@ -118,13 +122,34 @@ pub struct Diagnostic {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DiagLevel { Info, Warning, Error }
+pub enum DiagLevel {
+    Info,
+    Warning,
+    Error,
+}
 
 impl Diagnostic {
-    pub fn info(msg: impl Into<String>) -> Self { Self { level: DiagLevel::Info, message: msg.into() } }
-    pub fn warning(msg: impl Into<String>) -> Self { Self { level: DiagLevel::Warning, message: msg.into() } }
-    pub fn error(msg: impl Into<String>) -> Self { Self { level: DiagLevel::Error, message: msg.into() } }
-    pub fn is_error(&self) -> bool { self.level == DiagLevel::Error }
+    pub fn info(msg: impl Into<String>) -> Self {
+        Self {
+            level: DiagLevel::Info,
+            message: msg.into(),
+        }
+    }
+    pub fn warning(msg: impl Into<String>) -> Self {
+        Self {
+            level: DiagLevel::Warning,
+            message: msg.into(),
+        }
+    }
+    pub fn error(msg: impl Into<String>) -> Self {
+        Self {
+            level: DiagLevel::Error,
+            message: msg.into(),
+        }
+    }
+    pub fn is_error(&self) -> bool {
+        self.level == DiagLevel::Error
+    }
 }
 
 // ─── Registry ─────────────────────────────────────────────────────────────
@@ -145,18 +170,28 @@ impl Default for TransformRegistry {
 }
 
 impl TransformRegistry {
-    pub fn new() -> Self { Self { transforms: Vec::new() } }
+    pub fn new() -> Self {
+        Self {
+            transforms: Vec::new(),
+        }
+    }
 
     pub fn register(&mut self, t: Box<dyn DomainTransform>) {
         self.transforms.push(t);
     }
 
     pub fn get(&self, name: &str) -> Option<&dyn DomainTransform> {
-        self.transforms.iter().find(|t| t.name() == name).map(|t| t.as_ref())
+        self.transforms
+            .iter()
+            .find(|t| t.name() == name)
+            .map(|t| t.as_ref())
     }
 
     pub fn by_extension(&self, ext: &str) -> Option<&dyn DomainTransform> {
-        self.transforms.iter().find(|t| t.extension() == ext).map(|t| t.as_ref())
+        self.transforms
+            .iter()
+            .find(|t| t.extension() == ext)
+            .map(|t| t.as_ref())
     }
 
     pub fn available(&self) -> Vec<&str> {
@@ -165,15 +200,21 @@ impl TransformRegistry {
 
     /// Emit all formats from a pre-extracted model.
     pub fn emit_all(&self, model: &ModelView, config: &TransformConfig) -> Vec<(String, String)> {
-        self.transforms.iter().filter_map(|t| {
-            let output = t.emit(model, config)?;
-            Some((format!("{}.{}", config.robot_name, t.extension()), output))
-        }).collect()
+        self.transforms
+            .iter()
+            .filter_map(|t| {
+                let output = t.emit(model, config)?;
+                Some((format!("{}.{}", config.robot_name, t.extension()), output))
+            })
+            .collect()
     }
 
     /// Write all formats to disk.
     pub fn write_all(
-        &self, model: &ModelView, config: &TransformConfig, dir: &Path,
+        &self,
+        model: &ModelView,
+        config: &TransformConfig,
+        dir: &Path,
     ) -> std::io::Result<Vec<std::path::PathBuf>> {
         let mut paths = Vec::new();
         for (filename, content) in self.emit_all(model, config) {
@@ -230,7 +271,7 @@ fn render_via_template<R: hymeko_query::traits::NameResolver>(
     dir: &Path,
     config: &TransformConfig,
 ) -> Result<String, String> {
-    use hymeko_query::rewrite::template::{execute_transform, TransformSpec};
+    use hymeko_query::rewrite::template::{TransformSpec, execute_transform};
 
     let query_path = dir.join("queries.hymeko");
     let query_source = std::fs::read_to_string(&query_path)
@@ -245,12 +286,15 @@ fn render_via_template<R: hymeko_query::traits::NameResolver>(
         template_source,
     };
 
-    let mut cfg_map: std::collections::HashMap<String, String> =
-        config.options.clone();
-    cfg_map.entry("robot_name".to_string()).or_insert(config.robot_name.clone());
+    let mut cfg_map: std::collections::HashMap<String, String> = config.options.clone();
+    cfg_map
+        .entry("robot_name".to_string())
+        .or_insert(config.robot_name.clone());
     // Gazebo world uses {{config:world_name}} — default to `empty`
     // if the caller didn't specify it.
-    cfg_map.entry("world_name".to_string()).or_insert("empty".to_string());
+    cfg_map
+        .entry("world_name".to_string())
+        .or_insert("empty".to_string());
 
     execute_transform(ir, resolver, &spec, &cfg_map)
 }

@@ -15,7 +15,7 @@ use hymeko::module_store::module_store::ModuleStore;
 use hymeko::util::real_parser::RealParser;
 use hymeko_sources::MemoryProvider;
 
-use crate::backend::{multistart, AugmentedLagrangian};
+use crate::backend::{AugmentedLagrangian, multistart};
 use crate::read::project;
 
 /// Compile, project and solve a declared design.
@@ -71,7 +71,11 @@ pub fn solve(
         problem.constraints.len(),
         problem.relations.len()
     ));
-    out.push_str(&format!("  \"starts\": {}, \"failed\": {},\n", starts.max(1), failures));
+    out.push_str(&format!(
+        "  \"starts\": {}, \"failed\": {},\n",
+        starts.max(1),
+        failures
+    ));
     match best {
         Some(solved) => {
             out.push_str(&format!("  \"feasible\": {},\n", solved.feasible()));
@@ -108,7 +112,11 @@ pub fn describe(entry: String, paths: Vec<String>, texts: Vec<String>) -> Result
             "{}\"{}{}\"",
             if i > 0 { ", " } else { "" },
             name,
-            if problem.ground == Some(i) { " (ground)" } else { "" }
+            if problem.ground == Some(i) {
+                " (ground)"
+            } else {
+                ""
+            }
         ));
     }
     out.push_str("],\n  \"branches\": [");

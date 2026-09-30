@@ -1,26 +1,40 @@
 //! URDF XML generation from kinematic model.
 
 use hymeko::ir::ir::Ir;
-use hymeko_query::{NamedQuery, Predicate, QueryEngine};
 use hymeko_geometry::kinematics::joints::JointType;
-use hymeko_geometry::kinematics::kinematic::{extract_kinematic_model, GeometryInfo, GeometryShape, KinematicModel};
+use hymeko_geometry::kinematics::kinematic::{
+    GeometryInfo, GeometryShape, KinematicModel, extract_kinematic_model,
+};
 use hymeko_query::traits::NameResolver;
+use hymeko_query::{NamedQuery, Predicate, QueryEngine};
 
 /// Predefined queries for URDF generation.
 pub fn urdf_queries() -> Vec<NamedQuery> {
     vec![
-        NamedQuery { label: "links".into(),
-            predicate: Predicate::node().and(Predicate::inherits("link")) },
-        NamedQuery { label: "fixed_joints".into(),
-            predicate: Predicate::edge().and(Predicate::inherits("fixed_joint")) },
-        NamedQuery { label: "continuous_joints".into(),
-            predicate: Predicate::edge().and(Predicate::inherits("conti_joint")) },
-        NamedQuery { label: "revolute_joints".into(),
-            predicate: Predicate::edge().and(Predicate::inherits("rev_joint")) },
-        NamedQuery { label: "prismatic_joints".into(),
-            predicate: Predicate::edge().and(Predicate::inherits("prismatic_joint")) },
-        NamedQuery { label: "axes".into(),
-            predicate: Predicate::node().and(Predicate::inherits("axis_definition")) },
+        NamedQuery {
+            label: "links".into(),
+            predicate: Predicate::node().and(Predicate::inherits("link")),
+        },
+        NamedQuery {
+            label: "fixed_joints".into(),
+            predicate: Predicate::edge().and(Predicate::inherits("fixed_joint")),
+        },
+        NamedQuery {
+            label: "continuous_joints".into(),
+            predicate: Predicate::edge().and(Predicate::inherits("conti_joint")),
+        },
+        NamedQuery {
+            label: "revolute_joints".into(),
+            predicate: Predicate::edge().and(Predicate::inherits("rev_joint")),
+        },
+        NamedQuery {
+            label: "prismatic_joints".into(),
+            predicate: Predicate::edge().and(Predicate::inherits("prismatic_joint")),
+        },
+        NamedQuery {
+            label: "axes".into(),
+            predicate: Predicate::node().and(Predicate::inherits("axis_definition")),
+        },
     ]
 }
 
@@ -75,13 +89,16 @@ pub fn generate_urdf_from_model(model: &KinematicModel) -> String {
     for joint in &model.joints {
         out.push_str(&format!(
             "  <joint name=\"{}\" type=\"{}\">\n",
-            xml_escape(&joint.name), joint.joint_type.urdf_str()
+            xml_escape(&joint.name),
+            joint.joint_type.urdf_str()
         ));
         out.push_str(&format!(
-            "    <parent link=\"{}\"/>\n", xml_escape(&joint.parent_link)
+            "    <parent link=\"{}\"/>\n",
+            xml_escape(&joint.parent_link)
         ));
         out.push_str(&format!(
-            "    <child link=\"{}\"/>\n", xml_escape(&joint.child_link)
+            "    <child link=\"{}\"/>\n",
+            xml_escape(&joint.child_link)
         ));
 
         if let Some(xyz) = joint.origin_xyz {
@@ -112,7 +129,9 @@ pub fn generate_urdf_from_model(model: &KinematicModel) -> String {
                     out.push_str("    <limit lower=\"-3.14\" upper=\"3.14\" effort=\"100\" velocity=\"1.0\"/>\n");
                 }
                 JointType::Prismatic => {
-                    out.push_str("    <limit lower=\"0\" upper=\"1.0\" effort=\"100\" velocity=\"0.5\"/>\n");
+                    out.push_str(
+                        "    <limit lower=\"0\" upper=\"1.0\" effort=\"100\" velocity=\"0.5\"/>\n",
+                    );
                 }
                 JointType::Continuous => {
                     out.push_str("    <limit effort=\"100\" velocity=\"1.0\"/>\n");
@@ -196,14 +215,18 @@ fn emit_geometry(out: &mut String, geom: &GeometryInfo, indent: usize) {
         GeometryShape::Box => {
             let d = &geom.dimensions;
             if d.len() >= 3 {
-                out.push_str(&format!("{pad}<box size=\"{} {} {}\"/>\n", d[0], d[1], d[2]));
+                out.push_str(&format!(
+                    "{pad}<box size=\"{} {} {}\"/>\n",
+                    d[0], d[1], d[2]
+                ));
             }
         }
         GeometryShape::Cylinder => {
             let d = &geom.dimensions;
             if d.len() >= 2 {
                 out.push_str(&format!(
-                    "{pad}<cylinder radius=\"{}\" length=\"{}\"/>\n", d[0], d[1]
+                    "{pad}<cylinder radius=\"{}\" length=\"{}\"/>\n",
+                    d[0], d[1]
                 ));
             }
         }
@@ -217,7 +240,10 @@ fn emit_geometry(out: &mut String, geom: &GeometryInfo, indent: usize) {
             // URDF has no capsule primitive; approximate with a cylinder (radius, length). Capsule dims = [length, radius].
             let d = &geom.dimensions;
             if d.len() >= 2 {
-                out.push_str(&format!("{pad}<cylinder radius=\"{}\" length=\"{}\"/>\n", d[1], d[0]));
+                out.push_str(&format!(
+                    "{pad}<cylinder radius=\"{}\" length=\"{}\"/>\n",
+                    d[1], d[0]
+                ));
             }
         }
     }

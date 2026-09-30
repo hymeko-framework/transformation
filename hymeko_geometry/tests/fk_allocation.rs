@@ -10,14 +10,14 @@
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use hymeko::module_store::module_store::ModuleStore;
 use hymeko::module_store::source_provider::StdFsProvider;
 use hymeko::util::real_parser::RealParser;
-use hymeko_geometry::forward::{forward_kinematics, FkPlan, JointValues};
-use hymeko_geometry::kinematics::kinematic::{extract_kinematic_model, KinematicModel};
+use hymeko_geometry::forward::{FkPlan, JointValues, forward_kinematics};
+use hymeko_geometry::kinematics::kinematic::{KinematicModel, extract_kinematic_model};
 use hymeko_query::QueryEngine;
 
 /// Only one measurement at a time, so no other test in this binary is allocating meanwhile.
@@ -157,7 +157,8 @@ fn the_se3_walk_allocates_nothing_at_all() {
     let mut poses = plan.identity_poses_se3();
     let allocations = allocations_during(|| plan.resolve_se3(&model, &flat, &mut poses));
     assert_eq!(
-        allocations, 0,
+        allocations,
+        0,
         "a stack-allocated pose walk over {} links allocated {allocations} times",
         model.links.len()
     );

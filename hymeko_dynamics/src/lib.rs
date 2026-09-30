@@ -20,16 +20,16 @@
 
 pub mod analysis;
 pub mod diffusion;
-pub mod fluid;
-pub mod softbody;
 pub mod field;
-pub mod kirchhoff;
+pub mod fluid;
 pub mod hierarchy;
 pub mod power;
+pub mod kirchhoff;
 pub mod layout;
 pub mod read;
 pub mod run;
 pub mod scenario;
+pub mod softbody;
 pub mod sources;
 pub mod system;
 
@@ -38,5 +38,5 @@ pub mod system;
 pub mod web;
 
 pub use read::project;
-pub use sources::{project_file, project_sources, MemoryProvider, SourceError};
+pub use sources::{MemoryProvider, SourceError, project_file, project_sources};
 pub use system::System;

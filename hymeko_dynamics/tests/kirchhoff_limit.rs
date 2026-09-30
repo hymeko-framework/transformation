@@ -18,9 +18,9 @@
 
 mod common;
 
-use hymeko_dynamics::analysis::modes;
-use hymeko_dynamics::run::{run, Integrator};
 use hymeko_dynamics::System;
+use hymeko_dynamics::analysis::modes;
+use hymeko_dynamics::run::{Integrator, run};
 
 /// The dynamical reading of the divider.
 fn maxwell() -> Option<System> {
@@ -103,7 +103,10 @@ fn the_steady_state_is_the_kirchhoff_answer() {
 
     let step = 1.0e-9;
     let duration = 2.0e-5;
-    println!("  {:>18}  {:>16}  {:>16}  {:>10}", "quantity", "Kirchhoff", "Maxwell settled", "rel.err");
+    println!(
+        "  {:>18}  {:>16}  {:>16}  {:>10}",
+        "quantity", "Kirchhoff", "Maxwell settled", "rel.err"
+    );
     for (dynamic, nodal) in [
         ("V_A", "V_A_connected"),
         ("P_R2", "P_R2_connected"),
@@ -125,7 +128,10 @@ fn the_steady_state_is_the_kirchhoff_answer() {
         settled(&system, "i_2", duration, step),
         settled(&system, "i_bulb", duration, step),
     );
-    println!("  node current balance: {i1:.9} - {i2:.9} - {ib:.9} = {:.3e}", i1 - i2 - ib);
+    println!(
+        "  node current balance: {i1:.9} - {i2:.9} - {ib:.9} = {:.3e}",
+        i1 - i2 - ib
+    );
     assert!((i1 - i2 - ib).abs() < 1e-9 * i1.abs());
     assert!((i1 - 1.5).abs() < 1e-9 && (i2 - 1.0).abs() < 1e-9 && (ib - 0.5).abs() < 1e-9);
 }
@@ -147,7 +153,10 @@ fn what_kirchhoff_neglects_does_not_change_what_kirchhoff_says() {
         .expect("the model declares a parasitic sweep");
     let want = look(&network, "V_A_connected");
 
-    println!("  {:>12}  {:>14}  {:>16}  {:>10}", "C_node F", "ringing Hz", "settled V_A", "rel.err");
+    println!(
+        "  {:>12}  {:>14}  {:>16}  {:>10}",
+        "C_node F", "ringing Hz", "settled V_A", "rel.err"
+    );
     let mut lowest = f64::INFINITY;
     let mut highest: f64 = 0.0;
     for point in [sweep.from, 1.0e-10, sweep.to] {
@@ -196,7 +205,11 @@ fn the_transient_overshoots_what_the_network_predicts() {
         ringing.quality,
         ringing.damping_per_s
     );
-    assert!(ringing.quality > 10.0, "too damped to ring: Q {}", ringing.quality);
+    assert!(
+        ringing.quality > 10.0,
+        "too damped to ring: Q {}",
+        ringing.quality
+    );
 
     let trace = run(
         &system,
@@ -211,7 +224,10 @@ fn the_transient_overshoots_what_the_network_predicts() {
     // this stride, and only one of them is the trajectory's.
     let (_, peak) = trace.extent(column);
     let overshoot = peak / want - 1.0;
-    println!("peak {peak:.6} V against a settled {want:.6} V — {:.1}% overshoot", 100.0 * overshoot);
+    println!(
+        "peak {peak:.6} V against a settled {want:.6} V — {:.1}% overshoot",
+        100.0 * overshoot
+    );
     assert!(
         overshoot > 0.2,
         "a Q of {:.0} should overshoot substantially; it reached {peak}",
@@ -219,7 +235,10 @@ fn the_transient_overshoots_what_the_network_predicts() {
     );
 
     // The balance still holds while all of that is happening.
-    println!("worst power-balance residual through the transient: {:e}", trace.worst_balance);
+    println!(
+        "worst power-balance residual through the transient: {:e}",
+        trace.worst_balance
+    );
     assert!(trace.worst_balance < 1e-10);
 }
 

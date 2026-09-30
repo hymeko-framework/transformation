@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**12 package(s), 583 public symbol(s).**
+**12 package(s), 639 public symbol(s).**
 
 ## generated (python)
 
@@ -335,7 +335,9 @@ docstring are all excluded for a stated reason rather than by luck.
 - **Manifest:** none -- inferred from sources
 - **Charter:** <no charter>
 
-_No public symbols._
+### classes
+
+- `RobotMesh` — `hymeko_formats/tools/robot-mesh.py`
 
 ## hymeko_geometry (rust)
 
@@ -354,6 +356,7 @@ _No public symbols._
 - `Actuation` — `hymeko_geometry/src/kinematics/actuation.rs`
 - `Attachment` — `hymeko_geometry/src/kinematics/actuation.rs`
 - `Axis` — `hymeko_geometry/src/kinematics/tp.rs`
+- `Bicycle` — `hymeko_geometry/src/vehicle.rs`
 - `BodyContact` — `hymeko_geometry/src/contact.rs`
 - `BroadPhase` — `hymeko_geometry/src/collide.rs`
 - `Camera` — `hymeko_geometry/src/kinematics/cameras.rs`
@@ -366,12 +369,16 @@ _No public symbols._
 - `Contact` — `hymeko_geometry/src/collide.rs`
 - `ContactParameters` — `hymeko_geometry/src/contact.rs`
 - `Diagnostic` — `hymeko_geometry/src/transforms/mod.rs`
+- `DriveCommand` — `hymeko_geometry/src/vehicle.rs`
 - `Engine` — `hymeko_geometry/src/engine.rs`
 - `FkPlan` — `hymeko_geometry/src/forward.rs`
 - `ForceField` — `hymeko_geometry/src/force_field.rs`
 - `GazeboPluginInfo` — `hymeko_geometry/src/kinematics/gazebo_plugins.rs`
 - `GeometryInfo` — `hymeko_geometry/src/kinematics/kinematic.rs`
 - `GroundContact` — `hymeko_geometry/src/contact.rs`
+- `IkOptions` — `hymeko_geometry/src/kinematics/ik.rs`
+- `IkSolution` — `hymeko_geometry/src/kinematics/ik.rs`
+- `IkTarget` — `hymeko_geometry/src/kinematics/ik.rs`
 - `JointInfo` — `hymeko_geometry/src/kinematics/joints.rs`
 - `JointLimits` — `hymeko_geometry/src/kinematics/joints.rs`
 - `JointTopology` — `hymeko_geometry/src/kinematics/joints.rs`
@@ -380,23 +387,37 @@ _No public symbols._
 - `LinkInfo` — `hymeko_geometry/src/kinematics/kinematic.rs`
 - `LinkPoses` — `hymeko_geometry/src/forward.rs`
 - `MeshLod` — `hymeko_geometry/src/mesh.rs`
+- `Outcome` — `hymeko_geometry/src/contact/replay.rs`
 - `PbrMaterial` — `hymeko_geometry/src/material.rs`
 - `Placement` — `hymeko_geometry/src/collide.rs`
+- `Problem` — `hymeko_geometry/src/contact/replay.rs`
 - `RadianceImage` — `hymeko_geometry/src/material.rs`
+- `Replay` — `hymeko_geometry/src/contact/replay.rs`
 - `RgbaImage` — `hymeko_geometry/src/material.rs`
+- `Settings` — `hymeko_geometry/src/contact/replay.rs`
 - `SphericalGravity` — `hymeko_geometry/src/force_field.rs`
 - `StereoPair` — `hymeko_geometry/src/kinematics/cameras.rs`
 - `TextureMap` — `hymeko_geometry/src/material.rs`
+- `Track` — `hymeko_geometry/src/track.rs`
+- `TrackControl` — `hymeko_geometry/src/track.rs`
+- `TrackObstacle` — `hymeko_geometry/src/track.rs`
+- `TrackProjection` — `hymeko_geometry/src/track.rs`
+- `TrackSample` — `hymeko_geometry/src/track.rs`
 - `TransformConfig` — `hymeko_geometry/src/transforms/mod.rs`
 - `TransformEngine` — `hymeko_geometry/src/transforms/transform_engine.rs`
 - `TransformRegistry` — `hymeko_geometry/src/transforms/mod.rs`
 - `TriangleMesh` — `hymeko_geometry/src/mesh.rs`
+- `VehicleConfig` — `hymeko_geometry/src/vehicle.rs`
+- `VehicleError` — `hymeko_geometry/src/vehicle.rs`
+- `VehicleState` — `hymeko_geometry/src/vehicle.rs`
 - `VisualInstance` — `hymeko_geometry/src/kinematics/visual.rs`
 - `VisualSet` — `hymeko_geometry/src/kinematics/visual.rs`
 
 ### enums
 
 - `Convex` — `hymeko_geometry/src/collide.rs`
+- `DhChainError` — `hymeko_geometry/src/kinematics/dh.rs`
+- `DhError` — `hymeko_geometry/src/kinematics/joints.rs`
 - `DiagLevel` — `hymeko_geometry/src/transforms/mod.rs`
 - `DriveLaw` — `hymeko_geometry/src/kinematics/actuation.rs`
 - `FieldKind` — `hymeko_geometry/src/force_field.rs`
@@ -404,9 +425,11 @@ _No public symbols._
 - `FreeFlight` — `hymeko_geometry/src/engine.rs`
 - `GazeboPluginKind` — `hymeko_geometry/src/kinematics/gazebo_plugins.rs`
 - `GeometryShape` — `hymeko_geometry/src/kinematics/kinematic.rs`
+- `IkError` — `hymeko_geometry/src/kinematics/ik.rs`
 - `JointEncoding` — `hymeko_geometry/src/kinematics/joints.rs`
 - `JointType` — `hymeko_geometry/src/kinematics/joints.rs`
 - `Limit` — `hymeko_geometry/src/contact.rs`
+- `Method` — `hymeko_geometry/src/contact/replay.rs`
 - `ModelKind` — `hymeko_geometry/src/transforms/model_view.rs`
 - `ModelView` — `hymeko_geometry/src/transforms/model_view.rs`
 - `TextureWrap` — `hymeko_geometry/src/material.rs`
@@ -427,7 +450,9 @@ _No public symbols._
 - `by_extension` — `hymeko_geometry/src/transforms/mod.rs`
 - `colliders_of` — `hymeko_geometry/src/collide.rs`
 - `complementarity_residual` — `hymeko_geometry/src/contact.rs`
+- `config` — `hymeko_geometry/src/vehicle.rs`
 - `constraint_force` — `hymeko_geometry/src/articulated.rs`
+- `contact_problem` — `hymeko_geometry/src/engine.rs`
 - `contacts` — `hymeko_geometry/src/engine.rs`
 - `delassus` — `hymeko_geometry/src/contact.rs`
 - `dynamics` — `hymeko_geometry/src/engine.rs`
@@ -447,6 +472,7 @@ _No public symbols._
 - `force_at` — `hymeko_geometry/src/force_field.rs`
 - `forward_kinematics` — `hymeko_geometry/src/forward.rs`
 - `from_declaration` — `hymeko_geometry/src/collide.rs`
+- `from_ir` — `hymeko_geometry/src/track.rs`
 - `from_parameters` — `hymeko_geometry/src/force_field.rs`
 - `get` — `hymeko_geometry/src/forward.rs`
 - `get` — `hymeko_geometry/src/transforms/mod.rs`
@@ -475,16 +501,20 @@ _No public symbols._
 - `kinematics_parent` — `hymeko_geometry/src/articulated.rs`
 - `kinetic_energy_by_link` — `hymeko_geometry/src/articulated.rs`
 - `len` — `hymeko_geometry/src/forward.rs`
+- `length` — `hymeko_geometry/src/track.rs`
 - `links` — `hymeko_geometry/src/articulated.rs`
 - `model` — `hymeko_geometry/src/engine.rs`
 - `movable` — `hymeko_geometry/src/articulated.rs`
 - `new` — `hymeko_geometry/src/articulated.rs`
 - `new` — `hymeko_geometry/src/collide.rs`
 - `new` — `hymeko_geometry/src/contact.rs`
+- `new` — `hymeko_geometry/src/contact/replay.rs`
 - `new` — `hymeko_geometry/src/engine.rs`
 - `new` — `hymeko_geometry/src/forward.rs`
 - `new` — `hymeko_geometry/src/transforms/mod.rs`
+- `new` — `hymeko_geometry/src/vehicle.rs`
 - `of` — `hymeko_geometry/src/collide.rs`
+- `offset` — `hymeko_geometry/src/track.rs`
 - `optimize` — `hymeko_geometry/src/mesh.rs`
 - `order` — `hymeko_geometry/src/articulated.rs`
 - `origin_rpy_rad` — `hymeko_geometry/src/kinematics/joints.rs`
@@ -495,26 +525,39 @@ _No public symbols._
 - `prepare_transforms` — `hymeko_geometry/src/articulated.rs`
 - `project` — `hymeko_geometry/src/kinematics/cameras.rs`
 - `project` — `hymeko_geometry/src/kinematics/tp.rs`
+- `project` — `hymeko_geometry/src/track.rs`
 - `reach` — `hymeko_geometry/src/articulated.rs`
 - `regime_counts` — `hymeko_geometry/src/engine.rs`
 - `register` — `hymeko_geometry/src/transforms/mod.rs`
 - `render_from_templates` — `hymeko_geometry/src/transforms/mod.rs`
+- `replay` — `hymeko_geometry/src/contact.rs`
+- `reset` — `hymeko_geometry/src/vehicle.rs`
+- `residual` — `hymeko_geometry/src/contact/replay.rs`
 - `resolve` — `hymeko_geometry/src/forward.rs`
 - `resolve_se3` — `hymeko_geometry/src/forward.rs`
 - `root` — `hymeko_geometry/src/forward.rs`
+- `sample` — `hymeko_geometry/src/track.rs`
+- `samples` — `hymeko_geometry/src/track.rs`
 - `scratch` — `hymeko_geometry/src/articulated.rs`
 - `sdf_str` — `hymeko_geometry/src/kinematics/joints.rs`
 - `set_armature` — `hymeko_geometry/src/articulated.rs`
 - `slot` — `hymeko_geometry/src/forward.rs`
 - `slots` — `hymeko_geometry/src/articulated.rs`
 - `solve` — `hymeko_geometry/src/contact.rs`
+- `solve` — `hymeko_geometry/src/contact/replay.rs`
 - `solve_factorised` — `hymeko_geometry/src/articulated.rs`
 - `solve_factorised_over` — `hymeko_geometry/src/articulated.rs`
+- `solve_standard_dh` — `hymeko_geometry/src/kinematics/ik.rs`
+- `standard_dh_chain` — `hymeko_geometry/src/kinematics/dh.rs`
+- `standard_dh_transform` — `hymeko_geometry/src/kinematics/joints.rs`
+- `state` — `hymeko_geometry/src/vehicle.rs`
+- `step` — `hymeko_geometry/src/vehicle.rs`
 - `support` — `hymeko_geometry/src/collide.rs`
 - `sweeps` — `hymeko_geometry/src/contact.rs`
 - `unsatisfiable` — `hymeko_geometry/src/contact.rs`
 - `urdf_str` — `hymeko_geometry/src/kinematics/joints.rs`
 - `valid_inertia` — `hymeko_geometry/src/kinematics/kinematic.rs`
+- `validate` — `hymeko_geometry/src/contact/replay.rs`
 - `validate` — `hymeko_geometry/src/force_field.rs`
 - `validate` — `hymeko_geometry/src/material.rs`
 - `validate` — `hymeko_geometry/src/mesh.rs`
@@ -659,6 +702,9 @@ _No public symbols._
 - `decl_scoped_in` — `hymeko_query/src/predicate_expr.rs`
 - `edge` — `hymeko_query/src/predicate.rs`
 - `edges_in` — `hymeko_query/src/rewrite/split.rs`
+- `effective_child` — `hymeko_query/src/fields.rs`
+- `effective_field` — `hymeko_query/src/rewrite/match_context.rs`
+- `effective_value` — `hymeko_query/src/fields.rs`
 - `emit_split_rewrite` — `hymeko_query/src/rewrite/regen.rs`
 - `execute_transform` — `hymeko_query/src/rewrite/template.rs`
 - `from_dir` — `hymeko_query/src/rewrite/template.rs`
@@ -693,6 +739,7 @@ _No public symbols._
 - `propose_split_with` — `hymeko_query/src/rewrite/split.rs`
 - `query` — `hymeko_query/src/engine.rs`
 - `query_batch` — `hymeko_query/src/engine.rs`
+- `query_decl` — `hymeko_query/src/engine.rs`
 - `query_first` — `hymeko_query/src/engine.rs`
 - `query_iter` — `hymeko_query/src/engine.rs`
 - `render` — `hymeko_query/src/rewrite/template.rs`
@@ -726,13 +773,18 @@ _No public symbols._
 
 ### structs
 
+- `ArucoMarker` — `hymeko_webxr/src/room.rs`
 - `CameraFrame` — `hymeko_webxr/src/query.rs`
 - `FiducialBinding` — `hymeko_webxr/src/query.rs`
 - `FrameParent` — `hymeko_webxr/src/query.rs`
+- `Manipulable` — `hymeko_webxr/src/room.rs`
 - `Placement` — `hymeko_webxr/src/query.rs`
 - `Pose` — `hymeko_webxr/src/query.rs`
+- `Room` — `hymeko_webxr/src/room.rs`
+- `RoomQuery` — `hymeko_webxr/src/room.rs`
 - `SpatialFrame` — `hymeko_webxr/src/query.rs`
 - `SpatialQuery` — `hymeko_webxr/src/query.rs`
+- `TrackedDevice` — `hymeko_webxr/src/room.rs`
 
 ### enums
 
@@ -748,9 +800,14 @@ _No public symbols._
 - `fiducial_bindings` — `hymeko_webxr/src/query.rs`
 - `frame_parents` — `hymeko_webxr/src/query.rs`
 - `frames` — `hymeko_webxr/src/query.rs`
+- `manipulable` — `hymeko_webxr/src/room.rs`
+- `markers` — `hymeko_webxr/src/room.rs`
 - `name` — `hymeko_webxr/src/query.rs`
 - `new` — `hymeko_webxr/src/query.rs`
+- `new` — `hymeko_webxr/src/room.rs`
 - `placements` — `hymeko_webxr/src/query.rs`
+- `rooms` — `hymeko_webxr/src/room.rs`
+- `spatial` — `hymeko_webxr/src/room.rs`
 - `validate` — `hymeko_webxr/src/lib.rs`
 
 ## transforms (python)

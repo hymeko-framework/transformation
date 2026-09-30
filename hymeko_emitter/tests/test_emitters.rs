@@ -26,7 +26,10 @@ impl HymekoParser for LalrpopParser {
 fn load_and_lower(
     path: impl AsRef<Path>,
 ) -> Result<
-    (ModuleStore<StdFsProvider, LalrpopParser>, Arc<CompiledProgram>),
+    (
+        ModuleStore<StdFsProvider, LalrpopParser>,
+        Arc<CompiledProgram>,
+    ),
     ModuleLoadError,
 > {
     let fs = StdFsProvider::new();
@@ -48,7 +51,10 @@ fn emit_hymeko_produces_non_empty_bracketed_output() {
     assert!(out.contains("base_link"), "output missing base_link");
     assert!(out.contains("spinner"), "output missing spinner");
     // The continuous joint hyperedge should appear prefixed with `@`.
-    assert!(out.contains("@spin_joint"), "output missing @spin_joint edge");
+    assert!(
+        out.contains("@spin_joint"),
+        "output missing @spin_joint edge"
+    );
     let _ = PhantomData::<()>; // silence unused
 }
 
@@ -77,7 +83,10 @@ fn emit_sysml_emits_connection_def_per_arc() {
     let out = emit_sysml(&compiled.ir, &store.it, "MiniArm");
     // mini_arm has exactly one hyperedge (spin_joint) with one arc tuple.
     let conn_defs = out.matches("connection def ").count();
-    assert!(conn_defs >= 1, "expected at least one connection def, got {conn_defs}");
+    assert!(
+        conn_defs >= 1,
+        "expected at least one connection def, got {conn_defs}"
+    );
 }
 
 #[test]
@@ -106,11 +115,7 @@ fn emit_lean4_generates_trivial_theorem_per_node() {
 /// a "nothing went missing" smoke signal.
 fn ast_counts(ast: &parser::ast::AstStr) -> (usize, usize) {
     use parser::ast::HyperItem;
-    fn walk<'a>(
-        items: &'a [HyperItem<'a, &'a str>],
-        nodes: &mut usize,
-        edges: &mut usize,
-    ) {
+    fn walk<'a>(items: &'a [HyperItem<'a, &'a str>], nodes: &mut usize, edges: &mut usize) {
         for it in items {
             match it {
                 HyperItem::Node(n) => {
@@ -164,12 +169,12 @@ fn emit_hymeko_emits_signed_ref_arcs_with_correct_signs() {
     // The emitter must preserve the +/− signs; weight block on base_link
     // appears as `[[0.0, 0.0, 0.1], [0.0, 0.0, 0.0]]`.
     assert!(
-        out.contains("+ base_link"),
-        "emitted text missing `+ base_link`:\n{out}"
+        out.contains("+ mini_arm.base_link [[0.0, 0.0, 0.1], [0.0, 0.0, 0.0]]"),
+        "emitted text missing qualified positive target and its weights:\n{out}"
     );
     assert!(
-        out.contains("- spinner"),
-        "emitted text missing `- spinner`:\n{out}"
+        out.contains("- mini_arm.spinner"),
+        "emitted text missing qualified negative target:\n{out}"
     );
 }
 

@@ -343,18 +343,22 @@ impl Reader<'_> {
             let plus = signed(&inc, Sign::Plus);
             let minus = signed(&inc, Sign::Minus);
             let neutral = signed(&inc, Sign::Neutral);
-            let need =
-                |set: &[DeclId], i: usize, map: &HashMap<DeclId, usize>| -> Result<usize, ReadError> {
-                    let target = *set.get(i).ok_or_else(|| ReadError::Arity {
-                        relation: name.clone(),
-                        expected: "more incidences",
-                        found: format!("{} of the wanted sign", set.len()),
-                    })?;
-                    map.get(&target).copied().ok_or_else(|| ReadError::Unresolved {
+            let need = |set: &[DeclId],
+                        i: usize,
+                        map: &HashMap<DeclId, usize>|
+             -> Result<usize, ReadError> {
+                let target = *set.get(i).ok_or_else(|| ReadError::Arity {
+                    relation: name.clone(),
+                    expected: "more incidences",
+                    found: format!("{} of the wanted sign", set.len()),
+                })?;
+                map.get(&target)
+                    .copied()
+                    .ok_or_else(|| ReadError::Unresolved {
                         at: name.clone(),
                         what: self.qualified(target),
                     })
-                };
+            };
 
             match op {
                 "resistor" | "ideal_source" | "ground" => {}
@@ -363,10 +367,11 @@ impl Reader<'_> {
                     let mut terms = Vec::new();
                     for r in &inc {
                         if matches!(r.0, SignedRefR::Minus(_)) {
-                            let q = *quantity_of.get(&r.1).ok_or_else(|| ReadError::Unresolved {
-                                at: name.clone(),
-                                what: self.qualified(r.1),
-                            })?;
+                            let q =
+                                *quantity_of.get(&r.1).ok_or_else(|| ReadError::Unresolved {
+                                    at: name.clone(),
+                                    what: self.qualified(r.1),
+                                })?;
                             terms.push((q, r.2.unwrap_or(1.0)));
                         }
                     }
@@ -425,10 +430,11 @@ impl Reader<'_> {
                 "minimise" => {
                     for r in &inc {
                         if matches!(r.0, SignedRefR::Minus(_)) {
-                            let q = *quantity_of.get(&r.1).ok_or_else(|| ReadError::Unresolved {
-                                at: name.clone(),
-                                what: self.qualified(r.1),
-                            })?;
+                            let q =
+                                *quantity_of.get(&r.1).ok_or_else(|| ReadError::Unresolved {
+                                    at: name.clone(),
+                                    what: self.qualified(r.1),
+                                })?;
                             problem.objective.push((q, r.2.unwrap_or(1.0)));
                         }
                     }

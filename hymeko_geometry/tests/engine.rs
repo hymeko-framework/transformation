@@ -15,6 +15,24 @@ use hymeko_geometry::kinematics::kinematic::{
 const G: f64 = 9.80665;
 
 #[test]
+fn contact_equation_capture_is_read_only_and_replays_the_weight_impulse() {
+    use hymeko_geometry::contact::replay::{Method, Replay, Settings};
+    let mut engine = Engine::new(falling_box(2.0, 0.1)).unwrap();
+    assert!(engine.contact_problem().is_none());
+    engine.contact.friction = 0.0;
+    engine.q[0] = 0.1;
+    engine.advance(1.0 / 240.0);
+    let before = (engine.q.clone(), engine.qd.clone());
+    let problem = engine.contact_problem().unwrap();
+    let mut replay = Replay::new(&problem, Method::Pgs, &[Some([0.0; 3])]).unwrap();
+    let outcome = replay.solve(Settings::default()).unwrap();
+    assert!(outcome.accepted);
+    assert!((outcome.impulse[0] - problem.reference[0]).abs() < 1e-12);
+    assert!((outcome.impulse[0] - 2.0 * G / 240.0).abs() < 1e-12);
+    assert_eq!(before, (engine.q, engine.qd));
+}
+
+#[test]
 fn authored_stops_constrain_both_directions_and_release_inward() {
     use hymeko_geometry::kinematics::joints::JointLimits;
     for flight in [FreeFlight::Never, FreeFlight::DormandPrince { step: 0.1 }] {

@@ -210,6 +210,13 @@ impl Engine {
         &self.aba
     }
 
+    /// Capture the last assembled constraint system without changing engine state.
+    /// Returns `None` when that assembly was empty or no solve has occurred.
+    /// Free-flight can skip assembly: in that regime this observation may predate the current pose.
+    pub fn contact_problem(&self) -> Option<crate::contact::replay::Problem> {
+        (!self.constraints.is_empty()).then(|| self.solver.replay())
+    }
+
     /// The contacts found at the last step.
     pub fn contacts(&self) -> &[GroundContact] {
         &self.contacts

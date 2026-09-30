@@ -1,0 +1,9 @@
+flowchart LR
+    S[Authored DE source] --> C[Core CompiledModel]
+    C --> Q[Existing QueryEngine structural checks]
+    C --> P[Core DerivedPathIndex and semantic digest]
+    Q --> J[Validated operator identity JSON]
+    P --> J
+    J --> B[Bind existing recorded event keys]
+    E[Existing measured JSON events] --> B
+    B --> H[Existing HySTL scalar adapter; unchanged semantics]

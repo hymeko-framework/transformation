@@ -55,12 +55,6 @@ fn fresh_decl_node(kind: DeclKind, name: SymId) -> DeclNode {
     }
 }
 
-fn push_decl(ir: &mut Ir, decl: DeclNode) -> DeclId {
-    let id = ir.push_decl(decl); // arena + private dispatch slot (option D)
-    ir.decl_hash.push(None);
-    id
-}
-
 fn signed_ref_for(target: DeclId, sign: Sign) -> SignedRefR {
     let atom = RefAtomR::plain(target);
     match sign {
@@ -92,7 +86,7 @@ pub fn to_compiler_ir(editor: &HyMeKoEditorIR, interner: &mut Interner) -> Ir {
     let mut vertex_to_decl: BTreeMap<VertexKey, DeclId> = BTreeMap::new();
     for (vkey, v) in editor.vertices.iter() {
         let sym = interner.intern(&v.name);
-        let did = push_decl(&mut ir, fresh_decl_node(DeclKind::Node, sym));
+        let did = ir.push_decl(fresh_decl_node(DeclKind::Node, sym));
 
         let nid = NodeId::new(ir.nodes.len());
         ir.nodes.push(NodeRec::new(did, Vec::new()));
@@ -105,13 +99,13 @@ pub fn to_compiler_ir(editor: &HyMeKoEditorIR, interner: &mut Interner) -> Ir {
     // Hyperedges → decl_nodes[kind=Edge] + EdgeRec + one ArcRec per edge.
     for (_ekey, he) in editor.hyperedges.iter() {
         let sym = interner.intern(&he.name);
-        let edge_did = push_decl(&mut ir, fresh_decl_node(DeclKind::Edge, sym));
+        let edge_did = ir.push_decl(fresh_decl_node(DeclKind::Edge, sym));
 
         let eid = EdgeId::new(ir.edges.len());
         let mut edge_rec = EdgeRec::new(edge_did, Vec::new());
 
         // Build the arc.
-        let arc_did = push_decl(&mut ir, fresh_decl_node(DeclKind::HyperArc, SymId::new(0)));
+        let arc_did = ir.push_decl(fresh_decl_node(DeclKind::HyperArc, SymId::new(0)));
         let refs: Vec<SignedRefR> = he
             .incident
             .iter()

@@ -11,14 +11,12 @@
 //! negligible compared to serde_json::to_string at the same call site.
 
 use hymeko::common::ids::DeclId;
-use hymeko::ir::ir::{DeclKind, Ir, ValueR};
+use hymeko::ir::ir::{DeclKind, Ir, PortDirection, ValueR};
 use hymeko::resolution::string_table::StringTable;
 
 use serde::{Deserialize, Serialize};
 
-
 // ─── Snapshot DTOs (JSON-shaped) ────────────────────────────────────
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ArcDto {
@@ -113,9 +111,7 @@ pub struct SnapshotDto {
     pub relationships: Vec<RelDto>,
 }
 
-
 // ─── Snapshot construction ──────────────────────────────────────────
-
 
 /// Build a `SnapshotDto` from an IR + its string table.
 ///
@@ -135,20 +131,31 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
         let bases: Vec<String> = match decl.kind {
             DeclKind::Node => ir
                 .as_node(did)
-                .map(|nid| ir.nodes[nid.raw()].bases.iter()
-                    .map(|b| st.resolve(ir.decl_nodes[b.target().raw()].name).to_string())
-                    .collect())
+                .map(|nid| {
+                    ir.nodes[nid.raw()]
+                        .bases
+                        .iter()
+                        .map(|b| st.resolve(ir.decl_nodes[b.target().raw()].name).to_string())
+                        .collect()
+                })
                 .unwrap_or_default(),
             DeclKind::Edge => ir
                 .as_edge(did)
-                .map(|eid| ir.edges[eid.raw()].bases.iter()
-                    .map(|b| st.resolve(ir.decl_nodes[b.target().raw()].name).to_string())
-                    .collect())
+                .map(|eid| {
+                    ir.edges[eid.raw()]
+                        .bases
+                        .iter()
+                        .map(|b| st.resolve(ir.decl_nodes[b.target().raw()].name).to_string())
+                        .collect()
+                })
                 .unwrap_or_default(),
             _ => Vec::new(),
         };
 
-        let tags: Vec<String> = decl.anno.tags.iter()
+        let tags: Vec<String> = decl
+            .anno
+            .tags
+            .iter()
             .map(|&s| st.resolve(s).to_string())
             .collect();
 
@@ -170,13 +177,25 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
             }
         }
         let value = decl.anno.value.as_ref().map(|v| render_value(v, ir, st));
-        NodeDto { id: did.raw(), name, kind: kind_str.to_string(), bases, tags, value, arcs }
+        NodeDto {
+            id: did.raw(),
+            name,
+            kind: kind_str.to_string(),
+            bases,
+            tags,
+            value,
+            arcs,
+        }
     };
 
     let mut nodes = Vec::with_capacity(ir.nodes.len());
     let mut edges = Vec::with_capacity(ir.edges.len());
-    for rec in &ir.nodes { nodes.push(mk(rec.decl, false)); }
-    for rec in &ir.edges { edges.push(mk(rec.decl, true)); }
+    for rec in &ir.nodes {
+        nodes.push(mk(rec.decl, false));
+    }
+    for rec in &ir.edges {
+        edges.push(mk(rec.decl, true));
+    }
 
     // Named relationships keyed by DeclId. Endpoints that aren't drawn vertices
     // are filtered consumer-side.
@@ -190,14 +209,22 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
         }
         let parent = decl.parent;
         if !parent.is_none() {
-            relationships.push(RelDto { kind: "scope".to_string(), from: did_idx, to: parent.raw() });
+            relationships.push(RelDto {
+                kind: "scope".to_string(),
+                from: did_idx,
+                to: parent.raw(),
+            });
         }
         if let Some(val) = &decl.anno.value {
             let mut targets = Vec::new();
             collect_ref_targets(val, &mut targets);
             for t in targets {
                 if !t.is_none() {
-                    relationships.push(RelDto { kind: "ref".to_string(), from: did_idx, to: t.raw() });
+                    relationships.push(RelDto {
+                        kind: "ref".to_string(),
+                        from: did_idx,
+                        to: t.raw(),
+                    });
                 }
             }
         }
@@ -206,7 +233,11 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
         if let Some(nid) = ir.as_node(rec.decl) {
             for b in &ir.nodes[nid.raw()].bases {
                 if !b.target().is_none() {
-                    relationships.push(RelDto { kind: "isa".to_string(), from: rec.decl.raw(), to: b.target().raw() });
+                    relationships.push(RelDto {
+                        kind: "isa".to_string(),
+                        from: rec.decl.raw(),
+                        to: b.target().raw(),
+                    });
                 }
             }
         }
@@ -215,7 +246,11 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
         if let Some(eid) = ir.as_edge(rec.decl) {
             for b in &ir.edges[eid.raw()].bases {
                 if !b.target().is_none() {
-                    relationships.push(RelDto { kind: "isa".to_string(), from: rec.decl.raw(), to: b.target().raw() });
+                    relationships.push(RelDto {
+                        kind: "isa".to_string(),
+                        from: rec.decl.raw(),
+                        to: b.target().raw(),
+                    });
                 }
             }
         }
@@ -224,86 +259,141 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
     SnapshotDto {
         node_count: ir.nodes.len(),
         edge_count: ir.edges.len(),
-        arc_count:  ir.arcs.len(),
+        arc_count: ir.arcs.len(),
         nodes,
         edges,
         relationships,
     }
 }
 
-
 /// JSON-encode a snapshot.  Returns `Err` only if serde itself
 /// somehow fails — the schema is fixed so this is effectively
 /// infallible for well-formed IRs.
 pub fn snapshot_json(ir: &Ir, st: &StringTable) -> Result<String, String> {
-    serde_json::to_string(&snapshot(ir, st))
-        .map_err(|e| format!("json encode: {e}"))
+    serde_json::to_string(&snapshot(ir, st)).map_err(|e| format!("json encode: {e}"))
 }
-
 
 // ─── DOT (Graphviz) emitter ─────────────────────────────────────────
 
-
-/// Escape `\` and `"` for DOT label syntax.
+/// Escape text for a quoted DOT string, including literal control characters.
 pub fn dot_escape(s: &str) -> String {
-    s.replace('\\', "\\\\").replace('"', "\\\"")
+    s.replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\r', "\\r")
+        .replace('\n', "\\n")
+        .replace('\t', "    ")
 }
-
 
 /// Emit a DOT (Graphviz) string for the signed-incidence hypergraph.
 ///
-/// Vertices render as ellipses, hyperedges as rounded boxes; signed
-/// arcs colour-coded (blue +1, red -1, grey ~0) with arrow heads
-/// matching the sign (normal, inv, odot).
+/// Declarations retain their `DeclId`, arc junctions their `HyperArcId`, and
+/// incidence lines their arc/slot identity in DOT and SVG `id` attributes.
+/// Separate junctions preserve multiple arcs and repeated incidences. Colour
+/// and labels carry sign; arrows carry only explicit `PortDirection`.
+///
+/// Values, containment, inheritance and field references reuse the snapshot
+/// projection. This is a structural view, not a kinematic evaluation or a
+/// lossless serialization. Layout coordinates have no physical meaning.
 pub fn emit_dot_graph(ir: &Ir, st: &StringTable, graph_name: &str) -> String {
+    use std::fmt::Write;
+
+    let snap = snapshot(ir, st);
+    let id_of = |did: DeclId| match ir.decl_nodes[did.raw()].kind {
+        DeclKind::Node => format!("n{}", did.raw()),
+        DeclKind::Edge => format!("e{}", did.raw()),
+        DeclKind::HyperArc => format!("a{}", ir.as_arc(did).expect("validated arc").raw()),
+    };
     let mut out = String::with_capacity(4096);
-    out.push_str(&format!("digraph \"{}\" {{\n", dot_escape(graph_name)));
-    out.push_str("  rankdir=LR;\n");
-    out.push_str("  node [fontname=\"Helvetica\"];\n\n");
+    let _ = writeln!(
+        out,
+        "// Generated from canonical HyMeKo IR; edit the .hymeko source."
+    );
+    let _ = writeln!(out, "digraph \"{}\" {{", dot_escape(graph_name));
+    out.push_str("  graph [rankdir=LR, bgcolor=\"#FAFBFE\", pad=0.4, nodesep=0.28, ranksep=0.7, fontname=\"Helvetica\", fontsize=18, labelloc=t];\n");
+    let _ = writeln!(out, "  label=\"{}\";", dot_escape(graph_name));
+    out.push_str("  node [fontname=\"Helvetica\", fontsize=11, color=\"#64748B\", fontcolor=\"#172B4D\", margin=\"0.14,0.08\"];\n");
+    out.push_str("  edge [fontname=\"Helvetica\", fontsize=9, arrowsize=0.7];\n");
 
-    for rec in &ir.nodes {
-        let name = st.resolve(ir.decl_nodes[rec.decl.raw()].name);
-        out.push_str(&format!(
-            "  \"n{}\" [label=\"{}\", shape=ellipse, style=filled, fillcolor=\"#EEF1F5\"];\n",
-            rec.decl.raw(), dot_escape(name)
-        ));
+    for node in snap.nodes.iter().chain(&snap.edges) {
+        let label = match &node.value {
+            Some(value) => format!("{}\n= {}", node.name, value),
+            None => node.name.clone(),
+        };
+        let (shape, fill) = if node.kind == "Edge" {
+            ("box", "#DDEAFE")
+        } else if node.value.is_some() {
+            ("note", "#F1F5F9")
+        } else {
+            ("ellipse", "#E3F3EE")
+        };
+        let _ = writeln!(
+            out,
+            "  \"{}\" [id=\"decl-{}\", label=\"{}\", tooltip=\"DeclId {}\", shape={shape}, style=\"rounded,filled\", fillcolor=\"{fill}\"];",
+            id_of(DeclId::new(node.id)),
+            node.id,
+            dot_escape(&label),
+            node.id
+        );
     }
-    for rec in &ir.edges {
-        let name = st.resolve(ir.decl_nodes[rec.decl.raw()].name);
-        out.push_str(&format!(
-            "  \"e{}\" [label=\"{}\", shape=box, style=\"rounded,filled\", fillcolor=\"#D7E4F5\"];\n",
-            rec.decl.raw(), dot_escape(name)
-        ));
-    }
-    out.push('\n');
 
     for rec in &ir.edges {
-        let eid_num = rec.decl.raw();
-        for &aid in &rec.arcs {
-            for r in &ir.arcs[aid.raw()].refs {
-                let tgt = r.target();
-                if tgt.is_none() { continue; }
-                let target_is_edge = ir
-                    .decl_nodes
-                    .get(tgt.raw())
-                    .map(|d| matches!(d.kind, DeclKind::Edge))
-                    .unwrap_or(false);
-                let tgt_id = if target_is_edge {
-                    format!("e{}", tgt.raw())
-                } else {
-                    format!("n{}", tgt.raw())
+        for (ordinal, &aid) in rec.arcs.iter().enumerate() {
+            let aid_num = aid.raw();
+            let owner = rec.decl.raw();
+            let _ = writeln!(
+                out,
+                "  \"a{aid_num}\" [id=\"arc-{aid_num}\", label=\"arc {ordinal}\", tooltip=\"HyperArcId {aid_num}; owner DeclId {owner}\", shape=diamond, style=filled, fillcolor=\"#FFF1D6\"];"
+            );
+            let _ = writeln!(
+                out,
+                "  \"e{owner}\" -> \"a{aid_num}\" [id=\"owner-{aid_num}\", dir=none, color=\"#64748B\", label=\"arc\"];"
+            );
+            for (slot, r) in ir.arcs[aid_num].refs.iter().enumerate() {
+                if r.target().is_none() {
+                    continue;
+                }
+                let (sign, color) = match r.sign() {
+                    1 => ("+", "#176B9B"),
+                    -1 => ("-", "#B54747"),
+                    _ => ("~", "#737D8C"),
                 };
-                let (color, arrowhead, penwidth) = match r.sign() {
-                     1 => ("#1b6ca8", "normal", 1.4),
-                    -1 => ("#b02a2a", "inv",    1.4),
-                     _ => ("#888888", "odot",   1.0),
+                let dir = match r.atom().direction {
+                    PortDirection::In => "back",
+                    PortDirection::Out => "forward",
+                    PortDirection::Unspecified => "none",
                 };
-                out.push_str(&format!(
-                    "  \"e{}\" -> \"{}\" [color=\"{}\", arrowhead=\"{}\", penwidth={:.1}];\n",
-                    eid_num, tgt_id, color, arrowhead, penwidth
-                ));
+                let mut label = format!("{sign} [{slot}]");
+                if let Some(weights) = &r.atom().weights {
+                    let values: Vec<_> = weights.iter().map(|v| render_value(v, ir, st)).collect();
+                    let _ = write!(label, " w=[{}]", values.join(", "));
+                }
+                let _ = writeln!(
+                    out,
+                    "  \"a{aid_num}\" -> \"{}\" [id=\"incidence-{aid_num}-{slot}\", label=\"{}\", tooltip=\"arc {aid_num}, slot {slot}, direction {:?}\", color=\"{color}\", fontcolor=\"{color}\", dir={dir}, arrowhead=normal, arrowtail=normal, penwidth=1.4];",
+                    id_of(r.target()),
+                    dot_escape(&label),
+                    r.atom().direction
+                );
             }
         }
+    }
+
+    for (index, rel) in snap.relationships.iter().enumerate() {
+        let (from, to, style, color, dir) = match rel.kind.as_str() {
+            "scope" => (rel.to, rel.from, "dotted", "#A1ACBB", "none"),
+            "isa" => (rel.from, rel.to, "dashed", "#8161A8", "forward"),
+            "ref" => (rel.from, rel.to, "solid", "#2E857A", "forward"),
+            _ => continue,
+        };
+        // Scope defines the hierarchy for layout; references do not distort it.
+        let constraint = rel.kind == "scope";
+        let _ = writeln!(
+            out,
+            "  \"{}\" -> \"{}\" [id=\"relation-{index}\", label=\"{}\", style={style}, color=\"{color}\", fontcolor=\"{color}\", dir={dir}, constraint={constraint}];",
+            id_of(DeclId::new(from)),
+            id_of(DeclId::new(to)),
+            rel.kind
+        );
     }
     out.push_str("}\n");
     out

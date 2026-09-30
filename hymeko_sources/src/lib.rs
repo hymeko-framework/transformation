@@ -38,12 +38,14 @@ impl MemoryProvider {
 
     /// Add one source. Returns self so a whole model can be assembled in one expression.
     pub fn with(mut self, path: &str, text: &str) -> Self {
-        self.files.insert(Self::normalise(Path::new(path)), text.into());
+        self.files
+            .insert(Self::normalise(Path::new(path)), text.into());
         self
     }
 
     pub fn insert(&mut self, path: &str, text: &str) {
-        self.files.insert(Self::normalise(Path::new(path)), text.into());
+        self.files
+            .insert(Self::normalise(Path::new(path)), text.into());
     }
 
     /// Which paths this provider can serve, for a diagnostic that names them.
@@ -94,4 +96,3 @@ impl SourceProvider for MemoryProvider {
         Ok(1)
     }
 }
-

@@ -19,7 +19,7 @@
 
 mod common;
 
-use hymeko_optimize::backend::{multistart, starts, AugmentedLagrangian, Backend, External};
+use hymeko_optimize::backend::{AugmentedLagrangian, Backend, External, multistart, starts};
 use hymeko_optimize::problem::Problem;
 use hymeko_optimize::read::project;
 
@@ -132,8 +132,16 @@ fn augmented_lagrangian_finds_the_optimum() {
         .expect("it converges");
 
     assert!(solved.feasible(), "{:#?}", solved.equalities);
-    assert!((solved.decisions[0].value - R1).abs() < 1e-7, "{:?}", solved.decisions);
-    assert!((solved.decisions[1].value - R2).abs() < 1e-7, "{:?}", solved.decisions);
+    assert!(
+        (solved.decisions[0].value - R1).abs() < 1e-7,
+        "{:?}",
+        solved.decisions
+    );
+    assert!(
+        (solved.decisions[1].value - R2).abs() < 1e-7,
+        "{:?}",
+        solved.decisions
+    );
     for (name, expected) in oracles() {
         let got = solved.value_of(name).expect("in the result");
         assert!(
@@ -171,8 +179,16 @@ fn external_backend_agrees() {
         .expect("it converges");
 
     assert!(solved.feasible());
-    assert!((solved.decisions[0].value - R1).abs() < 1e-6, "{:?}", solved.decisions);
-    assert!((solved.decisions[1].value - R2).abs() < 1e-6, "{:?}", solved.decisions);
+    assert!(
+        (solved.decisions[0].value - R1).abs() < 1e-6,
+        "{:?}",
+        solved.decisions
+    );
+    assert!(
+        (solved.decisions[1].value - R2).abs() < 1e-6,
+        "{:?}",
+        solved.decisions
+    );
 
     // The two backends agree, which is the evidence that neither of them contains the design: a
     // leaked formula would have to have leaked into both, identically, in two languages.

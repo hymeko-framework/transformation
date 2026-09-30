@@ -1,7 +1,9 @@
-pub mod kinematic;
 pub mod actuation;
-pub mod tp;
 pub mod cameras;
-pub mod visual;
-pub mod joints;
+pub mod dh;
 pub mod gazebo_plugins;
+pub mod ik;
+pub mod joints;
+pub mod kinematic;
+pub mod tp;
+pub mod visual;

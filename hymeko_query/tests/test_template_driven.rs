@@ -182,6 +182,9 @@ mod test_template_driven {
             assert!(out.contains("mini_arm"), "{name} output missing robot name");
         }
         let gazebo_out = render("gazebo", MINI_ARM, "mini_arm");
-        assert!(!gazebo_out.trim().is_empty(), "gazebo produced empty output");
+        assert!(
+            !gazebo_out.trim().is_empty(),
+            "gazebo produced empty output"
+        );
     }
 }

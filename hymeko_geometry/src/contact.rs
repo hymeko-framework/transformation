@@ -36,6 +36,9 @@
 
 use hymeko_clifford::Se3;
 
+/// Experimental, bounded replay of captured contact equations.
+pub mod replay;
+
 use crate::articulated::{AbaPlan, AbaScratch};
 use crate::collide::{Collider, Placement};
 
@@ -51,7 +54,7 @@ const MOBILITY_FLOOR: f64 = 1e-12;
 /// tangent directions whose impulse is bounded by Coulomb's law. They are separate rows of the same
 /// problem because they act along different directions, and they are coupled because the bound on
 /// the tangents is set by the normal's answer.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Limit {
     /// `p >= 0`. A contact normal pushes and never pulls.
     Pushing,
@@ -269,6 +272,79 @@ impl ConstraintSolver {
         self.impulse[k] - residual / diagonal
     }
 
+    fn friction_step(&mut self, k: usize, normal: usize, partner: usize, mu: f64) -> f64 {
+        let bound = mu * self.impulse[normal].max(0.0);
+        let before = (self.impulse[k], self.impulse[partner]);
+        self.impulse[k] = self.gauss_seidel(k);
+        self.impulse[partner] = self.gauss_seidel(partner);
+        let length = (self.impulse[k].powi(2) + self.impulse[partner].powi(2)).sqrt();
+        if length > bound && length > 0.0 {
+            self.impulse[k] *= bound / length;
+            self.impulse[partner] *= bound / length;
+        }
+        (self.impulse[k] - before.0)
+            .abs()
+            .max((self.impulse[partner] - before.1).abs())
+    }
+
+    fn update_row(&mut self, k: usize) -> (f64, f64) {
+        match self.limits[k] {
+            Limit::Friction { partner, .. } if partner < k => (0.0, 0.0),
+            Limit::Friction {
+                normal,
+                partner,
+                mu,
+            } => {
+                let moved = self.friction_step(k, normal, partner, mu);
+                (
+                    moved,
+                    self.impulse[k].abs().max(self.impulse[partner].abs()),
+                )
+            }
+            limit => {
+                if self.a[k * self.impulse.len() + k] <= MOBILITY_FLOOR {
+                    return (0.0, 0.0);
+                }
+                let mut next = self.gauss_seidel(k);
+                if matches!(limit, Limit::Pushing) && next < 0.0 {
+                    next = 0.0;
+                }
+                let moved = (next - self.impulse[k]).abs();
+                self.impulse[k] = next;
+                (moved, next.abs())
+            }
+        }
+    }
+
+    fn iterate(&mut self, parameters: &ContactParameters, order: Option<&[usize]>) {
+        self.sweeps = 0;
+        for _ in 0..parameters.iterations {
+            self.sweeps += 1;
+            let (mut moved, mut largest) = (0.0f64, 0.0f64);
+            for i in 0..self.impulse.len() {
+                let k = order.map_or(i, |indices| indices[i]);
+                let (delta, value) = self.update_row(k);
+                moved = moved.max(delta);
+                largest = largest.max(value);
+            }
+            if parameters.tolerance > 0.0 && moved <= parameters.tolerance * largest {
+                break;
+            }
+        }
+    }
+
+    /// Copy the last assembled equations for offline solver comparison.
+    /// This observation does not advance or modify the physical state.
+    pub fn replay(&self) -> replay::Problem {
+        replay::Problem {
+            matrix: self.a.clone(),
+            rhs: self.b.clone(),
+            limits: self.limits.clone(),
+            response: self.response.clone(),
+            reference: self.impulse.clone(),
+        }
+    }
+
     /// How many Gauss-Seidel sweeps the last solve made, which is at most
     /// [`ContactParameters::iterations`] and usually far fewer.
     pub fn sweeps(&self) -> usize {
@@ -479,79 +555,7 @@ impl ConstraintSolver {
             self.b[k] = sum + constraint.bias;
         }
 
-        // Projected Gauss-Seidel. Each sweep visits the constraints in turn and moves one multiplier
-        // to satisfy its own row exactly, projecting it back onto the sign it is allowed. It
-        // converges for a positive semidefinite `A`, which this is; it is what most engines actually
-        // run, and it degrades into a slightly soft contact rather than into an explosion when it
-        // runs out of iterations.
-        let mut sweeps = 0usize;
-        for _ in 0..parameters.iterations {
-            sweeps += 1;
-            let mut moved: f64 = 0.0;
-            let mut largest: f64 = 0.0;
-            for (k, constraint) in constraints.iter().enumerate() {
-                match constraint.limit {
-                    // The second of a friction pair is settled when the first is reached, because
-                    // the projection needs both at once.
-                    Limit::Friction { partner, .. } if partner < k => continue,
-                    Limit::Friction {
-                        normal,
-                        partner,
-                        mu,
-                    } => {
-                        // `mu * p_n` is the radius of the disc Coulomb allows, and `p_n` is whatever
-                        // the normal row has reached so far — the coupling that makes friction
-                        // depend on load.
-                        let bound = mu * self.impulse[normal].max(0.0);
-
-                        // Update both rows in sequence — the second sees the first — and THEN
-                        // project the pair onto the disc together.
-                        //
-                        // Projecting the pair rather than clamping each row separately is what keeps
-                        // friction isotropic: a per-row clamp confines the impulse to a square, and
-                        // a square makes a block slide more easily along a diagonal than along an
-                        // axis, which is an artefact of the discretisation and not of the physics.
-                        let before = (self.impulse[k], self.impulse[partner]);
-                        self.impulse[k] = self.gauss_seidel(k);
-                        self.impulse[partner] = self.gauss_seidel(partner);
-                        let length =
-                            (self.impulse[k].powi(2) + self.impulse[partner].powi(2)).sqrt();
-                        if length > bound && length > 0.0 {
-                            self.impulse[k] *= bound / length;
-                            self.impulse[partner] *= bound / length;
-                        }
-                        moved = moved
-                            .max((self.impulse[k] - before.0).abs())
-                            .max((self.impulse[partner] - before.1).abs());
-                        largest = largest
-                            .max(self.impulse[k].abs())
-                            .max(self.impulse[partner].abs());
-                    }
-                    limit => {
-                        if self.a[k * c + k] <= MOBILITY_FLOOR {
-                            // Nothing behind this constraint to push against: `A[k][k]` is
-                            // `J_k M^-1 J_k^T`, so a zero means the mechanism cannot move along it
-                            // at all. Leaving the impulse at zero is the only defensible answer —
-                            // any other value would be an impulse that does nothing, chosen
-                            // arbitrarily — and the residual reports it separately so it is not
-                            // mistaken for slow convergence.
-                            continue;
-                        }
-                        let mut next = self.gauss_seidel(k);
-                        if matches!(limit, Limit::Pushing) && next < 0.0 {
-                            next = 0.0;
-                        }
-                        moved = moved.max((next - self.impulse[k]).abs());
-                        largest = largest.max(next.abs());
-                        self.impulse[k] = next;
-                    }
-                }
-            }
-            if parameters.tolerance > 0.0 && moved <= parameters.tolerance * largest {
-                break;
-            }
-        }
-        self.sweeps = sweeps;
+        self.iterate(parameters, None);
 
         for (k, _) in constraints.iter().enumerate() {
             let p = self.impulse[k];

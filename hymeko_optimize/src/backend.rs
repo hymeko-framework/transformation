@@ -174,7 +174,9 @@ impl AugmentedLagrangian {
         let mut damping = 1e-8;
         for iteration in 0..self.inner_iterations {
             let (value, grad, _) = state.at(x)?;
-            let free: Vec<usize> = (0..n).filter(|&k| is_free(x[k], grad[k], bounds[k])).collect();
+            let free: Vec<usize> = (0..n)
+                .filter(|&k| is_free(x[k], grad[k], bounds[k]))
+                .collect();
             if free.is_empty() || free_norm(x, &grad, bounds) <= self.tolerance * 1e-2 {
                 return Ok(iteration);
             }
@@ -469,7 +471,8 @@ impl Backend for External {
             setup.push_str(&format!(" {upper:e}"));
         }
         writeln!(sink, "{setup}").map_err(|e| BackendError::Channel(e.to_string()))?;
-        sink.flush().map_err(|e| BackendError::Channel(e.to_string()))?;
+        sink.flush()
+            .map_err(|e| BackendError::Channel(e.to_string()))?;
 
         let mut iterations = 0usize;
         let mut line = String::new();
@@ -499,8 +502,7 @@ impl Backend for External {
                         }
                     };
                     push(&evaluation.objective.grad, &mut reply);
-                    let values: Vec<f64> =
-                        evaluation.equalities.iter().map(|h| h.value).collect();
+                    let values: Vec<f64> = evaluation.equalities.iter().map(|h| h.value).collect();
                     push(&values, &mut reply);
                     for h in &evaluation.equalities {
                         push(&h.grad, &mut reply);
@@ -522,8 +524,10 @@ impl Backend for External {
                         return Err(BackendError::Channel(format!("short result: {line:?}")));
                     }
                     iterations = rest[1].parse().unwrap_or(iterations);
-                    let point: Vec<f64> =
-                        rest[2..2 + n].iter().filter_map(|w| w.parse().ok()).collect();
+                    let point: Vec<f64> = rest[2..2 + n]
+                        .iter()
+                        .filter_map(|w| w.parse().ok())
+                        .collect();
                     break (rest[0] == "1", point);
                 }
                 _ => return Err(BackendError::Channel(format!("unexpected: {line:?}"))),

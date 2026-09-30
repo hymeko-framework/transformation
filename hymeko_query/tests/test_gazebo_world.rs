@@ -12,12 +12,12 @@
 #[cfg(test)]
 mod test_gazebo_world {
     use hymeko_formats::gazebo::generate_gazebo_world;
-    use hymeko_query::engine::QueryEngine;
     use hymeko_geometry::kinematics::gazebo_plugins::{GazeboPluginKind, extract_gazebo_plugins};
     use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
     use hymeko_geometry::transforms::{
         DomainTransform, ModelView, TransformConfig, TransformRegistry,
     };
+    use hymeko_query::engine::QueryEngine;
 
     use crate::test_helpers::load_and_lower;
 

@@ -81,3 +81,21 @@ fn spatial_query_exposes_frames_placements_and_fiducial_identity() {
     assert_eq!(placements.len(), 1);
     assert_eq!(placements[0].frame, bindings[0].tracked_frame);
 }
+
+#[test]
+fn anchor_and_camera_attributes_fall_back_to_their_kind() {
+    let scene = SCENE
+        .replace(
+            "marker: + <isa> s.kinds.fiducial_anchor {\n    fiducial_kind \"aruco\";\n    family \"DICT_4X4_50\";",
+            "aruco_profile: + <isa> s.kinds.fiducial_anchor { fiducial_kind \"aruco\"; family \"DICT_4X4_50\"; }\nmarker: + <isa> aruco_profile {",
+        )
+        .replace("    camera_id 7;\n    image_encoding \"Rgb8\";\n    color_space \"sRGB\";\n", "");
+    assert!(scene.contains("aruco_profile") && !scene.contains("camera_id 7"), "fixture rewrite");
+    let (ir, interner) = compile_scene(&scene);
+    let query = SpatialQuery::new(&ir, &interner).unwrap();
+    let bindings = query.fiducial_bindings().unwrap();
+    assert_eq!((bindings[0].kind, bindings[0].family, bindings[0].identifier), (FiducialKind::Aruco, "DICT_4X4_50", "17"));
+    let cameras = query.camera_frames().unwrap();
+    assert_eq!((cameras[0].camera_id, cameras[0].image_encoding, cameras[0].color_space), (0, "Rgb8", "sRGB"),
+        "camera_frame's declared defaults apply to an instance that omits them");
+}

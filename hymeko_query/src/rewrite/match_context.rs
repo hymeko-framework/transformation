@@ -4,10 +4,10 @@
 //! by looking up named children under that declaration. This decouples the
 //! template engine from domain-specific knowledge about what fields exist.
 
-use hymeko::common::ids::DeclId;
-use hymeko::ir::ir::{DeclKind, Ir, ValueR};
 use crate::engine::QueryMatch;
 use crate::traits::NameResolver;
+use hymeko::common::ids::DeclId;
+use hymeko::ir::ir::{DeclKind, Ir, ValueR};
 
 /// Extracted field value (string representation for template interpolation).
 #[derive(Clone, Debug)]
@@ -41,12 +41,11 @@ impl FieldValue {
                     format!("{n}")
                 }
             }
-            FieldValue::List(vs) => {
-                vs.iter()
-                    .map(|v| v.to_template_string())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            }
+            FieldValue::List(vs) => vs
+                .iter()
+                .map(|v| v.to_template_string())
+                .collect::<Vec<_>>()
+                .join(" "),
             FieldValue::Present => "true".into(),
             FieldValue::Missing => String::new(),
         }
@@ -62,7 +61,11 @@ pub struct MatchContext<'a, R: NameResolver> {
 
 impl<'a, R: NameResolver> MatchContext<'a, R> {
     pub fn new(ir: &'a Ir, resolver: &'a R, match_result: &'a QueryMatch) -> Self {
-        Self { ir, resolver, match_result }
+        Self {
+            ir,
+            resolver,
+            match_result,
+        }
     }
 
     /// Get the value of a named child field.
@@ -72,10 +75,34 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
     /// own name if it's a reference).
     ///
     /// Supports dotted paths: `"geometry.shape"` → find child "geometry",
-    /// then find its child "shape".
+    /// then find its child "shape". An empty path reads the matched declaration
+    /// itself, consistent with `resolve_field_decl("")`. Intermediate value
+    /// references are followed; terminal references retain their own identity.
     pub fn get_field(&self, field_path: &str) -> FieldValue {
+        if field_path.is_empty() {
+            return self.decl_value(self.match_result.id);
+        }
         let segments: Vec<&str> = field_path.split('.').collect();
         self.get_field_at(self.match_result.id, &segments)
+    }
+
+    /// Like [`get_field`](Self::get_field), but every segment is read through
+    /// [`QueryEngine::effective_child`](crate::QueryEngine::effective_child): a declaration
+    /// without its own child uses its bases'. Opt-in, so emitters built on `get_field` keep
+    /// their output.
+    pub fn effective_field(&self, field_path: &str) -> FieldValue {
+        let engine = crate::QueryEngine::new(self.ir, self.resolver);
+        let mut decl = self.match_result.id;
+        for segment in field_path.split('.').filter(|segment| !segment.is_empty()) {
+            let child = self
+                .reference_scope(decl)
+                .and_then(|scope| engine.effective_child(scope, segment));
+            let Some(child) = child else {
+                return FieldValue::Missing;
+            };
+            decl = child;
+        }
+        self.decl_value(decl)
     }
 
     /// Resolve a dotted field path to the underlying `DeclId` without
@@ -93,6 +120,7 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
         if segments.is_empty() {
             return Some(parent);
         }
+        let parent = self.reference_scope(parent)?;
         let target_name = segments[0];
         let rest = &segments[1..];
         for child in self.ir.decl_children(parent) {
@@ -109,6 +137,10 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
             // Return the value of this declaration itself
             return self.decl_value(parent);
         }
+
+        let Some(parent) = self.reference_scope(parent) else {
+            return FieldValue::Missing;
+        };
 
         let target_name = segments[0];
         let rest = &segments[1..];
@@ -135,9 +167,8 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
                     for base in &edge.bases {
                         let target = base.target();
                         if !target.is_none() {
-                            let target_name_resolved = self.resolver.resolve(
-                                self.ir.decl_nodes[target.raw()].name
-                            );
+                            let target_name_resolved =
+                                self.resolver.resolve(self.ir.decl_nodes[target.raw()].name);
                             if target_name_resolved == target_name {
                                 if rest.is_empty() {
                                     return self.decl_value(target);
@@ -152,6 +183,18 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
         }
 
         FieldValue::Missing
+    }
+
+    // Reference aliases are not containment. Bound traversal independently of
+    // path length so cyclic aliases cannot recurse indefinitely.
+    fn reference_scope(&self, mut id: DeclId) -> Option<DeclId> {
+        for _ in 0..32 {
+            match self.ir.decl_node(id)?.anno.value {
+                Some(ValueR::Ref(target)) => id = target,
+                _ => return Some(id),
+            }
+        }
+        None
     }
 
     /// Extract the value from a declaration node.
@@ -209,7 +252,10 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
     pub fn children_fields(&self) -> Vec<(String, FieldValue)> {
         let mut result = Vec::new();
         for child in self.ir.decl_children(self.match_result.id) {
-            let name = self.resolver.resolve(self.ir.decl_nodes[child.raw()].name).to_string();
+            let name = self
+                .resolver
+                .resolve(self.ir.decl_nodes[child.raw()].name)
+                .to_string();
             let value = self.decl_value(child);
             result.push((name, value));
         }
@@ -218,7 +264,10 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
 
     /// Get the n-th arc binding with the given sign (1 = +, -1 = -, 0 = neutral).
     pub fn binding_target(&self, sign: i8, index: usize) -> FieldValue {
-        let filtered: Vec<_> = self.match_result.arc_bindings.iter()
+        let filtered: Vec<_> = self
+            .match_result
+            .arc_bindings
+            .iter()
             .filter(|b| b.sign == sign)
             .collect();
         match filtered.get(index) {
@@ -229,7 +278,9 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
 
     /// Get all positive binding targets as a list.
     pub fn positive_bindings(&self) -> Vec<String> {
-        self.match_result.arc_bindings.iter()
+        self.match_result
+            .arc_bindings
+            .iter()
             .filter(|b| b.sign > 0)
             .map(|b| b.target_name.clone())
             .collect()
@@ -237,9 +288,65 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
 
     /// Get all negative binding targets as a list.
     pub fn negative_bindings(&self) -> Vec<String> {
-        self.match_result.arc_bindings.iter()
+        self.match_result
+            .arc_bindings
+            .iter()
             .filter(|b| b.sign < 0)
             .map(|b| b.target_name.clone())
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Predicate, QueryEngine};
+    use hymeko::module_store::{execution::CompiledModel, source_provider::MemProvider};
+    use hymeko::util::real_parser::RealParser;
+
+    #[test]
+    fn dotted_fields_follow_aliases_but_preserve_terminal_reference_identity() {
+        let mut files = MemProvider::default();
+        files.insert_file("/references.hymeko", "description {} state { value 7; } alias -> state; item { observation -> alias; } cycle { next -> loop; } loop -> cycle.next;");
+        let model = CompiledModel::compile(files, RealParser, std::path::Path::new("/references.hymeko")).unwrap();
+        let ir = &model.program().ir;
+        let query = QueryEngine::new(ir, model.interner());
+        let declarations = query.query(&Predicate::Any);
+        let item = declarations.iter().find(|d| d.name == "item").unwrap();
+        let context = MatchContext::new(ir, model.interner(), item);
+        assert!(matches!(context.get_field("observation.value"), FieldValue::Num(7.)));
+        let value = context.resolve_field_decl("observation.value").unwrap();
+        assert_eq!(model.interner().resolve(ir.decl_node(value).unwrap().name), "value");
+        let reference = context.resolve_field_decl("observation").unwrap();
+        assert_eq!(model.interner().resolve(ir.decl_node(reference).unwrap().name), "observation");
+        assert!(matches!(context.get_field("observation"), FieldValue::Str(name) if name == "alias"));
+        assert!(context.get_field("observation.missing").is_missing());
+        let cycle = declarations.iter().find(|d| d.name == "cycle").unwrap();
+        let context = MatchContext::new(ir, model.interner(), cycle);
+        assert!(context.get_field("next.value").is_missing());
+        assert!(context.resolve_field_decl("next.value").is_none());
+    }
+
+    #[test]
+    fn effective_fields_read_inherited_blocks_while_get_field_stays_direct() {
+        let mut files = MemProvider::default();
+        files.insert_file(
+            "/inherited.hymeko",
+            "description {} marker { size_m 0.08; sample { valid 0; } } \
+             root: + <isa> marker { sample { valid 1; } } landmark: + <isa> marker {}",
+        );
+        let model = CompiledModel::compile(files, RealParser, std::path::Path::new("/inherited.hymeko")).unwrap();
+        let ir = &model.program().ir;
+        let query = QueryEngine::new(ir, model.interner());
+        let declarations = query.query(&Predicate::Any);
+        let named = |name: &str| declarations.iter().find(|d| d.name == name).unwrap();
+        let landmark = MatchContext::new(ir, model.interner(), named("landmark"));
+        assert!(landmark.get_field("size_m").is_missing(), "get_field keeps its direct-child contract");
+        assert!(matches!(landmark.effective_field("size_m"), FieldValue::Num(v) if v == 0.08));
+        assert!(matches!(landmark.effective_field("sample.valid"), FieldValue::Num(v) if v == 0.));
+        let root = MatchContext::new(ir, model.interner(), named("root"));
+        assert!(matches!(root.effective_field("sample.valid"), FieldValue::Num(v) if v == 1.), "own block overrides");
+        assert!(matches!(root.effective_field("size_m"), FieldValue::Num(v) if v == 0.08));
+        assert!(root.effective_field("sample.missing").is_missing());
     }
 }

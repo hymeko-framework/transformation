@@ -24,10 +24,10 @@
 //! - [`read`] — the IR to [`problem::Problem`] projection, which finds everything by inheritance.
 //! - [`report`] — the typed result, carrying declaration identities back out.
 
+pub mod backend;
 pub mod dual;
 pub mod network;
 pub mod problem;
-pub mod backend;
 pub mod read;
 pub mod report;
 

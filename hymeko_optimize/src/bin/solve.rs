@@ -15,7 +15,7 @@ use std::process::ExitCode;
 use hymeko::module_store::module_store::ModuleStore;
 use hymeko::module_store::source_provider::StdFsProvider;
 use hymeko::util::real_parser::RealParser;
-use hymeko_optimize::backend::{starts, AugmentedLagrangian, Backend, BackendError, External};
+use hymeko_optimize::backend::{AugmentedLagrangian, Backend, BackendError, External, starts};
 use hymeko_optimize::read::project;
 use hymeko_optimize::report::Solved;
 
@@ -143,7 +143,10 @@ fn main() -> ExitCode {
         println!("backend      {}", best.backend);
         println!("objective    {:.12}", best.objective);
         for decision in &best.decisions {
-            println!("  {:<44} {:>18.12} {}", decision.name, decision.value, decision.unit);
+            println!(
+                "  {:<44} {:>18.12} {}",
+                decision.name, decision.value, decision.unit
+            );
         }
         println!("derived");
         for quantity in &best.quantities {
@@ -167,7 +170,11 @@ fn main() -> ExitCode {
                 "  {:<44} {:>18.3e} {}",
                 residual.name,
                 residual.value,
-                if residual.satisfied { "held" } else { "VIOLATED" }
+                if residual.satisfied {
+                    "held"
+                } else {
+                    "VIOLATED"
+                }
             );
         }
     }

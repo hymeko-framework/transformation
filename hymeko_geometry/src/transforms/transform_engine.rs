@@ -9,12 +9,10 @@
 //! The generic `R: NameResolver` lives ONLY in `TransformEngine` methods.
 //! Everything downstream (`DomainTransform::emit`, `ModelView`) is type-erased.
 
+use crate::transforms::model_view::{ModelKind, extract};
+use crate::transforms::{Diagnostic, TransformConfig, TransformRegistry};
 use hymeko::ir::ir::Ir;
 use hymeko_query::traits::NameResolver;
-use crate::transforms::model_view::{extract, ModelKind};
-use crate::transforms::{
-    TransformConfig, TransformRegistry, Diagnostic,
-};
 use std::path::Path;
 
 /// Orchestrates compile → extract → emit.
@@ -75,11 +73,14 @@ impl TransformEngine {
         let model = extract(ir, resolver, robot_name, self.default_model);
         let config = TransformConfig::default().with_name(robot_name);
 
-        formats.iter().filter_map(|&fmt| {
-            let t = self.registry.get(fmt)?;
-            let output = t.emit(&model, &config)?;
-            Some((format!("{}.{}", robot_name, t.extension()), output))
-        }).collect()
+        formats
+            .iter()
+            .filter_map(|&fmt| {
+                let t = self.registry.get(fmt)?;
+                let output = t.emit(&model, &config)?;
+                Some((format!("{}.{}", robot_name, t.extension()), output))
+            })
+            .collect()
     }
 
     /// Extract model + emit ALL registered formats.
@@ -115,9 +116,11 @@ impl TransformEngine {
         robot_name: &str,
     ) -> Vec<(String, Vec<Diagnostic>)> {
         let model = extract(ir, resolver, robot_name, self.default_model);
-        self.registry.transforms.iter().map(|t| {
-            (t.name().to_string(), t.validate(&model))
-        }).collect()
+        self.registry
+            .transforms
+            .iter()
+            .map(|t| (t.name().to_string(), t.validate(&model)))
+            .collect()
     }
 
     /// Extract + emit with custom config.

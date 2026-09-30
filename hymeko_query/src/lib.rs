@@ -21,13 +21,15 @@
     clippy::only_used_in_recursion,
     clippy::should_implement_trait,
     clippy::too_many_arguments,
-    clippy::useless_conversion,
+    clippy::useless_conversion
 )]
 
-pub mod predicate;
-pub mod predicate_expr;
+pub mod checks;
 pub mod engine;
 pub mod entropy;
+pub mod fields;
+pub mod predicate;
+pub mod predicate_expr;
 
 #[cfg(feature = "interpret")]
 pub mod interpret;
@@ -38,7 +40,8 @@ pub mod rewrite;
 pub mod traits;
 
 // Re-exports for convenience
-pub use predicate::{NamedQuery, Predicate, ValuePredicate};
+pub use checks::{MatchExpectation, QueryCheck};
 pub use engine::{ArcBinding, QueryConfig, QueryEngine, QueryMatch};
-pub use entropy::{compute_entropy, compute_entropy_hierarchical, StructuralEntropy};
+pub use entropy::{StructuralEntropy, compute_entropy, compute_entropy_hierarchical};
+pub use predicate::{NamedQuery, Predicate, ValuePredicate};
 pub use traits::NameResolver;

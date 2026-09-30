@@ -22,9 +22,9 @@ use std::time::Instant;
 
 use hymeko_clifford::Se3;
 use hymeko_geometry::articulated::AbaPlan;
-use hymeko_geometry::collide::{colliders_of, place, Placement};
+use hymeko_geometry::collide::{Placement, colliders_of, place};
 use hymeko_geometry::contact::{
-    ground_constraints, ground_contacts, ConstraintSolver, ContactParameters,
+    ConstraintSolver, ContactParameters, ground_constraints, ground_contacts,
 };
 use hymeko_geometry::forward::FkPlan;
 use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
@@ -67,7 +67,13 @@ fn main() {
 
     plan.resolve_se3(&model, &q, &mut poses);
     place(&colliders, &poses, &mut placed);
-    ground_contacts(&colliders, &placed, ground, parameters.margin, &mut contacts);
+    ground_contacts(
+        &colliders,
+        &placed,
+        ground,
+        parameters.margin,
+        &mut contacts,
+    );
     let c = contacts.len();
     if c == 0 {
         println!("  {root}: nothing is touching at z = {ground}");
@@ -88,7 +94,10 @@ fn main() {
 
     println!("  {root}: {n} joints, {c} contacts at z = {ground}");
     {
-        let mut warm = ContactParameters { iterations: 30, ..parameters };
+        let mut warm = ContactParameters {
+            iterations: 30,
+            ..parameters
+        };
         warm.iterations = 30;
         aba.accelerations(&model, &q, &qd, &tau, GRAVITY, &mut scratch, &mut free);
         velocity.copy_from_slice(&qd);
@@ -165,9 +174,7 @@ fn main() {
         .zip(&reference)
         .fold(0.0f64, |m, (a, b): (&f64, &f64)| m.max((a - b).abs()))
         / scale;
-    println!(
-        "    at a fixed 30 sweeps the impulses are within {drift:.2e} of the converged ones"
-    );
+    println!("    at a fixed 30 sweeps the impulses are within {drift:.2e} of the converged ones");
 
     // and what the shipped adaptive setting actually does
     let shipped = ContactParameters::default();
@@ -194,6 +201,7 @@ fn main() {
     }
     let us = t0.elapsed().as_secs_f64() * 1e6 / reps as f64;
     println!(
-        "    SHIPPED (adaptive): {} sweeps, unconverged {unconverged:.2e},          within {drift:.2e} of converged, {us:.2} us"
-    , solver.sweeps());
+        "    SHIPPED (adaptive): {} sweeps, unconverged {unconverged:.2e},          within {drift:.2e} of converged, {us:.2} us",
+        solver.sweeps()
+    );
 }

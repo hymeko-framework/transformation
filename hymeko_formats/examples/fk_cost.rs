@@ -5,7 +5,9 @@
 //!   B  topology prepared once            — flat index arrays, same Se arithmetic
 //!   C  arithmetic only                   — the Se compositions B does, and nothing else
 use hymeko_clifford::Se;
-use hymeko_geometry::forward::{forward_kinematics, joint_motion, joint_origin, FkPlan, JointValues};
+use hymeko_geometry::forward::{
+    FkPlan, JointValues, forward_kinematics, joint_motion, joint_origin,
+};
 use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
 use hymeko_query::QueryEngine;
 
@@ -34,34 +36,57 @@ fn main() {
         .collect();
     let mut parent_of: Vec<Option<(usize, usize)>> = vec![None; model.links.len()];
     for j in &model.joints {
-        if let (Some(&c), Some(&p)) = (index.get(j.child_link.as_str()), index.get(j.parent_link.as_str())) {
-            parent_of[c] = Some((model.joints.iter().position(|x| x.name == j.name).unwrap(), p));
+        if let (Some(&c), Some(&p)) = (
+            index.get(j.child_link.as_str()),
+            index.get(j.parent_link.as_str()),
+        ) {
+            parent_of[c] = Some((
+                model.joints.iter().position(|x| x.name == j.name).unwrap(),
+                p,
+            ));
         }
     }
     // evaluation order: repeatedly take links whose parent is already placed
     let mut order = Vec::new();
     let mut placed = vec![false; model.links.len()];
     for (i, p) in parent_of.iter().enumerate() {
-        if p.is_none() { order.push(i); placed[i] = true; }
+        if p.is_none() {
+            order.push(i);
+            placed[i] = true;
+        }
     }
     while order.len() < model.links.len() {
         let before = order.len();
         for i in 0..model.links.len() {
-            if placed[i] { continue; }
+            if placed[i] {
+                continue;
+            }
             if let Some((_, p)) = parent_of[i] {
-                if placed[p] { order.push(i); placed[i] = true; }
+                if placed[p] {
+                    order.push(i);
+                    placed[i] = true;
+                }
             }
         }
-        if order.len() == before { break; }
+        if order.len() == before {
+            break;
+        }
     }
     let values: Vec<f64> = model.joints.iter().map(|j| q[&j.name]).collect();
-    eprintln!("{root}: {} links, {} joints, {} ordered", model.links.len(), model.joints.len(), order.len());
+    eprintln!(
+        "{root}: {} links, {} joints, {} ordered",
+        model.links.len(),
+        model.joints.len(),
+        order.len()
+    );
 
     let reps = 20_000;
     let time = |name: &str, f: &mut dyn FnMut()| {
         f();
         let t0 = std::time::Instant::now();
-        for _ in 0..reps { f(); }
+        for _ in 0..reps {
+            f();
+        }
         let us = t0.elapsed().as_secs_f64() * 1e6 / reps as f64;
         println!("  {name:<34} {us:>7.2} us");
         us
@@ -88,7 +113,9 @@ fn main() {
     let plan = FkPlan::new(&model).expect("plan");
     let mut pp = plan.identity_poses();
     let mut flat = plan.zero_values();
-    for j in &model.joints { flat[plan.slot(&j.name).unwrap()] = q[&j.name]; }
+    for j in &model.joints {
+        flat[plan.slot(&j.name).unwrap()] = q[&j.name];
+    }
     let d = time("D  FkPlan::resolve", &mut || {
         plan.resolve(&model, &flat, &mut pp);
         std::hint::black_box(&pp);
@@ -105,11 +132,20 @@ fn main() {
         for &i in &order {
             if let Some((ji, _)) = parent_of[i] {
                 let j = &model.joints[ji];
-                acc = acc.compose(&joint_origin(j)).compose(&joint_motion(j, values[ji]));
+                acc = acc
+                    .compose(&joint_origin(j))
+                    .compose(&joint_motion(j, values[ji]));
             }
         }
         std::hint::black_box(&acc);
     });
-    println!("\n  bookkeeping (A - B): {:.2} us   {:.0}% of A", a - b, 100.0 * (a - b) / a);
-    println!("  Se allocation+math (C): {c:.2} us   {:.0}% of A", 100.0 * c / a);
+    println!(
+        "\n  bookkeeping (A - B): {:.2} us   {:.0}% of A",
+        a - b,
+        100.0 * (a - b) / a
+    );
+    println!(
+        "  Se allocation+math (C): {c:.2} us   {:.0}% of A",
+        100.0 * c / a
+    );
 }

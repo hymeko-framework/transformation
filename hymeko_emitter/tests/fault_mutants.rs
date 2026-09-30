@@ -12,7 +12,7 @@
 //!     one `hymeko_core`; a second version would make the `Ir` types incompatible
 //!     and fail to compile.
 //!   - *reverting to the old resolution-`Index` canonical hash* — no production
-//!     site in the workspace calls `canonical_program_hash(idx, ir, it)` or reads
+//!     site in the workspace calls `CanonicalPaths::hash(idx, ir, it)` or reads
 //!     `Index.by_path` (grep-verified); there is nothing to revert.
 
 use hymeko::ir::ir::Ir;

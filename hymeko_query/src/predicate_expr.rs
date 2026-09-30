@@ -23,13 +23,16 @@ use hymeko::resolution::string_table::StringTable;
 /// Evaluate a predicate expression (with optional `AND`-chained
 /// conjunction) against a single declaration.
 pub fn match_expr(expr: &str, did: DeclId, ir: &Ir, st: &StringTable) -> bool {
-    expr.split(" AND ").all(|p| match_atom(p.trim(), did, ir, st))
+    expr.split(" AND ")
+        .all(|p| match_atom(p.trim(), did, ir, st))
 }
 
 /// Evaluate a single predicate atom (one of `KIND`, `INHERITS`,
 /// `SCOPEDIN`, `HASARCREF`, `ANY`) against a declaration.
 pub fn match_atom(atom: &str, did: DeclId, ir: &Ir, st: &StringTable) -> bool {
-    if atom == "ANY" { return true; }
+    if atom == "ANY" {
+        return true;
+    }
     if let Some(rest) = atom.strip_prefix("KIND(") {
         let name = rest.trim_end_matches(')');
         return decl_kind_name(did, ir, st) == name;
@@ -80,18 +83,26 @@ pub fn decl_inherits(did: DeclId, target_name: &str, ir: &Ir, st: &StringTable) 
     let mut visited = std::collections::HashSet::new();
     let mut stack = vec![did];
     while let Some(d) = stack.pop() {
-        if !visited.insert(d) { continue; }
+        if !visited.insert(d) {
+            continue;
+        }
         let decl = &ir.decl_nodes[d.raw()];
-        if st.resolve(decl.name) == target_name { return true; }
+        if st.resolve(decl.name) == target_name {
+            return true;
+        }
         match decl.kind {
             DeclKind::Node => {
                 if let Some(nid) = ir.as_node(d) {
-                    for b in &ir.nodes[nid.raw()].bases { stack.push(b.target()); }
+                    for b in &ir.nodes[nid.raw()].bases {
+                        stack.push(b.target());
+                    }
                 }
             }
             DeclKind::Edge => {
                 if let Some(eid) = ir.as_edge(d) {
-                    for b in &ir.edges[eid.raw()].bases { stack.push(b.target()); }
+                    for b in &ir.edges[eid.raw()].bases {
+                        stack.push(b.target());
+                    }
                 }
             }
             _ => {}
@@ -104,8 +115,12 @@ pub fn decl_inherits(did: DeclId, target_name: &str, ir: &Ir, st: &StringTable) 
 pub fn decl_scoped_in(did: DeclId, name: &str, ir: &Ir, st: &StringTable) -> bool {
     let mut cur = ir.decl_nodes[did.raw()].parent;
     while cur.is_some() {
-        if decl_inherits(cur, name, ir, st) { return true; }
-        if st.resolve(ir.decl_nodes[cur.raw()].name) == name { return true; }
+        if decl_inherits(cur, name, ir, st) {
+            return true;
+        }
+        if st.resolve(ir.decl_nodes[cur.raw()].name) == name {
+            return true;
+        }
         cur = ir.decl_nodes[cur.raw()].parent;
     }
     false
@@ -114,11 +129,17 @@ pub fn decl_scoped_in(did: DeclId, name: &str, ir: &Ir, st: &StringTable) -> boo
 /// Check that an edge has at least one signed arc-ref of the given
 /// sign whose target matches the inner predicate.
 pub fn has_arc_ref(did: DeclId, sign: i8, inner: &str, ir: &Ir, st: &StringTable) -> bool {
-    let Some(eid) = ir.as_edge(did) else { return false };
+    let Some(eid) = ir.as_edge(did) else {
+        return false;
+    };
     for &aid in &ir.edges[eid.raw()].arcs {
         for r in &ir.arcs[aid.raw()].refs {
-            if r.sign() != sign { continue; }
-            if match_expr(inner, r.target(), ir, st) { return true; }
+            if r.sign() != sign {
+                continue;
+            }
+            if match_expr(inner, r.target(), ir, st) {
+                return true;
+            }
         }
     }
     false

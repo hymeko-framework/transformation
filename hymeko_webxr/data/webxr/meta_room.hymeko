@@ -1,0 +1,42 @@
+// meta_room — authored XR rooms, a specialisation of meta_spatial (imports it; one Ir).
+//
+// A room is a scene with exactly one room frame. At most one fiducial registers that frame, via
+// meta_spatial's @fiducial_registration (+ room frame, ~ marker): that marker is the room root.
+// Every other fiducial inside the room is a landmark. A tracked device is a frame whose pose a
+// runtime reports into the room.
+//
+// Observation slots (`sample`) belong to instances, never to a kind here: a slot declared on a
+// kind would be inherited, and so shared, by every instance of it. Readers bind by these kinds,
+// never by declaration names or paths.
+meta_room {
+    @"meta_spatial.hymeko";
+    using meta_spatial.spatial as s;
+}
+
+xr_room {
+    kinds {
+        room:           + <isa> s.kinds.scene {}
+        room_frame:     + <isa> s.kinds.spatial_frame {}
+        // An ArUco marker: identifier is the decimal marker id, family the OpenCV dictionary.
+        aruco_marker:   + <isa> s.kinds.fiducial_anchor {
+            fiducial_kind "aruco";
+            convention "opencv_marker_x_right_y_up_z_out";   // +X right, +Y up, +Z out of the face
+        }
+        tracked_device: + <isa> s.kinds.spatial_frame {}
+        // An object people may move in the room. Its own `sample` places it (epoch, sequence,
+        // valid, room XYZ, WXYZ); its visuals follow through `pose_anchor -> sample`.
+        manipulable:    + <isa> s.kinds.affordance {}
+        // A stereo camera producing in the room (a ZED 2i, say). Its instance is a producer: it
+        // names `source_id` and `transport` and streams what it detected into its detection slots
+        // as value samples. Images, depth and point clouds never enter the room. A spatial frame
+        // rather than a camera_frame: readers of camera_frame take every descendant for a stream.
+        stereo_camera:  + <isa> s.kinds.spatial_frame {
+            baseline_m 0.0;                                  // distance between the two optical centres
+        }
+        // One detected object, as its camera reports it. The instance declares its leaves: `sample`
+        // (epoch, sequence, valid, room XYZ, WXYZ, the layout a pose sample has), `class_id` (an
+        // index into the camera's `classes`), `confidence`, `track`, `velocity` (m/s, room axes)
+        // and `observed_ms`; its box visual follows `pose_sample -> sample`.
+        detection_slot: + <isa> s.kinds.spatial_entity {}
+    }
+}
