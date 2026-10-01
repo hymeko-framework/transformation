@@ -57,21 +57,28 @@ pub enum LightKind {
     Directional,
     Point,
     Spot,
+    /// A one-sided emitting rectangle (`light_kind "rect"`): it emits along local -Z, its
+    /// `width` runs along local X and its `height` along local Y.
+    Rect,
 }
 
-/// A declared light, in glTF `KHR_lights_punctual` terms.
+/// A declared light, in glTF `KHR_lights_punctual` terms, plus rectangular area lights.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DeclaredLight {
     pub decl: DeclId,
     pub kind: LightKind,
     /// Linear colour; `None` when undeclared, which means white.
     pub rgb: Option<[f64; 3]>,
-    /// Lux for a directional light, candela for point and spot lights.
+    /// Lux for a directional light, candela for point and spot lights, and luminance in cd/m²
+    /// for a rect light.
     pub intensity: f64,
     pub range: f64,
     /// Spot cone half-angles in radians.
     pub inner: f64,
     pub outer: f64,
+    /// A rect light's size in metres (0 for the other kinds unless declared).
+    pub width: f64,
+    pub height: f64,
     pub casts_shadow: bool,
     pub position_m: [f64; 3],
     /// The light aims along the local -Z of this orientation.
@@ -100,6 +107,7 @@ impl<'a> SpatialQuery<'a> {
                     Some("directional") => LightKind::Directional,
                     Some("point") => LightKind::Point,
                     Some("spot") => LightKind::Spot,
+                    Some("rect") => LightKind::Rect,
                     _ => return Err(self.invalid(decl, "light_kind")),
                 };
                 let (position_m, orientation_wxyz) = self.placement(decl)?;
@@ -114,6 +122,8 @@ impl<'a> SpatialQuery<'a> {
                     range: self.number(decl, "range", 0.0)?,
                     inner: self.number(decl, "inner", 0.0)?,
                     outer: self.number(decl, "outer", 0.0)?,
+                    width: self.number(decl, "width", 0.0)?,
+                    height: self.number(decl, "height", 0.0)?,
                     casts_shadow: self.number(decl, "casts_shadow", 0.0)? >= 0.5,
                     position_m,
                     orientation_wxyz,

@@ -223,15 +223,25 @@ fn lights_bind_by_kind_and_refuse_an_unknown_light_kind() {
         sun: + <isa> s.kinds.light { light_kind "directional"; intensity 50000; casts_shadow 1; qw 1; }
         lamp: + <isa> s.kinds.light { light_kind "point"; intensity "800"; range 3; px 0.5; pz 1; r 1; g 0.8; b 0.6; }
         cone: + <isa> s.kinds.light { light_kind "spot"; intensity 10; range 2; inner 0.2; outer 0.3; }
+        panel: + <isa> s.kinds.light { light_kind "rect"; intensity 2000; range 6; width 1.2; height 0.4; pz 2.5; }
         nameless { light_kind "point"; intensity 1; }
         "#,
         |query| {
             let lights = query.lights().unwrap();
             assert_eq!(
                 names(&query, lights.iter().map(|l| l.decl)),
-                ["sun", "lamp", "cone"],
+                ["sun", "lamp", "cone", "panel"],
                 "`light_kind` alone is not a light"
             );
+            assert_eq!(
+                (lights[3].kind, lights[3].width, lights[3].height),
+                (LightKind::Rect, 1.2, 0.4)
+            );
+            assert_eq!(
+                (lights[3].intensity, lights[3].range, lights[3].position_m),
+                (2000.0, 6.0, [0.0, 0.0, 2.5])
+            );
+            assert_eq!((lights[0].width, lights[0].height), (0.0, 0.0));
             assert_eq!(
                 (lights[0].kind, lights[0].rgb, lights[0].casts_shadow),
                 (LightKind::Directional, None, true)
