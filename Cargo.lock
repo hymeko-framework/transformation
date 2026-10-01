@@ -594,6 +594,7 @@ dependencies = [
  "meshopt",
  "parser",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
