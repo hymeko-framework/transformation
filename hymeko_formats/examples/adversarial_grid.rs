@@ -10,10 +10,11 @@ mod visual;
 use hymeko::{
     common::ids::{DeclId, NodeId},
     ir::{
+        canonical_hash::Canon,
         incidence::build_incidence_index,
         ir::{Ir, ValueR},
         semantic_digest::{
-            SEMANTIC_DIGEST_ALGO_VERSION, SEMANTIC_DIGEST_SCHEMA_VERSION, semantic_model_digest_v2,
+            SEMANTIC_DIGEST_ALGO_VERSION, SEMANTIC_DIGEST_SCHEMA_VERSION,
         },
     },
     module_store::{
@@ -181,7 +182,7 @@ impl CompiledWorld {
     }
 
     fn digest(&self) -> String {
-        semantic_model_digest_v2(&self.program.ir, &self.store.it)
+        Canon::new(&self.program.ir, &self.store.it).hash()
             .0
             .0
             .iter()

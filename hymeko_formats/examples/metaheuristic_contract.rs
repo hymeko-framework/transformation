@@ -5,10 +5,10 @@
 use hymeko::{
     common::ids::DeclId,
     ir::{
-        canonical_hash::{DerivedPathIndex, build_path_index},
+        canonical_hash::{Canon, DerivedPathIndex, build_path_index},
         ir::ValueR,
         semantic_digest::{
-            SEMANTIC_DIGEST_ALGO_VERSION, SEMANTIC_DIGEST_SCHEMA_VERSION, semantic_model_digest_v2,
+            SEMANTIC_DIGEST_ALGO_VERSION, SEMANTIC_DIGEST_SCHEMA_VERSION,
         },
     },
     module_store::{execution::CompiledModel, source_provider::MemProvider},
@@ -473,7 +473,7 @@ impl<'a> Contract<'a> {
             .map(|(key, id)| Ok((key, self.identity(*id)?)))
             .collect::<Result<_>>()?;
         let digest: String =
-            semantic_model_digest_v2(&self.model.program().ir, self.model.interner())
+            Canon::new(&self.model.program().ir, self.model.interner()).hash()
                 .0
                 .0
                 .iter()

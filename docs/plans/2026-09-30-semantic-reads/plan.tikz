@@ -1,0 +1,10 @@
+\begin{tikzpicture}[node distance=5mm and 7mm,every node/.style={draw,rounded corners,align=center,font=\footnotesize},>={Stealth}]
+\node (core) {Core\\canonical IR, \texttt{bases} on nodes and edges};
+\node (bases) [below=of core] {\texttt{hymeko\_query::bases}\\\texttt{bases}, \texttt{is\_a(policy)}, \texttt{BaseError}};
+\node (fields) [right=of bases] {\texttt{hymeko\_query::fields}\\\texttt{effective\_binding}, \texttt{own\_child}};
+\node (webxr) [below=of bases] {\texttt{hymeko\_webxr}\\is-a and own slots};
+\node (later) [right=of webxr] {later (DS1/DS2): query's own walks,\\geometry, dynamics, network, wasm};
+\draw[->] (core)--(bases); \draw[->] (core)--(fields);
+\draw[->] (bases)--(webxr); \draw[->] (fields)--(webxr);
+\draw[->,dashed] (bases)--(later); \draw[->,dashed] (fields)--(later);
+\end{tikzpicture}

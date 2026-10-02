@@ -4,38 +4,74 @@
 //! (`box_1: + <isa> box_type` holds only its own fields). Consumers that read a base as the
 //! default and the instance as the override resolve fields through these engine methods, so the
 //! rule is the same everywhere: own declaration first, then bases depth-first in authored order.
-//! Repeated bases and cycles terminate; the walk visits each declaration at most once.
+//! Repeated bases and cycles terminate; the walk visits each declaration at most once. A writer
+//! that may touch only a declaration's own slot uses [`own_child`] instead.
 
+use crate::bases::{BasePolicy, bases};
 use crate::engine::QueryEngine;
 use crate::traits::NameResolver;
-use hymeko::common::ids::DeclId;
-use hymeko::ir::ir::ValueR;
+use hymeko::common::ids::{DeclId, SymId};
+use hymeko::ir::ir::{Ir, ValueR};
+
+/// Where an effective field comes from: the child `declaration`, and the `provider` whose own
+/// child it is — the declaration asked about, or the base that supplied it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FieldBinding {
+    pub declaration: DeclId,
+    pub provider: DeclId,
+}
+
+impl FieldBinding {
+    /// Whether `decl` declares the field itself rather than inheriting it.
+    #[must_use]
+    pub fn is_own(&self, decl: DeclId) -> bool {
+        self.provider == decl
+    }
+}
+
+/// The child of `decl` itself whose name satisfies `named`; never an inherited one.
+pub fn own_child_where(ir: &Ir, decl: DeclId, named: impl Fn(SymId) -> bool) -> Option<DeclId> {
+    ir.decl_children(decl)
+        .find(|child| ir.decl_node(*child).is_some_and(|node| named(node.name)))
+}
+
+/// The child of `decl` itself named `name`; never an inherited one. The slot rule for writers.
+pub fn own_child(ir: &Ir, decl: DeclId, name: SymId) -> Option<DeclId> {
+    own_child_where(ir, decl, |candidate| candidate == name)
+}
 
 impl<'a, R: NameResolver> QueryEngine<'a, R> {
-    /// The child named `key` of `decl` itself, else of the first base that has one.
-    pub fn effective_child(&self, decl: DeclId, key: &str) -> Option<DeclId> {
+    /// The field `key` of `decl` and where it comes from: `decl`'s own child, else the first base,
+    /// depth-first in authored order, that has one.
+    pub fn effective_binding(&self, decl: DeclId, key: &str) -> Option<FieldBinding> {
         let ir = self.ir();
         let mut pending = vec![decl];
         let mut visited = std::collections::HashSet::new();
-        while let Some(decl) = pending.pop() {
-            if ir.decl_node(decl).is_none() || !visited.insert(decl) {
+        while let Some(provider) = pending.pop() {
+            if ir.decl_node(provider).is_none() || !visited.insert(provider) {
                 continue;
             }
-            let own = ir.decl_children(decl).find(|child| {
-                ir.decl_node(*child)
-                    .is_some_and(|node| self.resolver().resolve(node.name) == key)
-            });
-            if own.is_some() {
-                return own;
+            if let Some(declaration) = self.own_child(provider, key) {
+                return Some(FieldBinding {
+                    declaration,
+                    provider,
+                });
             }
             // Reversed so that the first authored base is popped, and searched, first.
-            if let Some((_, node)) = ir.node_for_decl(decl) {
-                pending.extend(node.bases.iter().rev().map(|base| base.target()));
-            } else if let Some((_, edge)) = ir.edge_for_decl(decl) {
-                pending.extend(edge.bases.iter().rev().map(|base| base.target()));
-            }
+            pending.extend(bases(ir, provider, BasePolicy::All).rev());
         }
         None
+    }
+
+    /// The child named `key` of `decl` itself, else of the first base that has one.
+    pub fn effective_child(&self, decl: DeclId, key: &str) -> Option<DeclId> {
+        self.effective_binding(decl, key)
+            .map(|binding| binding.declaration)
+    }
+
+    /// The child named `key` of `decl` itself; never an inherited one.
+    pub fn own_child(&self, decl: DeclId, key: &str) -> Option<DeclId> {
+        own_child_where(self.ir(), decl, |name| self.resolver().resolve(name) == key)
     }
 
     /// The value annotated on the effective child `key` of `decl`, if it carries one.
@@ -49,18 +85,9 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hymeko::module_store::{execution::CompiledModel, source_provider::MemProvider};
-    use hymeko::util::real_parser::RealParser;
+    use crate::test_support::{compile, decl};
+    use hymeko::module_store::execution::CompiledModel;
 
-    fn compile(source: &str) -> CompiledModel {
-        let mut files = MemProvider::default();
-        files.insert_file("/fields.hymeko", source);
-        CompiledModel::compile(files, RealParser, std::path::Path::new("/fields.hymeko")).unwrap()
-    }
-    fn decl(model: &CompiledModel, name: &str) -> DeclId {
-        let ir = &model.program().ir;
-        ir.decls().find(|(_, node)| model.interner().resolve(node.name) == name).unwrap().0
-    }
     fn number(model: &CompiledModel, name: &str, key: &str) -> Option<f64> {
         let engine = QueryEngine::new(&model.program().ir, model.interner());
         match engine.effective_value(decl(model, name), key) {
@@ -100,5 +127,48 @@ mod tests {
         assert_eq!(number(&model, "joined", "w"), None);
         let engine = QueryEngine::new(&model.program().ir, model.interner());
         assert!(engine.effective_child(DeclId::new(usize::MAX >> 1), "v").is_none());
+    }
+
+    #[test]
+    fn a_binding_names_its_provider_and_own_child_never_inherits() {
+        let model = compile(
+            "fields {} types { heavy { mass 50; colour 3; } } c: + <isa> types.heavy { mass 7; }",
+        );
+        let (c, heavy) = (decl(&model, "c"), decl(&model, "heavy"));
+        let engine = QueryEngine::new(&model.program().ir, model.interner());
+        let own = engine.effective_binding(c, "mass").unwrap();
+        assert!(own.is_own(c) && own.provider == c);
+        let inherited = engine.effective_binding(c, "colour").unwrap();
+        assert_eq!(inherited.provider, heavy);
+        assert!(!inherited.is_own(c));
+        assert_eq!(
+            engine.effective_child(c, "colour"),
+            Some(inherited.declaration)
+        );
+        assert_eq!(engine.own_child(c, "mass"), Some(own.declaration));
+        assert_eq!(
+            engine.own_child(c, "colour"),
+            None,
+            "a writer never reaches a base's slot"
+        );
+        let colour = model.interner().get_id("colour").unwrap();
+        assert_eq!(
+            own_child(&model.program().ir, heavy, colour),
+            Some(inherited.declaration)
+        );
+    }
+
+    /// S4: in a diamond the shared root is reached through the first authored base before the
+    /// second base is searched, so depth-first order answers with the root's value. C3 would
+    /// answer with `b`'s. This pins today's rule until DS2 decides.
+    #[test]
+    fn a_diamond_resolves_depth_first_in_authored_order() {
+        let model = compile(
+            "fields {} types { r { v 1; } l: + <isa> r {} b: + <isa> r { v 2; } }              x: + <isa> types.l, + <isa> types.b {}",
+        );
+        assert_eq!(number(&model, "x", "v"), Some(1.));
+        let engine = QueryEngine::new(&model.program().ir, model.interner());
+        let binding = engine.effective_binding(decl(&model, "x"), "v").unwrap();
+        assert_eq!(binding.provider, decl(&model, "r"));
     }
 }

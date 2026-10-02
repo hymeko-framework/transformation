@@ -77,7 +77,27 @@ pub struct PbrMaterial {
     pub normal_scale: f32,
     pub occlusion_strength: f32,
     pub double_sided: bool,
+    /// glTF `KHR_materials_clearcoat`: a clear dielectric layer over the base, 0..1 (0: none),
+    /// and its own roughness, 0..1. Omitted from serialized output while zero.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub clearcoat: f32,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub clearcoat_roughness: f32,
+    /// glTF `KHR_materials_sheen`: the linear colour of a fibre lobe at grazing angles, 0..1
+    /// (black: none), and its roughness, 0..1. Omitted from serialized output while zero.
+    #[serde(skip_serializing_if = "is_black")]
+    pub sheen_color: [f32; 3],
+    #[serde(skip_serializing_if = "is_zero")]
+    pub sheen_roughness: f32,
     pub textures: [Option<TextureMap>; 5],
+}
+
+fn is_zero(value: &f32) -> bool {
+    *value == 0.0
+}
+
+fn is_black(colour: &[f32; 3]) -> bool {
+    colour.iter().all(|c| *c == 0.0)
 }
 
 impl Default for PbrMaterial {
@@ -89,6 +109,10 @@ impl Default for PbrMaterial {
             normal_scale: 1.0,
             occlusion_strength: 1.0,
             double_sided: false,
+            clearcoat: 0.0,
+            clearcoat_roughness: 0.0,
+            sheen_color: [0.0; 3],
+            sheen_roughness: 0.0,
             textures: Default::default(),
         }
     }
@@ -97,7 +121,15 @@ impl Default for PbrMaterial {
 impl PbrMaterial {
     /// Rejects invalid factors/images without modifying the material or shared images.
     pub fn validate(&self) -> Result<(), String> {
-        for value in [self.metallic, self.roughness, self.occlusion_strength] {
+        let factors = [
+            self.metallic,
+            self.roughness,
+            self.occlusion_strength,
+            self.clearcoat,
+            self.clearcoat_roughness,
+            self.sheen_roughness,
+        ];
+        for value in factors.into_iter().chain(self.sheen_color) {
             if !value.is_finite() || !(0.0..=1.0).contains(&value) {
                 return Err("PBR factors must be 0..1".into());
             }
@@ -151,5 +183,40 @@ mod tests {
         material.roughness = 0.;
         material.normal_scale = 4.1;
         assert!(material.validate().is_err());
+    }
+
+    #[test]
+    fn coat_and_sheen_validate_to_unit_range_and_serialize_only_when_present() {
+        let plain = serde_json::to_value(PbrMaterial::default()).unwrap();
+        for key in [
+            "clearcoat",
+            "clearcoat_roughness",
+            "sheen_color",
+            "sheen_roughness",
+        ] {
+            assert!(plain.get(key).is_none(), "{key} is written while absent");
+        }
+        let coated = PbrMaterial {
+            clearcoat: 1.0,
+            clearcoat_roughness: 0.1,
+            sheen_color: [0.5, 0.4, 0.3],
+            sheen_roughness: 0.6,
+            ..Default::default()
+        };
+        assert!(coated.validate().is_ok());
+        let text = serde_json::to_string(&coated).unwrap();
+        let back: PbrMaterial = serde_json::from_str(&text).unwrap();
+        assert_eq!(
+            (back.clearcoat, back.clearcoat_roughness, back.sheen_color, back.sheen_roughness),
+            (1.0, 0.1, [0.5, 0.4, 0.3], 0.6)
+        );
+        for broken in [
+            PbrMaterial { clearcoat: 1.5, ..coated.clone() },
+            PbrMaterial { clearcoat_roughness: f32::NAN, ..coated.clone() },
+            PbrMaterial { sheen_color: [0.5, -0.1, 0.3], ..coated.clone() },
+            PbrMaterial { sheen_roughness: 2.0, ..coated },
+        ] {
+            assert!(broken.validate().is_err());
+        }
     }
 }

@@ -54,11 +54,29 @@ impl MaterialImport {
             return Err("GLB PBR currently supports opaque materials only".into());
         }
         let mr = material.pbr_metallic_roughness();
+        // KHR_materials_clearcoat and KHR_materials_sheen: their factors, with glTF's defaults
+        // for absent keys. Their textures are not read; a textured coat uses its factor alone.
+        let factor = |extension: &str, key: &str| {
+            material
+                .extension_value(extension)
+                .and_then(|value| value.get(key))
+                .and_then(serde_json::Value::as_f64)
+                .map_or(0.0, |value| value as f32)
+        };
+        let sheen_color = material
+            .extension_value("KHR_materials_sheen")
+            .and_then(|value| value.get("sheenColorFactor"))
+            .and_then(|value| serde_json::from_value::<[f32; 3]>(value.clone()).ok())
+            .unwrap_or_default();
         let mut result = PbrMaterial {
             metallic: mr.metallic_factor(),
             roughness: mr.roughness_factor(),
             emissive: material.emissive_factor(),
             double_sided: material.double_sided(),
+            clearcoat: factor("KHR_materials_clearcoat", "clearcoatFactor"),
+            clearcoat_roughness: factor("KHR_materials_clearcoat", "clearcoatRoughnessFactor"),
+            sheen_color,
+            sheen_roughness: factor("KHR_materials_sheen", "sheenRoughnessFactor"),
             ..Default::default()
         };
         let slots = [
@@ -227,6 +245,34 @@ mod tests {
                 .is_err()
         );
     }
+    #[test]
+    fn clearcoat_and_sheen_factors_are_read_and_absent_ones_stay_zero() {
+        let document = serde_json::json!({
+            "asset": {"version": "2.0"},
+            "extensionsUsed": ["KHR_materials_clearcoat", "KHR_materials_sheen"],
+            "materials": [
+                {"extensions": {
+                    "KHR_materials_clearcoat": {"clearcoatFactor": 0.8, "clearcoatRoughnessFactor": 0.15},
+                    "KHR_materials_sheen": {"sheenColorFactor": [0.6, 0.5, 0.4], "sheenRoughnessFactor": 0.7}}},
+                {"extensions": {"KHR_materials_clearcoat": {}}},
+                {}
+            ]
+        });
+        let document = gltf::Gltf::from_slice(&serde_json::to_vec(&document).unwrap())
+            .unwrap()
+            .document;
+        let mut importer = MaterialImport::default();
+        let read: Vec<_> = (document.materials())
+            .map(|m| importer.read(m, &[]).unwrap())
+            .collect();
+        let lobes = |m: &PbrMaterial| {
+            (m.clearcoat, m.clearcoat_roughness, m.sheen_color, m.sheen_roughness)
+        };
+        assert_eq!(lobes(&read[0]), (0.8, 0.15, [0.6, 0.5, 0.4], 0.7));
+        assert_eq!(lobes(&read[1]), (0.0, 0.0, [0.0; 3], 0.0));
+        assert_eq!(lobes(&read[2]), (0.0, 0.0, [0.0; 3], 0.0));
+    }
+
     #[test]
     fn hdr_preserves_radiance_above_one_and_rejects_truncated_payload() {
         let mut bytes = b"#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 1 +X 1\n".to_vec();
