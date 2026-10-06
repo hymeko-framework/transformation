@@ -52,6 +52,52 @@ and `node --test tools/diagram/render.test.mjs`.
 - Migrated from the `hymeko_framework_rust` monorepo (emitter + query + formats). `core`/`parser` kept external as git deps.
 - `test_mdsd_reuse` was gated out — it reaches into the sibling `hymeko_ros2_demo` crate (a demo, outside this layer).
 
+## Polar and hexagonal mazes
+
+The existing `adversarial_grid` example also exports two small maze profiles:
+`hex` has axial radius 2 (19 cells, six-neighbor connectivity), while `polar`
+has two concentric rings of six sectors with radial and angular passages.
+Graph's rank-2 weighted spanning basis selects a seeded passage tree; these are
+randomized mazes, not a new adversarial difficulty comparison.
+
+Run explicit generation on **Amaterasu**, with a fresh directory per export:
+
+```bash
+cargo run --locked --offline -p hymeko_formats --example adversarial_grid -- --generate-maze hex 0 /tmp/NEW_HEX
+cargo run --locked --offline -p hymeko_formats --example adversarial_grid -- --generate-maze polar 0 /tmp/NEW_POLAR
+```
+
+Each directory contains canonical `source.hymeko` cell/passage/wall declarations,
+`geometry.json`, Query and Graph checks in `validation.json`, and `view.hymeko`
+for the existing Kawamirai primitive renderer. Wall boxes carry explicit yaw;
+polar walls use three facets per sector. The world-space route includes arc
+midpoints and passes Geometry's swept-capsule check with a 0.85 m radius around
+the route against all actual wall boxes. This is a geometric route witness,
+not robot navigation.
+
+The same export also composes `model.hymeko`, emits `scene.xml` through the
+existing MJCF owner, and writes Query-projected initial conditions and contact
+settings in `physics.json`. Three free boxes provide a bounded interaction
+fixture for the existing MuJoCo backend. Actual dynamics and Kawamirai replay
+are separate, explicit Amaterasu steps; generation does not start simulation.
+
+Pure owner checks:
+`cargo test --locked --offline -p hymeko_formats --example adversarial_grid`.
+The maze tests cover repeatable seeds, different passage systems, canonical
+validation, and clearance at every possible profile portal. The existing square
+grid CLI and its output format remain supported. Results and reproduction are
+in the local [maze report](reports/2026-10-06-generalized-mazes.md), archived under
+`\\192.168.1.228\hymeko\reports\by-repository`.
+
+To include the existing Cyberdisc robot, append its actor path to the same CLI:
+`--generate-maze hex 0 /tmp/NEW_ROBOT_MAZE ../robotics/examples/cyberdisc/actor.hymeko`.
+This additionally exports `robot.xml` and `robot.json` through the same Core,
+Query, Geometry and MJCF owners. It retains all eleven declared visual parts and
+checks the actor footprint against the validated corridor. The existing Simulator
+`python/maze_contact.py ... --robot` runs the bounded six-second wheel-drive and
+box-pushing exercise on Amaterasu; `--no-drive` supplies its zero-command control.
+See [the simulator usage](../../hymeko_simulator/docs/maze-contacts.md).
+
 ## Kawakern physics engine
 
 The generated adversarial grid can import the reusable Cyberdisc actor and

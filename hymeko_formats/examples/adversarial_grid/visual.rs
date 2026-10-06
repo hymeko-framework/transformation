@@ -3,10 +3,28 @@
 use super::*;
 
 /// Author one primitive in the existing scene vocabulary. Box sizes are half extents.
-fn node(name: &str, kind: &str, role: &str, p: [f64; 3], size: [f64; 3], rgb: [f64; 3]) -> String {
+pub(super) fn node(
+    name: &str,
+    kind: &str,
+    role: &str,
+    p: [f64; 3],
+    size: [f64; 3],
+    rgb: [f64; 3],
+    yaw: f64,
+) -> String {
     format!(
-        "{name} {{ kind \"{kind}\"; role \"{role}\"; px {}; py {}; pz {}; sx {}; sy {}; sz {}; r {}; g {}; b {}; a 1; qw 1; qx 0; qy 0; qz 0; }}\n",
-        p[0], p[1], p[2], size[0], size[1], size[2], rgb[0], rgb[1], rgb[2]
+        "{name} {{ kind \"{kind}\"; role \"{role}\"; px {}; py {}; pz {}; sx {}; sy {}; sz {}; r {}; g {}; b {}; a 1; qw {}; qx 0; qy 0; qz {}; }}\n",
+        p[0],
+        p[1],
+        p[2],
+        size[0],
+        size[1],
+        size[2],
+        rgb[0],
+        rgb[1],
+        rgb[2],
+        (yaw * 0.5).cos(),
+        (yaw * 0.5).sin()
     )
 }
 
@@ -16,12 +34,7 @@ impl CompiledWorld {
         let engine = QueryEngine::new(&self.program.ir, &self.store.it);
         let mut source = String::from("adversarial_grid_view {}\n");
         let mut obstacles = Vec::new();
-        let scalar = |decl, key| -> Result<f64> {
-            match engine.effective_value(decl, key) {
-                Some(ValueR::Num(n)) if n.is_finite() && n.abs() <= 1000. => Ok(*n),
-                _ => Err(format!("invalid scene field {key}").into()),
-            }
-        };
+        let scalar = |decl, key| self.scene_scalar(decl, key);
         for wall in engine.query(&Predicate::node().and(Predicate::inherits("gazebo_static_box"))) {
             let position = [
                 scalar(wall.id, "x")?,
@@ -44,6 +57,7 @@ impl CompiledWorld {
                 position,
                 size.map(|n| n * 0.5),
                 [0.25, 0.35, 0.45],
+                0.0,
             ));
             obstacles.push(
                 json!({"source_decl_id":wall.id.raw(),"source_name":wall.name,
@@ -62,6 +76,7 @@ impl CompiledWorld {
             ],
             [layout.width as f64 * 0.5, layout.height as f64 * 0.5, 0.05],
             [0.72, 0.75, 0.79],
+            0.0,
         ));
         for (name, point, color) in [
             ("start", layout.start, [0.07, 0.7, 0.3]),
@@ -74,6 +89,7 @@ impl CompiledWorld {
                 [point.x as f64, point.y as f64, 0.2],
                 [0.22, 0., 0.],
                 color,
+                0.0,
             ));
         }
         let evaluation = projection.evaluate(self, false)?;
@@ -92,15 +108,11 @@ impl CompiledWorld {
                 position,
                 size,
                 [1., 0.55, 0.03],
+                0.0,
             ));
         }
         let view = Self::compile(&source)?;
-        let emitted =
-            hymeko_emitter::emit_hymeko(&view.program.ir, &view.store.it, "adversarial_grid_view");
-        let recompiled = Self::compile(&emitted)?;
-        if view.digest() != recompiled.digest() {
-            return Err("visual export changed during canonical roundtrip".into());
-        }
+        let (recompiled, emitted) = view.reemit("adversarial_grid_view")?;
         let receipt = json!({"schema_version":1,"source_semantic_digest":self.digest(),
             "visual_semantic_digest":recompiled.digest(),"query_checks":check_receipts(&projection.checks),
             "obstacles":obstacles,"layout":layout,"path":evaluation.path,

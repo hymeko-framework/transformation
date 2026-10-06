@@ -1,0 +1,9 @@
+flowchart LR
+  Actor[Unchanged Cyberdisc source] --> Core[Core and Query]
+  Core --> Geometry[Geometry FK and collider projection]
+  Geometry --> Envelope[Formats conservative offset envelope]
+  Envelope --> Admission[Existing cell clearance admission]
+  Geometry --> Regression[Zero angle and half turn regression]
+  Geometry --> Mount[Canonical collider mount relation]
+  Mount --> Profile[Direct chassis parent and nontranslating joint]
+  Profile --> Admission

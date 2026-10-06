@@ -2,6 +2,10 @@
 //! No search engine or IR implementation lives here. All scored topology is compiled source.
 //! Run campaigns and simulation on Amaterasu; ordinary example tests perform correctness only.
 
+#[path = "adversarial_grid/maze.rs"]
+mod maze;
+#[path = "adversarial_grid/maze_physics.rs"]
+mod maze_physics;
 #[path = "adversarial_grid/physical.rs"]
 mod physical;
 #[path = "adversarial_grid/visual.rs"]
@@ -13,9 +17,7 @@ use hymeko::{
         canonical_hash::Canon,
         incidence::build_incidence_index,
         ir::{Ir, ValueR},
-        semantic_digest::{
-            SEMANTIC_DIGEST_ALGO_VERSION, SEMANTIC_DIGEST_SCHEMA_VERSION,
-        },
+        semantic_digest::{SEMANTIC_DIGEST_ALGO_VERSION, SEMANTIC_DIGEST_SCHEMA_VERSION},
     },
     module_store::{
         module_store::{CompiledProgram, ModuleStore},
@@ -182,7 +184,8 @@ impl CompiledWorld {
     }
 
     fn digest(&self) -> String {
-        Canon::new(&self.program.ir, &self.store.it).hash()
+        Canon::new(&self.program.ir, &self.store.it)
+            .hash()
             .0
             .0
             .iter()
@@ -192,19 +195,28 @@ impl CompiledWorld {
 
     fn canonical(source: &str) -> Result<(Self, String)> {
         let original = Self::compile(source)?;
-        let emitted = hymeko_emitter::emit_hymeko(
-            &original.program.ir,
-            &original.store.it,
-            "adversarial_grid",
-        );
-        let recompiled = Self::compile(&emitted)?;
-        if original.digest() != recompiled.digest() {
-            return Err("canonical source round trip changed the semantic digest".into());
-        }
+        let (recompiled, emitted) = original.reemit("adversarial_grid")?;
         if original.project()?.layout != recompiled.project()?.layout {
             return Err("canonical source round trip changed the projected layout".into());
         }
         Ok((recompiled, emitted))
+    }
+
+    fn reemit(&self, header: &str) -> Result<(Self, String)> {
+        let emitted = hymeko_emitter::emit_hymeko(&self.program.ir, &self.store.it, header);
+        let recompiled = Self::compile(&emitted)?;
+        if self.digest() != recompiled.digest() {
+            return Err("canonical source round trip changed the semantic digest".into());
+        }
+        Ok((recompiled, emitted))
+    }
+
+    fn scene_scalar(&self, decl: DeclId, key: &str) -> Result<f64> {
+        let engine = QueryEngine::new(&self.program.ir, &self.store.it);
+        match engine.effective_value(decl, key) {
+            Some(ValueR::Num(n)) if n.is_finite() && n.abs() <= 1000.0 => Ok(*n),
+            _ => Err(format!("invalid scene field {key}").into()),
+        }
     }
 
     fn project(&self) -> Result<Projection> {
@@ -775,6 +787,9 @@ impl Campaign {
 
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|arg| arg == "--generate-maze") {
+        return maze::run(&args[1..]);
+    }
     if args.first().is_some_and(|arg| arg == "--export-physics") {
         if args.len() != 4 {
             return Err(

@@ -1,0 +1,10 @@
+flowchart LR
+  Hex[Hex axial cells] --> IR[Canonical Core IR]
+  Polar[Polar rings and sectors] --> IR
+  IR --> Basis[Graph weighted rank-2 basis]
+  Basis --> Final[Canonical cells passages walls]
+  Final --> Query[Query validation]
+  Query --> Path[Graph route witness]
+  Path --> Clearance[Geometry swept capsule versus yaw boxes]
+  Clearance --> View[Kawamirai primitive source]
+  Clearance --> Physical[Separate physical composition owner]

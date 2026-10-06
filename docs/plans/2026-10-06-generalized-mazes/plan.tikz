@@ -1,0 +1,9 @@
+\begin{tikzpicture}[every node/.style={draw,align=center}]
+\node (p) at (0,0) {Hex / polar\\boundaries};
+\node (ir) at (4,0) {Core / Query\\canonical cells};
+\node (g) at (8,0) {Graph basis\\and route};
+\node (geom) at (4,-2) {Geometry\\capsule/box check};
+\node (exp) at (8,-2) {Formats export\\physics handoff};
+\draw[->] (p)--(ir); \draw[->] (ir)--(g); \draw[->] (g)--(geom);
+\draw[->] (geom)--(exp);
+\end{tikzpicture}
