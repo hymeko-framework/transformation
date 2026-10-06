@@ -98,6 +98,21 @@ checks the actor footprint against the validated corridor. The existing Simulato
 box-pushing exercise on Amaterasu; `--no-drive` supplies its zero-command control.
 See [the simulator usage](../../hymeko_simulator/docs/maze-contacts.md).
 
+For search-driven generation, append `--weights GENES.json` to that same command.
+The file must contain a JSON array of finite values in `[0,1]`, one per candidate
+passage: 42 for hex, 18 for polar. `validation.json` supplies the lexicographically
+ordered `priority_pairs` and the encoding contract. Each priority becomes an exact
+53-bit integer edge weight; the existing Graph minimum-weight spanning-basis
+operation prefers lower weights, with its deterministic arc-order tie break.
+`genome.json` retains the supplied vector. Core compilation, Query checks,
+connectivity and swept-route clearance remain mandatory. Seed-only generation
+retains its prior canonical and physical outputs; the validation metadata is additive.
+
+The [research experiment](../hystl/research/metaheuristics-pilot/README.md#search-driven-world-generation)
+compares a frozen GA, the existing DE reference and random proposals using the
+actual Cyberdisc run as the objective. Optimization and simulation stay explicit
+Amaterasu operations; normal owner tests do not launch that experiment.
+
 ## Kawakern physics engine
 
 The generated adversarial grid can import the reusable Cyberdisc actor and

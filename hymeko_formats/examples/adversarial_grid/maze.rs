@@ -271,6 +271,50 @@ impl Topology {
             .filter_map(Boundary::pair)
             .map(|p| (p, rng.next_u64() >> 11))
             .collect();
+        self.generate_weights(seed, weights)
+    }
+
+    fn priority_pairs(&self) -> Vec<[usize; 2]> {
+        self.boundaries
+            .iter()
+            .filter_map(Boundary::pair)
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect()
+    }
+
+    fn generate_priorities(
+        &self,
+        seed: u64,
+        genes: &[f64],
+    ) -> Result<(CompiledWorld, String, MazeGeometry, Vec<Value>)> {
+        let pairs = self.priority_pairs();
+        if genes.len() != pairs.len()
+            || genes
+                .iter()
+                .any(|g| !g.is_finite() || !(0.0..=1.0).contains(g))
+        {
+            return Err(
+                "priorities must match candidate passages and be finite values in [0,1]".into(),
+            );
+        }
+        // Exact integer weights fit Core's f64 attributes. Ties retain Graph's own ordering.
+        let weights = pairs
+            .into_iter()
+            .zip(
+                genes
+                    .iter()
+                    .map(|g| (g * ((1_u64 << 53) - 1) as f64) as u64),
+            )
+            .collect();
+        self.generate_weights(seed, weights)
+    }
+
+    fn generate_weights(
+        &self,
+        seed: u64,
+        weights: BTreeMap<[usize; 2], u64>,
+    ) -> Result<(CompiledWorld, String, MazeGeometry, Vec<Value>)> {
         let all = weights.keys().copied().collect();
         let proposed = CompiledWorld::compile(&self.source(seed, &all, Some(&weights))?)?;
         let index = build_incidence_index(&proposed.program.ir)?;
@@ -624,9 +668,17 @@ impl MazeGeometry {
 }
 
 pub(super) fn run(args: &[String]) -> Result<()> {
+    let (args, weights_path) = if args.len() >= 5 && args[args.len() - 2] == "--weights" {
+        (
+            &args[..args.len() - 2],
+            Some(Path::new(&args[args.len() - 1])),
+        )
+    } else {
+        (args, None)
+    };
     if !(3..=4).contains(&args.len()) {
         return Err(
-            "usage: adversarial_grid --generate-maze hex|polar SEED NEW_DIRECTORY [ACTOR.hymeko]"
+            "usage: adversarial_grid --generate-maze hex|polar SEED NEW_DIRECTORY [ACTOR.hymeko] [--weights GENES.json]"
                 .into(),
         );
     }
@@ -644,7 +696,19 @@ pub(super) fn run(args: &[String]) -> Result<()> {
     if output.exists() {
         return Err("maze output directory must be new".into());
     }
-    let (world, source, geometry, checks) = Topology::new(profile).generate(seed)?;
+    let topology = Topology::new(profile);
+    let genes = weights_path
+        .map(|path| -> Result<Vec<f64>> {
+            if fs::metadata(path)?.len() > 8192 {
+                return Err("priority input exceeds 8192 bytes".into());
+            }
+            Ok(serde_json::from_slice(&fs::read(path)?)?)
+        })
+        .transpose()?;
+    let (world, source, geometry, checks) = match &genes {
+        Some(genes) => topology.generate_priorities(seed, genes)?,
+        None => topology.generate(seed)?,
+    };
     let view = geometry.visual_source()?;
     fs::create_dir_all(output)?;
     fs::write(output.join("source.hymeko"), source)?;
@@ -653,11 +717,17 @@ pub(super) fn run(args: &[String]) -> Result<()> {
         output.join("geometry.json"),
         serde_json::to_vec_pretty(&geometry)?,
     )?;
-    let receipt = json!({"schema_version":1,"semantic_digest":world.digest(),"query_checks":checks,"cell_count":geometry.cells.len(),"passage_count":geometry.passages.len(),"wall_count":geometry.walls.len(),"route_cells":geometry.route_cell_indices,"route_points_m":geometry.route_points_m,"clearance_radius_m":CLEARANCE,"clearance_owner":"hymeko_geometry::collide::intersects; swept capsule against actual yaw boxes","scope":"seeded rank-2 spanning-tree maze; geometric route witness, not controller success or uniformly sampled trees"});
+    let receipt = json!({"schema_version":1,"semantic_digest":world.digest(),"query_checks":checks,"cell_count":geometry.cells.len(),"passage_count":geometry.passages.len(),"wall_count":geometry.walls.len(),"route_cells":geometry.route_cell_indices,"route_points_m":geometry.route_points_m,"clearance_radius_m":CLEARANCE,"clearance_owner":"hymeko_geometry::collide::intersects; swept capsule against actual yaw boxes","priority_pairs":topology.priority_pairs(),"priority_encoding":"lexicographic passage pairs; [0,1] mapped to exact 53-bit integer weights","scope":"rank-2 spanning-tree maze; geometric route witness, not controller success or uniformly sampled trees"});
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&receipt)?,
     )?;
+    if let Some(genes) = genes {
+        fs::write(
+            output.join("genome.json"),
+            serde_json::to_vec_pretty(&genes)?,
+        )?;
+    }
     super::maze_physics::export(&geometry, output, args.get(3).map(Path::new))?;
     println!("{}", serde_json::to_string(&receipt)?);
     Ok(())
@@ -666,6 +736,26 @@ pub(super) fn run(args: &[String]) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn explicit_priorities_are_bounded_repeatable_and_change_the_maze() {
+        for profile in [Profile::Hex, Profile::Polar] {
+            let topology = Topology::new(profile);
+            let n = topology.priority_pairs().len();
+            let genes: Vec<_> = (0..n).map(|i| i as f64 / n as f64).collect();
+            let (a, _, first, _) = topology.generate_priorities(0, &genes).unwrap();
+            let (b, _, _, _) = topology.generate_priorities(0, &genes).unwrap();
+            assert_eq!(a.digest(), b.digest());
+            let inverse: Vec<_> = genes.iter().map(|x| 1. - x).collect();
+            let (_, _, second, _) = topology.generate_priorities(0, &inverse).unwrap();
+            assert_ne!(first.passages, second.passages);
+            assert_eq!(first.passages.len() + 1, first.cells.len());
+            for invalid in [vec![0.; n - 1], vec![f64::NAN; n], vec![1.1; n]] {
+                assert!(topology.generate_priorities(0, &invalid).is_err());
+            }
+            assert!(topology.generate_priorities(0, &vec![0.; n]).is_ok());
+        }
+    }
 
     #[test]
     fn profiles_have_real_polar_and_six_neighbor_hex_topology() {
