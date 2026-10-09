@@ -1,0 +1,86 @@
+// Descriptive macro projection; not an executable optimizer.
+metaheuristic_structure {}
+vocabulary { method_kind {} state_kind {} @operator_kind {} @read_role {} @write_role {} }
+method: vocabulary.method_kind {
+    label "Cuckoo Search";
+    source "https://arxiv.org/abs/1003.1594v1";
+    notes "One-solution-per-nest Levy proposal, replacement and abandonment macro; exact Levy sampler and repair remain unspecified.";
+    schedule "phased";
+    states {
+        slot_population: vocabulary.state_kind { space "population"; }
+        slot_scores: vocabulary.state_kind { space "scores"; }
+        slot_best: vocabulary.state_kind { space "point"; }
+        slot_bounds: vocabulary.state_kind { space "bounds"; }
+        slot_parameters: vocabulary.state_kind { space "scalar"; }
+        slot_random: vocabulary.state_kind { space "random"; }
+        slot_objective: vocabulary.state_kind { space "function"; }
+        slot_count: vocabulary.state_kind { space "counter"; }
+        slot_clock: vocabulary.state_kind { space "counter"; }
+        slot_trial: vocabulary.state_kind { space "point"; }
+        slot_trial_score: vocabulary.state_kind { space "scalar"; }
+        slot_nest: vocabulary.state_kind { space "indices"; }
+        slot_abandoned: vocabulary.state_kind { space "indices"; }
+    }
+    operators {
+        @op_initialize: vocabulary.operator_kind {
+            stage 0; category "initialize"; family "uniform_initialization"; guard "always";
+            rule "Initialize candidate population; auxiliary initial values belong to the declared source profile.";
+            @reads: vocabulary.read_role { (~ method.states.slot_bounds, ~ method.states.slot_random, ~ method.states.slot_parameters); }
+            @writes: vocabulary.write_role { (~ method.states.slot_population); }
+        }
+        @op_evaluate: vocabulary.operator_kind {
+            stage 1; category "evaluate"; family "objective_evaluation"; guard "always";
+            rule "Evaluate each supplied candidate; every objective invocation consumes one unit.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_objective, ~ method.states.slot_count); }
+            @writes: vocabulary.write_role { (~ method.states.slot_scores, ~ method.states.slot_count); }
+        }
+        @op_flight: vocabulary.operator_kind {
+            stage 2; category "vary"; family "levy_perturbation"; guard "always";
+            rule "x_next=x+alpha*Levy(lambda).";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_random, ~ method.states.slot_parameters); }
+            @writes: vocabulary.write_role { (~ method.states.slot_trial); }
+        }
+        @op_trial_evaluation: vocabulary.operator_kind {
+            stage 3; category "evaluate"; family "objective_evaluation"; guard "always";
+            rule "Evaluate each supplied candidate; every objective invocation consumes one unit.";
+            @reads: vocabulary.read_role { (~ method.states.slot_trial, ~ method.states.slot_objective, ~ method.states.slot_count); }
+            @writes: vocabulary.write_role { (~ method.states.slot_trial_score, ~ method.states.slot_count); }
+        }
+        @op_nest: vocabulary.operator_kind {
+            stage 4; category "select"; family "random_peer_selection"; guard "always";
+            rule "Choose a candidate replacement index uniformly.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_random); }
+            @writes: vocabulary.write_role { (~ method.states.slot_nest); }
+        }
+        @op_replace: vocabulary.operator_kind {
+            stage 5; category "accept"; family "pairwise_greedy"; guard "always";
+            rule "Replace the selected nest when the trial is better.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_scores, ~ method.states.slot_nest, ~ method.states.slot_trial, ~ method.states.slot_trial_score); }
+            @writes: vocabulary.write_role { (~ method.states.slot_population, ~ method.states.slot_scores); }
+        }
+        @op_abandon: vocabulary.operator_kind {
+            stage 6; category "select"; family "rank_truncate"; guard "always";
+            rule "Mark a declared fraction of worse nests for replacement.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_scores, ~ method.states.slot_parameters); }
+            @writes: vocabulary.write_role { (~ method.states.slot_abandoned); }
+        }
+        @op_restart: vocabulary.operator_kind {
+            stage 7; category "vary"; family "random_restart"; guard "probability";
+            rule "Reinitialize abandoned nests.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_abandoned, ~ method.states.slot_bounds, ~ method.states.slot_random); }
+            @writes: vocabulary.write_role { (~ method.states.slot_population); }
+        }
+        @op_restart_evaluation: vocabulary.operator_kind {
+            stage 8; category "evaluate"; family "objective_evaluation"; guard "always";
+            rule "Evaluate each supplied candidate; every objective invocation consumes one unit.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_objective, ~ method.states.slot_count); }
+            @writes: vocabulary.write_role { (~ method.states.slot_scores, ~ method.states.slot_count); }
+        }
+        @op_archive: vocabulary.operator_kind {
+            stage 9; category "archive"; family "minimum_archive"; guard "always";
+            rule "Retain the best observed population member under minimization.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_scores, ~ method.states.slot_best); }
+            @writes: vocabulary.write_role { (~ method.states.slot_best); }
+        }
+    }
+}

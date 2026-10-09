@@ -1,0 +1,7 @@
+\begin{tikzpicture}[every node/.style={draw,align=center,font=\small}]
+\node (g) at (0,0) {Formats topology\\tree + loop budget};
+\node (ir) at (6,0) {Core IR + Query\\admitted map};
+\node (s) at (6,-2) {Graph BFS / Dijkstra / A*\\same endpoints + unit cost};
+\node (r) at (0,-2) {Geometry witnesses\\receipts and plots};
+\draw[->] (g)--(ir);\draw[->] (ir)--(s);\draw[->] (s)--(r);
+\end{tikzpicture}

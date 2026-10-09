@@ -1,7 +1,9 @@
 //! Small polar/hex maze profiles: canonical IR owns passages, Graph owns selection/search.
+pub mod search;
 use super::*;
 use hymeko::ir::ir::SignedRefR;
 use hymeko_geometry::collide::{Convex, Placement, intersects};
+use hymeko_graph::rand_lcg::Lcg;
 use hymeko_graph::{
     GraphicMatroidWorkspace, MatroidRef, rank2_spanning_forest, rank2_weighted_basis,
 };
@@ -14,22 +16,22 @@ const WALL_WIDTH: f64 = 0.12;
 const CLEARANCE: f64 = 0.85;
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
-pub(super) struct MazeCell {
-    pub(super) index: usize,
-    pub(super) centre_m: [f64; 2],
+pub struct MazeCell {
+    pub index: usize,
+    pub centre_m: [f64; 2],
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
-pub(super) struct MazeWall {
-    pub(super) index: usize,
-    pub(super) centre_m: [f64; 3],
-    pub(super) full_size_m: [f64; 3],
-    pub(super) yaw_rad: f64,
+pub struct MazeWall {
+    pub index: usize,
+    pub centre_m: [f64; 3],
+    pub full_size_m: [f64; 3],
+    pub yaw_rad: f64,
 }
 
 /// Export projection only. The retained compiled source is the topology authority.
 #[derive(Clone, Debug, Serialize)]
-pub(super) struct MazeGeometry {
+pub struct MazeGeometry {
     pub(super) profile: String,
     pub(super) seed: u64,
     pub(super) cells: Vec<MazeCell>,
@@ -43,13 +45,13 @@ pub(super) struct MazeGeometry {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Profile {
+pub enum Profile {
     Hex,
     Polar,
 }
 
 impl Profile {
-    fn parse(name: &str) -> Result<Self> {
+    pub fn parse(name: &str) -> Result<Self> {
         match name {
             "hex" => Ok(Self::Hex),
             "polar" => Ok(Self::Polar),
@@ -76,14 +78,14 @@ impl Boundary {
     }
 }
 
-struct Topology {
+pub struct Topology {
     profile: Profile,
     cells: Vec<MazeCell>,
     boundaries: Vec<Boundary>,
 }
 
 impl Topology {
-    fn new(profile: Profile) -> Self {
+    pub fn new(profile: Profile) -> Self {
         match profile {
             Profile::Hex => Self::hex(2),
             Profile::Polar => Self::polar(),
@@ -229,6 +231,11 @@ impl Topology {
             walls.len(),
             self.cells.len() - 1
         );
+        // Omit zero to preserve previously generated tree documents and digests.
+        let loops = passages.len().saturating_sub(self.cells.len() - 1);
+        if weights.is_none() && loops > 0 {
+            source.push_str(&format!("maze_loops {{ count {loops}; }}\n"));
+        }
         for cell in &self.cells {
             writeln!(
                 source,
@@ -263,7 +270,20 @@ impl Topology {
         Ok(source)
     }
 
-    fn generate(&self, seed: u64) -> Result<(CompiledWorld, String, MazeGeometry, Vec<Value>)> {
+    pub fn generate(&self, seed: u64) -> Result<(CompiledWorld, String, MazeGeometry, Vec<Value>)> {
+        self.generate_loops(seed, 0)
+    }
+
+    /// Keep the seeded spanning tree and open `loops` further candidate passages.
+    /// The highest remaining priorities win; equal priorities use cell-index order.
+    pub fn generate_loops(
+        &self,
+        seed: u64,
+        loops: usize,
+    ) -> Result<(CompiledWorld, String, MazeGeometry, Vec<Value>)> {
+        if loops > self.max_loops() {
+            return Err("loop count exceeds available closed passages".into());
+        }
         let mut rng = Lcg::new(seed);
         let weights: BTreeMap<_, _> = self
             .boundaries
@@ -271,10 +291,14 @@ impl Topology {
             .filter_map(Boundary::pair)
             .map(|p| (p, rng.next_u64() >> 11))
             .collect();
-        self.generate_weights(seed, weights)
+        self.generate_weights(seed, weights, loops)
     }
 
-    fn priority_pairs(&self) -> Vec<[usize; 2]> {
+    pub fn max_loops(&self) -> usize {
+        self.priority_pairs().len() - (self.cells.len() - 1)
+    }
+
+    pub fn priority_pairs(&self) -> Vec<[usize; 2]> {
         self.boundaries
             .iter()
             .filter_map(Boundary::pair)
@@ -283,7 +307,7 @@ impl Topology {
             .collect()
     }
 
-    fn generate_priorities(
+    pub fn generate_priorities(
         &self,
         seed: u64,
         genes: &[f64],
@@ -307,17 +331,18 @@ impl Topology {
                     .map(|g| (g * ((1_u64 << 53) - 1) as f64) as u64),
             )
             .collect();
-        self.generate_weights(seed, weights)
+        self.generate_weights(seed, weights, 0)
     }
 
     fn generate_weights(
         &self,
         seed: u64,
         weights: BTreeMap<[usize; 2], u64>,
+        loops: usize,
     ) -> Result<(CompiledWorld, String, MazeGeometry, Vec<Value>)> {
         let all = weights.keys().copied().collect();
         let proposed = CompiledWorld::compile(&self.source(seed, &all, Some(&weights))?)?;
-        let index = build_incidence_index(&proposed.program.ir)?;
+        let index = build_incidence_index(&proposed.model.program().ir)?;
         let mut basis = Vec::new();
         rank2_weighted_basis(
             MatroidRef::new(&index),
@@ -328,11 +353,20 @@ impl Topology {
         let ids = Self::cell_ids(&proposed)?;
         let mut passages = BTreeSet::new();
         for arc in basis {
-            passages.insert(Self::arc_pair(&proposed.program.ir.arcs[arc.raw()], &ids)?);
+            passages.insert(Self::arc_pair(
+                &proposed.model.program().ir.arcs[arc.raw()],
+                &ids,
+            )?);
         }
         if passages.len() + 1 != self.cells.len() {
             return Err("candidate graph is disconnected".into());
         }
+        let mut extra: Vec<_> = weights
+            .iter()
+            .filter(|(p, _)| !passages.contains(*p))
+            .collect();
+        extra.sort_by_key(|(pair, weight)| (std::cmp::Reverse(**weight), **pair));
+        passages.extend(extra.into_iter().take(loops).map(|(pair, _)| *pair));
         let original = CompiledWorld::compile(&self.source(seed, &passages, None)?)?;
         let (world, source) = original.reemit("generated_maze")?;
         let (geometry, checks) = Self::project(&world)?;
@@ -340,7 +374,7 @@ impl Topology {
     }
 
     fn cell_ids(world: &CompiledWorld) -> Result<BTreeMap<DeclId, usize>> {
-        let query = QueryEngine::new(&world.program.ir, &world.store.it);
+        let query = QueryEngine::new(&world.model.program().ir, world.model.interner());
         query
             .query(&Predicate::node().and(Predicate::inherits("maze_cell")))
             .into_iter()
@@ -377,8 +411,8 @@ impl Topology {
     }
 
     fn project(world: &CompiledWorld) -> Result<(MazeGeometry, Vec<Value>)> {
-        let ir = &world.program.ir;
-        let query = QueryEngine::new(ir, &world.store.it);
+        let ir = &world.model.program().ir;
+        let query = QueryEngine::new(ir, world.model.interner());
         let meta = query
             .query_first(&Predicate::named("maze"))
             .ok_or("missing maze record")?
@@ -386,7 +420,7 @@ impl Topology {
         let scalar = |id, key| world.scene_scalar(id, key);
         let string = |key| -> Result<&str> {
             match query.effective_value(meta, key) {
-                Some(ValueR::Str(s)) => Ok(world.store.it.resolve(*s)),
+                Some(ValueR::Str(s)) => Ok(world.model.interner().resolve(*s)),
                 _ => Err("missing maze profile/seed".into()),
             }
         };
@@ -394,6 +428,18 @@ impl Topology {
         let seed = string("seed")?.parse()?;
         let expected = Self::new(profile);
         let cell_count = expected.cells.len();
+        let loop_records = query.query(&Predicate::named("maze_loops"));
+        let loops = match loop_records.as_slice() {
+            [] => 0,
+            [record] => {
+                let n = scalar(record.id, "count")?;
+                if n < 0.0 || n.fract() != 0.0 || n > expected.max_loops() as f64 {
+                    return Err("invalid maze loop count".into());
+                }
+                n as usize
+            }
+            _ => return Err("duplicate maze loop metadata".into()),
+        };
         if scalar(meta, "cell_count")? != cell_count as f64
             || scalar(meta, "start_index")? != 0.0
             || scalar(meta, "goal_index")? != (cell_count - 1) as f64
@@ -472,8 +518,8 @@ impl Topology {
             &mut GraphicMatroidWorkspace::new(),
             &mut basis,
         )?;
-        if basis.len() + 1 != cell_count || basis.len() != passages.len() {
-            return Err("maze passages are not a spanning tree".into());
+        if basis.len() + 1 != cell_count || basis.len() + loops != passages.len() {
+            return Err("maze connectivity or declared cycle rank mismatch".into());
         }
         let nodes: BTreeMap<_, _> = ids
             .iter()
@@ -532,7 +578,15 @@ impl Topology {
                 Predicate::node().and(Predicate::inherits("maze_wall")),
                 geometry.walls.len(),
             ),
-            ("tree_passages", Predicate::edge(), cell_count - 1),
+            (
+                if loops == 0 {
+                    "tree_passages"
+                } else {
+                    "cyclic_passages"
+                },
+                Predicate::edge(),
+                cell_count - 1 + loops,
+            ),
         ] {
             let check = query.check_query(
                 &NamedQuery {
@@ -568,6 +622,26 @@ impl Topology {
 }
 
 impl MazeGeometry {
+    /// Read-only views preserve the validated geometry used by physical export.
+    pub fn cells(&self) -> &[MazeCell] {
+        &self.cells
+    }
+    pub fn passages(&self) -> &[[usize; 2]] {
+        &self.passages
+    }
+    pub fn walls(&self) -> &[MazeWall] {
+        &self.walls
+    }
+    pub fn route_cell_indices(&self) -> &[usize] {
+        &self.route_cell_indices
+    }
+    pub fn route_points_m(&self) -> &[[f64; 2]] {
+        &self.route_points_m
+    }
+    pub fn clearance_radius_m(&self) -> f64 {
+        self.clearance_radius_m
+    }
+
     fn check_clearance(&self, radius: f64) -> Result<()> {
         if !radius.is_finite() || radius <= 0.0 {
             return Err("clearance radius must be finite and positive".into());
@@ -613,7 +687,7 @@ impl MazeGeometry {
         Ok(())
     }
 
-    fn visual_source(&self) -> Result<String> {
+    pub fn visual_source(&self) -> Result<String> {
         let mut source = String::from("maze_view {}\n");
         for wall in &self.walls {
             source.push_str(&super::visual::node(
@@ -665,72 +739,6 @@ impl MazeGeometry {
         let (_, emitted) = CompiledWorld::compile(&source)?.reemit("maze_view")?;
         Ok(emitted)
     }
-}
-
-pub(super) fn run(args: &[String]) -> Result<()> {
-    let (args, weights_path) = if args.len() >= 5 && args[args.len() - 2] == "--weights" {
-        (
-            &args[..args.len() - 2],
-            Some(Path::new(&args[args.len() - 1])),
-        )
-    } else {
-        (args, None)
-    };
-    if !(3..=4).contains(&args.len()) {
-        return Err(
-            "usage: adversarial_grid --generate-maze hex|polar SEED NEW_DIRECTORY [ACTOR.hymeko] [--weights GENES.json]"
-                .into(),
-        );
-    }
-    let profile = Profile::parse(&args[0])?;
-    let seed = args[1].parse()?;
-    let output = Path::new(&args[2]);
-    let host = std::process::Command::new("hostname").output()?;
-    if !host.status.success()
-        || !String::from_utf8_lossy(&host.stdout)
-            .trim()
-            .eq_ignore_ascii_case("amaterasu")
-    {
-        return Err("explicit maze generation runs on Amaterasu; local unit tests only".into());
-    }
-    if output.exists() {
-        return Err("maze output directory must be new".into());
-    }
-    let topology = Topology::new(profile);
-    let genes = weights_path
-        .map(|path| -> Result<Vec<f64>> {
-            if fs::metadata(path)?.len() > 8192 {
-                return Err("priority input exceeds 8192 bytes".into());
-            }
-            Ok(serde_json::from_slice(&fs::read(path)?)?)
-        })
-        .transpose()?;
-    let (world, source, geometry, checks) = match &genes {
-        Some(genes) => topology.generate_priorities(seed, genes)?,
-        None => topology.generate(seed)?,
-    };
-    let view = geometry.visual_source()?;
-    fs::create_dir_all(output)?;
-    fs::write(output.join("source.hymeko"), source)?;
-    fs::write(output.join("view.hymeko"), view)?;
-    fs::write(
-        output.join("geometry.json"),
-        serde_json::to_vec_pretty(&geometry)?,
-    )?;
-    let receipt = json!({"schema_version":1,"semantic_digest":world.digest(),"query_checks":checks,"cell_count":geometry.cells.len(),"passage_count":geometry.passages.len(),"wall_count":geometry.walls.len(),"route_cells":geometry.route_cell_indices,"route_points_m":geometry.route_points_m,"clearance_radius_m":CLEARANCE,"clearance_owner":"hymeko_geometry::collide::intersects; swept capsule against actual yaw boxes","priority_pairs":topology.priority_pairs(),"priority_encoding":"lexicographic passage pairs; [0,1] mapped to exact 53-bit integer weights","scope":"rank-2 spanning-tree maze; geometric route witness, not controller success or uniformly sampled trees"});
-    fs::write(
-        output.join("validation.json"),
-        serde_json::to_vec_pretty(&receipt)?,
-    )?;
-    if let Some(genes) = genes {
-        fs::write(
-            output.join("genome.json"),
-            serde_json::to_vec_pretty(&genes)?,
-        )?;
-    }
-    super::maze_physics::export(&geometry, output, args.get(3).map(Path::new))?;
-    println!("{}", serde_json::to_string(&receipt)?);
-    Ok(())
 }
 
 #[cfg(test)]
@@ -798,7 +806,7 @@ mod tests {
             assert_eq!(first.route_cell_indices.first(), Some(&first.start));
             assert_eq!(first.route_cell_indices.last(), Some(&first.goal));
             let view = CompiledWorld::compile(&first.visual_source().unwrap()).unwrap();
-            let query = QueryEngine::new(&view.program.ir, &view.store.it);
+            let query = QueryEngine::new(&view.model.program().ir, view.model.interner());
             let wall = query.query_first(&Predicate::named("wall_0")).unwrap().id;
             for (field, value) in [
                 ("qw", (first.walls[0].yaw_rad * 0.5).cos()),

@@ -1,0 +1,7 @@
+flowchart TD
+  CLI[Application binaries] --> F[Formats domain APIs]
+  F --> C[Core CompiledModel]
+  F --> Q[Query contracts]
+  F --> G[Graph and Geometry]
+  F --> E[Canonical Emitter]
+  Registry[Format registry] --> MJCF[Single articulated MJCF emitter]

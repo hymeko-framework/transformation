@@ -30,11 +30,11 @@ export PATH="$HOME/.cargo/bin:$PATH"
   free -h
 } > "$log_dir/environment.txt"
 cargo tree -d --locked --offline > "$log_dir/dependency-audit.txt"
-cargo test -p hymeko_formats --test gazebo_obstacles --example adversarial_grid --locked --offline \
+cargo test -p hymeko_formats --lib --test gazebo_obstacles --bin adversarial_grid --locked --offline \
   > "$log_dir/tests.txt" 2>&1
-/usr/bin/time -v cargo build -p hymeko_formats --example adversarial_grid --release --locked --offline \
+/usr/bin/time -v cargo build -p hymeko_formats --bin adversarial_grid --release --locked --offline \
   > "$log_dir/build.txt" 2>&1
-/usr/bin/time -v timeout 300s target/release/examples/adversarial_grid --run-campaign \
+/usr/bin/time -v timeout 300s target/release/adversarial_grid --run-campaign \
   --output "$output" --seeds 10 --proposals 100 --width 16 --height 16 --wall-fraction 0.25 \
   > "$log_dir/campaign.txt" 2>&1
 python3 hymeko_formats/tools/adversarial_grid_artifacts.py "$output" \

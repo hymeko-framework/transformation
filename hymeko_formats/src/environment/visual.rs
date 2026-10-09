@@ -29,9 +29,9 @@ pub(super) fn node(
 }
 
 impl CompiledWorld {
-    pub(super) fn visual_source(&self) -> Result<(String, Value)> {
+    pub fn visual_source(&self) -> Result<(String, Value)> {
         let projection = self.project()?; // All seven query assertions precede export.
-        let engine = QueryEngine::new(&self.program.ir, &self.store.it);
+        let engine = QueryEngine::new(&self.model.program().ir, self.model.interner());
         let mut source = String::from("adversarial_grid_view {}\n");
         let mut obstacles = Vec::new();
         let scalar = |decl, key| self.scene_scalar(decl, key);
@@ -92,7 +92,7 @@ impl CompiledWorld {
                 0.0,
             ));
         }
-        let evaluation = projection.evaluate(self, false)?;
+        let evaluation = projection.evaluate(false)?;
         for (i, pair) in evaluation.path.windows(2).enumerate() {
             let (a, b) = (pair[0], pair[1]);
             let position = [(a.x + b.x) as f64 * 0.5, (a.y + b.y) as f64 * 0.5, 0.025];
@@ -144,7 +144,7 @@ mod tests {
         assert_eq!(receipt["obstacles"].as_array().unwrap().len(), 1);
         assert_eq!(receipt["obstacles"][0]["position"], json!([1., 0., 0.5]));
         let compiled = CompiledWorld::compile(&source).unwrap();
-        let engine = QueryEngine::new(&compiled.program.ir, &compiled.store.it);
+        let engine = QueryEngine::new(&compiled.model.program().ir, compiled.model.interner());
         let matches = engine.query(&Predicate::node().and(Predicate::ChildValue(
             "role".into(),
             ValuePredicate::StrEq("obstacle".into()),
@@ -161,8 +161,11 @@ mod tests {
     #[test]
     fn malformed_world_and_nonpositive_geometry_cannot_be_exported() {
         let world = world();
-        let original =
-            hymeko_emitter::emit_hymeko(&world.program.ir, &world.store.it, "adversarial_grid");
+        let original = hymeko_emitter::emit_hymeko(
+            &world.model.program().ir,
+            world.model.interner(),
+            "adversarial_grid",
+        );
         let invalid =
             CompiledWorld::compile(&(original.clone() + "\n@bad { (~ cell_0_0, ~ grid); }\n"))
                 .unwrap();

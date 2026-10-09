@@ -5,7 +5,6 @@ use hymeko::module_store::{execution::CompiledModel, source_provider::StdFsProvi
 use hymeko_geometry::{
     collide::{Convex, Placement, intersects},
     kinematics::kinematic::extract_kinematic_model,
-    transforms::{DomainTransform, ModelView, TransformConfig},
 };
 
 struct Body {
@@ -143,7 +142,7 @@ impl Body {
 }
 
 /// Emit the canonical physical model and the existing owner's MJCF, then query runtime settings.
-pub(super) fn export(maze: &MazeGeometry, output: &Path, actor: Option<&Path>) -> Result<()> {
+pub fn export(maze: &MazeGeometry, output: &Path, actor: Option<&Path>) -> Result<()> {
     for name in [
         "model.hymeko",
         "meta_kinematics.hymeko",
@@ -221,12 +220,13 @@ pub(super) fn export(maze: &MazeGeometry, output: &Path, actor: Option<&Path>) -
         Ok(json!({"name":link.name,"decl_id":link.did.raw(),"dynamic":role==1.,
             "initial_velocity_m_s":[number(link.did,"velocity_x")?,number(link.did,"velocity_y")?,number(link.did,"velocity_z")?]}))
     }).collect::<Result<Vec<_>>>()?;
-    let xml = hymeko_formats::MjcfTransform
-        .emit(
-            &ModelView::Kinematic(model),
-            &TransformConfig::default().with_name("maze_physics"),
-        )
-        .ok_or("owner MJCF projection rejected the physical model")?;
+    let xml = crate::generate_description(
+        &document.program().ir,
+        document.interner(),
+        "maze_physics",
+        crate::OutputFormat::Mjcf,
+    )
+    .map_err(|error| error.to_string())?;
     fs::write(output.join("scene.xml"), xml)?;
     let digest: String = Canon::new(&document.program().ir, document.interner())
         .hash()
@@ -318,12 +318,13 @@ fn robot_projection(maze: &MazeGeometry, path: &Path) -> Result<(String, Value)>
         .iter()
         .map(|b| format!("{b:02x}"))
         .collect::<String>();
-    let xml = hymeko_formats::MjcfTransform
-        .emit(
-            &ModelView::Kinematic(model),
-            &TransformConfig::default().with_name("cyberdisc"),
-        )
-        .ok_or("robot MJCF projection failed")?;
+    let xml = crate::generate_description(
+        &document.program().ir,
+        document.interner(),
+        "cyberdisc",
+        crate::OutputFormat::Mjcf,
+    )
+    .map_err(|error| error.to_string())?;
     let profile = json!({"schema":"hymeko-maze-robot/v1","actor_source":path.canonicalize()?,
         "canonical_digest":digest,"links":links,"visuals":visual_rows,
         "chassis":"chassis","wheels":["drive_fl","drive_rl","drive_fr","drive_rr"],

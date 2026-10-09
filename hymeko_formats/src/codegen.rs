@@ -1,14 +1,6 @@
-//! Text generation from query results — **template-driven**.
-//!
-//! `generate_description` dispatches every registered format through the
-//! template engine (`TransformRegistry::render_from_templates`). The
-//! format-specific output lives in `<workspace>/transforms/<name>/`
-//! (`queries.hymeko` + `template.*`), not in Rust code. This is the
-//! canonical zero-hard-coding path used by the CLI `Compile` subcommand.
-//!
-//! Per-format rich Rust emitters still exist in `crate::{urdf, sdf}` for
-//! tests and callers that predate the template-driven pipeline, but
-//! nothing in the main dispatch path touches them any more.
+//! Shared format dispatch through the registered backend.
+//! Templates use Query's template engine. MJCF uses the single articulated
+//! model emitter registered by Formats; no flat-body template bypass remains.
 
 use std::path::{Path, PathBuf};
 
@@ -56,8 +48,7 @@ fn default_transforms_root() -> PathBuf {
         .join("transforms")
 }
 
-/// Unified codegen entry point. Pure template dispatch — no format-specific
-/// Rust string builders live in this module.
+/// Unified codegen entry point. Backend choice belongs to the registry.
 pub fn generate_description<R: NameResolver>(
     ir: &Ir,
     resolver: &R,
@@ -69,9 +60,14 @@ pub fn generate_description<R: NameResolver>(
     let name = format.transform_name();
     let root = default_transforms_root();
 
-    reg.render_from_templates(name, ir, resolver, &cfg, &root)
-        .ok_or_else(|| CodegenError::QueryFailed(format!("no template registered for `{name}`")))?
-        .map_err(CodegenError::QueryFailed)
+    reg.render(
+        name,
+        &hymeko_query::QueryEngine::new(ir, resolver),
+        &cfg,
+        &root,
+    )
+    .ok_or_else(|| CodegenError::QueryFailed(format!("no transform registered for `{name}`")))?
+    .map_err(CodegenError::QueryFailed)
 }
 
 #[derive(Debug)]

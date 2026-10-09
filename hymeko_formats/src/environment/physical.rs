@@ -104,14 +104,14 @@ impl ActorContract {
 }
 
 impl CompiledWorld {
-    pub(super) fn export_physics(&self, actor: &Path, output: &Path) -> Result<()> {
+    pub fn export_physics(&self, actor: &Path, output: &Path) -> Result<()> {
         if output.exists() {
             return Err("physics output directory must be new".into());
         }
         let actor = actor.canonicalize()?;
         let contract = ActorContract::read(&actor)?;
         let projection = self.project()?;
-        let evaluation = projection.evaluate(self, false)?;
+        let evaluation = projection.evaluate(false)?;
         if !evaluation.feasible {
             return Err("physical demo requires a verified path witness".into());
         }
@@ -227,6 +227,7 @@ impl CompiledWorld {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     fn modified_actor(before: &str, after: &str) -> PathBuf {
         let actor = Path::new(env!("CARGO_MANIFEST_DIR"))

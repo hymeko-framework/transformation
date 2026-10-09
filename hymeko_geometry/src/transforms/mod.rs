@@ -225,6 +225,48 @@ impl TransformRegistry {
         Ok(paths)
     }
 
+    /// Render through the backend declared by the registered transform.
+    /// Template errors are returned as errors, never silently retried with another emitter.
+    /// A transform without a template uses its validated typed-model emitter.
+    pub fn render<R: hymeko_query::traits::NameResolver>(
+        &self,
+        name: &str,
+        query: &hymeko_query::QueryEngine<'_, R>,
+        config: &TransformConfig,
+        transforms_root: &Path,
+    ) -> Option<Result<String, String>> {
+        let transform = self.get(name)?;
+        if transform.template_dir().is_some() {
+            return self.render_from_templates(
+                name,
+                query.ir(),
+                query.resolver(),
+                config,
+                transforms_root,
+            );
+        }
+        let model = extract(
+            query.ir(),
+            query.resolver(),
+            &config.robot_name,
+            transform.accepts(),
+        );
+        let errors: Vec<_> = transform
+            .validate(&model)
+            .into_iter()
+            .filter(Diagnostic::is_error)
+            .map(|d| d.message)
+            .collect();
+        if !errors.is_empty() {
+            return Some(Err(errors.join("; ")));
+        }
+        Some(
+            transform
+                .emit(&model, config)
+                .ok_or_else(|| format!("transform {name} rejected the extracted model")),
+        )
+    }
+
     /// Render a registered transform through the **template engine**
     /// (`hymeko_query::rewrite::template::execute_transform`) — the
     /// canonical data-driven path. The transform's output is produced
@@ -234,7 +276,7 @@ impl TransformRegistry {
     /// can go through this entry point.
     ///
     /// `transforms_root` is the workspace-level `transforms/` directory
-    /// (i.e. the one containing `urdf/`, `sdf/`, `mjcf/`, …). In tests
+    /// (i.e. the one containing `urdf/`, `sdf/`, …). In tests
     /// this is resolved via `env!("CARGO_MANIFEST_DIR")/../transforms`;
     /// in production the CLI passes the path from its config.
     ///

@@ -1,0 +1,98 @@
+// Descriptive macro projection; not an executable optimizer.
+metaheuristic_structure {}
+vocabulary { method_kind {} state_kind {} @operator_kind {} @read_role {} @write_role {} }
+method: vocabulary.method_kind {
+    label "Artificial Bee Colony";
+    source "https://abc.erciyes.edu.tr/pub/tr06_2005.pdf";
+    notes "TR06 employed/onlooker/scout macro. The report does not fix a portable numeric neighborhood kernel; the descriptor does not invent one.";
+    schedule "phased";
+    states {
+        slot_population: vocabulary.state_kind { space "population"; }
+        slot_scores: vocabulary.state_kind { space "scores"; }
+        slot_best: vocabulary.state_kind { space "point"; }
+        slot_bounds: vocabulary.state_kind { space "bounds"; }
+        slot_parameters: vocabulary.state_kind { space "scalar"; }
+        slot_random: vocabulary.state_kind { space "random"; }
+        slot_objective: vocabulary.state_kind { space "function"; }
+        slot_count: vocabulary.state_kind { space "counter"; }
+        slot_clock: vocabulary.state_kind { space "counter"; }
+        slot_trial: vocabulary.state_kind { space "point"; }
+        slot_trial_score: vocabulary.state_kind { space "scalar"; }
+        slot_selected: vocabulary.state_kind { space "indices"; }
+        slot_stagnation: vocabulary.state_kind { space "counter"; }
+    }
+    operators {
+        @op_initialize: vocabulary.operator_kind {
+            stage 0; category "initialize"; family "uniform_initialization"; guard "always";
+            rule "Initialize candidate population; auxiliary initial values belong to the declared source profile.";
+            @reads: vocabulary.read_role { (~ method.states.slot_bounds, ~ method.states.slot_random, ~ method.states.slot_parameters); }
+            @writes: vocabulary.write_role { (~ method.states.slot_population, ~ method.states.slot_stagnation); }
+        }
+        @op_evaluate: vocabulary.operator_kind {
+            stage 1; category "evaluate"; family "objective_evaluation"; guard "always";
+            rule "Evaluate each supplied candidate; every objective invocation consumes one unit.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_objective, ~ method.states.slot_count); }
+            @writes: vocabulary.write_role { (~ method.states.slot_scores, ~ method.states.slot_count); }
+        }
+        @op_employed: vocabulary.operator_kind {
+            stage 2; category "vary"; family "neighbour_perturbation"; guard "always";
+            rule "Propose a neighbour of each current food-source position.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_random, ~ method.states.slot_parameters); }
+            @writes: vocabulary.write_role { (~ method.states.slot_trial); }
+        }
+        @op_employed_evaluation: vocabulary.operator_kind {
+            stage 3; category "evaluate"; family "objective_evaluation"; guard "always";
+            rule "Evaluate each supplied candidate; every objective invocation consumes one unit.";
+            @reads: vocabulary.read_role { (~ method.states.slot_trial, ~ method.states.slot_objective, ~ method.states.slot_count); }
+            @writes: vocabulary.write_role { (~ method.states.slot_trial_score, ~ method.states.slot_count); }
+        }
+        @op_accept: vocabulary.operator_kind {
+            stage 4; category "accept"; family "pairwise_greedy"; guard "always";
+            rule "Retain the better source location.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_scores, ~ method.states.slot_trial, ~ method.states.slot_trial_score); }
+            @writes: vocabulary.write_role { (~ method.states.slot_population, ~ method.states.slot_scores); }
+        }
+        @op_probabilities: vocabulary.operator_kind {
+            stage 5; category "select"; family "fitness_proportional_selection"; guard "always";
+            rule "Choose sources with probability increasing with their quality.";
+            @reads: vocabulary.read_role { (~ method.states.slot_scores, ~ method.states.slot_random); }
+            @writes: vocabulary.write_role { (~ method.states.slot_selected); }
+        }
+        @op_onlooker: vocabulary.operator_kind {
+            stage 6; category "vary"; family "neighbour_perturbation"; guard "always";
+            rule "Propose a neighbour of a quality-selected source.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_selected, ~ method.states.slot_random, ~ method.states.slot_parameters); }
+            @writes: vocabulary.write_role { (~ method.states.slot_trial); }
+        }
+        @op_onlooker_evaluation: vocabulary.operator_kind {
+            stage 7; category "evaluate"; family "objective_evaluation"; guard "always";
+            rule "Evaluate each supplied candidate; every objective invocation consumes one unit.";
+            @reads: vocabulary.read_role { (~ method.states.slot_trial, ~ method.states.slot_objective, ~ method.states.slot_count); }
+            @writes: vocabulary.write_role { (~ method.states.slot_trial_score, ~ method.states.slot_count); }
+        }
+        @op_onlooker_accept: vocabulary.operator_kind {
+            stage 8; category "accept"; family "pairwise_greedy"; guard "always";
+            rule "Retain the better source location.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_scores, ~ method.states.slot_trial, ~ method.states.slot_trial_score); }
+            @writes: vocabulary.write_role { (~ method.states.slot_population, ~ method.states.slot_scores); }
+        }
+        @op_stagnation: vocabulary.operator_kind {
+            stage 9; category "adapt"; family "stagnation_update"; guard "always";
+            rule "Track lack of improvement against the limit parameter.";
+            @reads: vocabulary.read_role { (~ method.states.slot_scores, ~ method.states.slot_trial_score, ~ method.states.slot_stagnation); }
+            @writes: vocabulary.write_role { (~ method.states.slot_stagnation); }
+        }
+        @op_scout: vocabulary.operator_kind {
+            stage 10; category "vary"; family "random_restart"; guard "stagnation";
+            rule "Abandon exhausted sources and sample fresh locations.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_stagnation, ~ method.states.slot_bounds, ~ method.states.slot_parameters, ~ method.states.slot_random); }
+            @writes: vocabulary.write_role { (~ method.states.slot_population); }
+        }
+        @op_archive: vocabulary.operator_kind {
+            stage 11; category "archive"; family "minimum_archive"; guard "always";
+            rule "Retain the best observed population member under minimization.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_scores, ~ method.states.slot_best); }
+            @writes: vocabulary.write_role { (~ method.states.slot_best); }
+        }
+    }
+}

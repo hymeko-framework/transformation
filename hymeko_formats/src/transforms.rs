@@ -1,18 +1,6 @@
-//! Built-in `DomainTransform` implementations for the six standard
-//! formats (URDF, SDF, MJCF, DOT, Mermaid, Gazebo world).
-//!
-//! These live outside `hymeko_query` so the core query/transform crate
-//! has zero hard-coded format knowledge. Callers assemble a registry by
-//! calling [`crate::register_defaults`] or [`crate::default_registry`].
-//!
-//! Every transform here declares a `template_dir()`, so the canonical
-//! code path is still `TransformRegistry::render_from_templates` — the
-//! Rust string builders below are retained only as:
-//!   * `emit()` fall-backs used by `TransformRegistry::emit_all` /
-//!     `write_all` (the non-template registry surface exercised by the
-//!     ecosystem tests), and
-//!   * the rich `generate_urdf_from_model` / `generate_sdf_from_model`
-//!     entry points consumed directly by legacy tests.
+//! Built-in DomainTransform implementations. Registry dispatch uses each
+//! transform's declared backend. MJCF has one articulated typed-model emitter;
+//! the other registered templates retain their Query-based rendering.
 
 use std::fmt::Write;
 
@@ -98,9 +86,6 @@ impl DomainTransform for MjcfTransform {
         }
         let km = model.as_kinematic()?;
         Some(emit_mjcf(km, config))
-    }
-    fn template_dir(&self) -> Option<&'static str> {
-        Some("mjcf")
     }
 
     fn validate(&self, model: &ModelView) -> Vec<Diagnostic> {
