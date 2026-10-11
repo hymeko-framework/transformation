@@ -1,0 +1,9 @@
+\begin{tikzpicture}[node distance=6mm and 9mm, every node/.style={draw, rounded corners, font=\small, align=center}]
+\node (r) {root\\\texttt{config:root}};
+\node (e) [right=of r] {edge results $S$\\$+ \rightarrow -$, not $\sim$};
+\node (c) [right=of e] {scope set\\(+ ancestors)};
+\node (f) [below=of c] {\texttt{\#each L}\\within / touching / outside};
+\node (x) [left=of f] {\texttt{except X}};
+\node (o) [left=of x] {view per subsystem};
+\draw[->] (r) -- (e); \draw[->] (e) -- (c); \draw[->] (c) -- (f); \draw[->] (f) -- (x); \draw[->] (x) -- (o);
+\end{tikzpicture}

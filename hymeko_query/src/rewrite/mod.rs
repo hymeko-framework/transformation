@@ -20,6 +20,7 @@
 
 pub mod match_context;
 pub mod regen;
+mod scope;
 pub mod split;
 pub mod template;
 

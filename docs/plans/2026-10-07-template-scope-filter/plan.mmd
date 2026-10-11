@@ -1,0 +1,6 @@
+flowchart LR
+  R[root<br/>config:root] --> E[edge results S<br/>+ to -, never ~]
+  E --> C[scope set<br/>closed under ancestors]
+  C --> F[#each L<br/>within / touching / outside]
+  F --> X[except X]
+  X --> O[one view per subsystem]
