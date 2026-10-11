@@ -1,0 +1,12 @@
+flowchart TD
+  Profile[HyMeKo HHO profile] --> CoreQuery[Existing Core and Query validator]
+  CoreQuery --> Identities[Canonical operator identities]
+  Search[ReferenceSearch] --> DEGA[Frozen DE and GA]
+  Search --> HHO[HHO kernel with two clock settings]
+  Search --> Random[Existing random reference]
+  DEGA --> Ledger[EvaluationLedger]
+  HHO --> Ledger
+  Random --> Ledger
+  Ledger --> Monitor[Existing HySTL]
+  Identities --> Traces[Bound traces and reports]
+  Monitor --> Traces

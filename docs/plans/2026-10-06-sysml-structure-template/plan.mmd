@@ -1,0 +1,5 @@
+flowchart LR
+  M[model.hymeko<br/>SysML profile] --> C[Core: compile + IR]
+  C --> Q[Query: queries.hymeko]
+  Q --> T[template.sysml<br/>owner / bindowner / bases:L]
+  T --> O[SysML v2 text]

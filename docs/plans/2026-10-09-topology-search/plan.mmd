@@ -1,0 +1,7 @@
+flowchart LR
+  Topology[Existing Formats topology plus bounded loops] --> Core[Core canonical IR]
+  Core --> Query[Query admission]
+  Query --> Search[Existing Graph BFS / Dijkstra / A*]
+  Search --> Geometry[Geometry path-clearance checks]
+  Geometry --> Evidence[JSON / plots / path GIF]
+  Kubota[Kubota mapping variant: identification pending] -. future source .-> Core

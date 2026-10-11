@@ -1,0 +1,73 @@
+// Descriptive macro projection; not an executable optimizer.
+metaheuristic_structure {}
+vocabulary { method_kind {} state_kind {} @operator_kind {} @read_role {} @write_role {} }
+method: vocabulary.method_kind {
+    label "Tournament uniform/reset GA reference";
+    source "../ga_tournament_uniform_reset.hymeko";
+    notes "Macro view of the frozen local research GA, not all genetic algorithms.";
+    schedule "deferred";
+    states {
+        slot_population: vocabulary.state_kind { space "population"; }
+        slot_scores: vocabulary.state_kind { space "scores"; }
+        slot_best: vocabulary.state_kind { space "point"; }
+        slot_bounds: vocabulary.state_kind { space "bounds"; }
+        slot_parameters: vocabulary.state_kind { space "scalar"; }
+        slot_random: vocabulary.state_kind { space "random"; }
+        slot_objective: vocabulary.state_kind { space "function"; }
+        slot_count: vocabulary.state_kind { space "counter"; }
+        slot_clock: vocabulary.state_kind { space "counter"; }
+        slot_parents: vocabulary.state_kind { space "indices"; }
+        slot_offspring: vocabulary.state_kind { space "population"; }
+        slot_offspring_scores: vocabulary.state_kind { space "scores"; }
+    }
+    operators {
+        @op_initialize: vocabulary.operator_kind {
+            stage 0; category "initialize"; family "uniform_initialization"; guard "always";
+            rule "Initialize candidate population; auxiliary initial values belong to the declared source profile.";
+            @reads: vocabulary.read_role { (~ method.states.slot_bounds, ~ method.states.slot_random, ~ method.states.slot_parameters); }
+            @writes: vocabulary.write_role { (~ method.states.slot_population); }
+        }
+        @op_evaluate: vocabulary.operator_kind {
+            stage 1; category "evaluate"; family "objective_evaluation"; guard "always";
+            rule "Evaluate each supplied candidate; every objective invocation consumes one unit.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_objective, ~ method.states.slot_count); }
+            @writes: vocabulary.write_role { (~ method.states.slot_scores, ~ method.states.slot_count); }
+        }
+        @op_parents: vocabulary.operator_kind {
+            stage 2; category "select"; family "tournament_selection"; guard "always";
+            rule "Two independent size-two tournaments; ties use population index.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_scores, ~ method.states.slot_random); }
+            @writes: vocabulary.write_role { (~ method.states.slot_parents); }
+        }
+        @op_cross: vocabulary.operator_kind {
+            stage 3; category "vary"; family "coordinate_mix"; guard "always";
+            rule "Choose a selected parent independently per coordinate.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_parents, ~ method.states.slot_random); }
+            @writes: vocabulary.write_role { (~ method.states.slot_offspring); }
+        }
+        @op_mutate: vocabulary.operator_kind {
+            stage 4; category "vary"; family "coordinate_reset"; guard "always";
+            rule "Reset each selected coordinate uniformly within bounds with probability 1/D.";
+            @reads: vocabulary.read_role { (~ method.states.slot_offspring, ~ method.states.slot_bounds, ~ method.states.slot_random, ~ method.states.slot_parameters); }
+            @writes: vocabulary.write_role { (~ method.states.slot_offspring); }
+        }
+        @op_offspring_evaluation: vocabulary.operator_kind {
+            stage 5; category "evaluate"; family "objective_evaluation"; guard "always";
+            rule "Evaluate each supplied candidate; every objective invocation consumes one unit.";
+            @reads: vocabulary.read_role { (~ method.states.slot_offspring, ~ method.states.slot_objective, ~ method.states.slot_count); }
+            @writes: vocabulary.write_role { (~ method.states.slot_offspring_scores, ~ method.states.slot_count); }
+        }
+        @op_survive: vocabulary.operator_kind {
+            stage 6; category "accept"; family "rank_truncate"; guard "always";
+            rule "Stable mu+lambda ranking; parents precede equal-scoring offspring.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_scores, ~ method.states.slot_offspring, ~ method.states.slot_offspring_scores); }
+            @writes: vocabulary.write_role { (~ method.states.slot_population, ~ method.states.slot_scores); }
+        }
+        @op_archive: vocabulary.operator_kind {
+            stage 7; category "archive"; family "minimum_archive"; guard "always";
+            rule "Retain the best observed population member under minimization.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_scores, ~ method.states.slot_best); }
+            @writes: vocabulary.write_role { (~ method.states.slot_best); }
+        }
+    }
+}

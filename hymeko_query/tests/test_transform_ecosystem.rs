@@ -783,4 +783,273 @@ mod test_transform_ecosystem {
             assert!(s.contains("<<deriveReqt>>"), "derive label");
         }
     }
+
+    // ============================================================
+    // SysML v2 structural view (BDD / IBD / deployment), template path
+    // (plan docs/plans/2026-10-06-sysml-structure-template)
+    // ============================================================
+    mod sysml_structure {
+        use crate::test_helpers::load_and_lower;
+        use hymeko_geometry::transforms::TransformConfig;
+        use std::path::PathBuf;
+
+        const WITNESS: &str = "../data/sysml/sysml_structure_witness.hymeko";
+
+        fn render(name: &str) -> String {
+            let (store, compiled) = load_and_lower(WITNESS).expect("witness should compile");
+            let reg = hymeko_formats::default_registry();
+            let config = TransformConfig::default().with_name("cell");
+            let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("..")
+                .join("transforms");
+            reg.render_from_templates(name, &compiled.ir, &store.it, &config, &root)
+                .expect("transform is registered")
+                .expect("template render succeeds")
+        }
+
+        #[test]
+        fn registry_lists_sysml_structure_without_regressing_others() {
+            let reg = hymeko_formats::default_registry();
+            let av = reg.available();
+            assert!(av.contains(&"sysml_structure"), "missing sysml_structure");
+            for f in [
+                "requirements_sysml",
+                "requirements_dot",
+                "sysml",
+                "dot",
+                "urdf",
+            ] {
+                assert!(av.contains(&f), "registration regressed: missing {f}");
+            }
+        }
+
+        #[test]
+        fn blocks_specialize_only_blocks_and_ports_are_owner_qualified() {
+            let s = render("sysml_structure");
+            assert!(
+                s.contains("part def IPCamera :> Camera;"),
+                "specialization\n{s}"
+            );
+            assert!(
+                s.contains("part def Camera;"),
+                "a vocabulary base is not emitted as :>\n{s}"
+            );
+            assert!(s.contains("port def IPCamera_eth;") && s.contains("port def Switch_access;"));
+            assert!(
+                !s.contains("part def execution_environment") && !s.contains("part def block"),
+                "vocabulary metaclasses must not be projected\n{s}"
+            );
+        }
+
+        #[test]
+        fn composition_multiplicity_from_constants_and_shared_definitions() {
+            let s = render("sysml_structure");
+            assert!(
+                s.contains("end cameras : IPCamera[2..2];"),
+                "constant arithmetic\n{s}"
+            );
+            assert!(
+                s.contains("end switch : Switch[1..1];"),
+                "shared `one`\n{s}"
+            );
+            assert!(
+                s.contains("end edge : Edge[0..1];"),
+                "shared `optional`\n{s}"
+            );
+            assert!(s.contains("end whole : Cell[1];"));
+        }
+
+        #[test]
+        fn connector_keeps_ports_and_all_neutral_participants() {
+            let s = render("sysml_structure");
+            assert!(s.contains("end source : IPCamera_eth;"), "{s}");
+            assert!(s.contains("end target : Switch_access;"), "{s}");
+            assert!(
+                s.contains("conveys: Video, Cat6"),
+                "n-ary item + medium\n{s}"
+            );
+        }
+
+        #[test]
+        fn deployment_allocations_and_nary_deploys() {
+            let s = render("sysml_structure");
+            assert!(s.contains("part def runtime;") && s.contains("part def host;"));
+            assert!(s.contains("allocate Edge to host;"), "realizes\n{s}");
+            assert!(s.contains("allocate runtime to host;"), "hosts\n{s}");
+            assert!(
+                s.contains("deploys pipeline, database to runtime"),
+                "n-ary deploys\n{s}"
+            );
+        }
+
+        #[test]
+        fn requirements_transform_is_not_affected_by_the_structural_profile() {
+            // Counter-test: the same witness through requirements_sysml carries no
+            // structural projection, so the two contracts stay separate.
+            let s = render("requirements_sysml");
+            assert!(
+                s.contains("part def IPCamera;"),
+                "blocks are still components there\n{s}"
+            );
+            assert!(!s.contains("port def") && !s.contains(":>"), "{s}");
+        }
+    }
+
+    // ============================================================
+    // Risk assessment and decision-option vocabulary
+    // (plan docs/plans/2026-10-07-risk-decision)
+    // ============================================================
+    mod sysml_risk {
+        use crate::test_helpers::load_and_lower;
+        use hymeko_query::rewrite::template::{TransformSpec, execute_transform};
+        use std::collections::HashMap;
+
+        const WITNESS: &str = "../data/sysml/sysml_risk_witness.hymeko";
+        const STRUCTURE_WITNESS: &str = "../data/sysml/sysml_structure_witness.hymeko";
+
+        const QUERIES: &str = "risk_rows {}
+context
+{
+    hazards:    hazard {}
+    risks:      risk {}
+    categories: risk_category {}
+    cells:      risk_cell {}
+    decisions:  decision {}
+    options:    option {}
+    @mitigates_edges:  mitigates {}
+    @leads_edges:      leads_to {}
+    @considers_edges:  considers {}
+    @selects_edges:    selects {}
+    @adds_edges:       adds {}
+    @omits_edges:      omits {}
+    @overrides_edges:  overrides {}
+    @introduces_edges: introduces {}
+}
+";
+
+        const TEMPLATE: &str = "{{#each hazards}}HAZ {{name}}
+{{/each}}{{#each risks}}RISK {{name}} {{field:category.label}} {{field:likelihood_initial.rank}} {{field:impact_residual.label}}
+{{/each}}{{#each categories}}CAT {{name}}
+{{/each}}{{#each cells}}CELL {{field:likelihood.label}} {{field:impact.label}} {{field:level.label}}
+{{/each}}{{#each decisions}}DEC {{name}}
+{{/each}}{{#each options}}OPT {{name}}
+{{/each}}{{#each mitigates_edges}}MIT {{bind:+:all}} {{bind:-:0}}
+{{/each}}{{#each leads_edges}}LEAD {{bind:+:0}} {{bind:-:0}}
+{{/each}}{{#each considers_edges}}CONS {{bind:+:0}} {{bind:-:all}}
+{{/each}}{{#each selects_edges}}SEL {{bind:+:0}} {{bind:-:0}}
+{{/each}}{{#each adds_edges}}ADD {{bind:+:0}} {{bind:-:0}} {{bind:~:0}}
+{{/each}}{{#each omits_edges}}OMIT {{bind:+:0}} {{bind:-:0}}
+{{/each}}{{#each overrides_edges}}OVR {{bind:+:0}} {{bind:-:0}} {{field:value}} {{field:basis}}
+{{/each}}{{#each introduces_edges}}INTRO {{bind:+:0}} {{bind:-:0}}
+{{/each}}";
+
+        /// Render an inline query/template pair against a model (shared by the vocabulary witnesses).
+        pub(super) fn render_inline(model: &str, queries: &str, template: &str) -> String {
+            let (store, compiled) = load_and_lower(model).expect("witness should compile");
+            let spec = TransformSpec {
+                name: "inline_rows".to_string(),
+                query_source: queries.to_string(),
+                template_source: template.to_string(),
+            };
+            execute_transform(&compiled.ir, &store.it, &spec, &HashMap::new()).expect("render")
+        }
+
+        fn rows(model: &str) -> String {
+            render_inline(model, QUERIES, TEMPLATE)
+        }
+
+        #[test]
+        fn every_kind_and_edge_of_the_vocabulary_resolves() {
+            let s = rows(WITNESS);
+            for line in [
+                "HAZ data_loss",
+                "RISK condensation environment 2 high",
+                "RISK sensor_fault environment 2 low",
+                "CAT environment",
+                "CELL high high high",
+                "CELL low high low",
+                "DEC enclosure",
+                "MIT keep_dry condensation",
+                "LEAD condensation sensor_fault",
+                "LEAD sensor_fault data_loss",
+                "CONS enclosure better_sensor heated_box nothing",
+                "SEL better_sensor S2",
+                "ADD heated_box H1 Heater",
+                "OMIT nothing S1",
+                "OVR heated_box rh 70 enclosure kept below 70 % RH",
+                "INTRO heated_box heater_on",
+            ] {
+                assert!(s.lines().any(|l| l == line), "missing `{line}`\n{s}");
+            }
+        }
+
+        #[test]
+        fn kinds_match_exactly_and_not_their_neighbours() {
+            let s = rows(WITNESS);
+            let count = |p: &str| s.lines().filter(|l| l.starts_with(p)).count();
+            assert_eq!(
+                count("RISK "),
+                2,
+                "risk must not match risk_cell or risk_category\n{s}"
+            );
+            assert_eq!(count("CELL "), 4, "a full 2 x 2 table\n{s}");
+            assert_eq!(count("OPT "), 3, "{s}");
+        }
+
+        #[test]
+        fn a_model_without_the_vocabulary_yields_no_rows() {
+            let s = rows(STRUCTURE_WITNESS);
+            assert!(
+                s.trim().is_empty(),
+                "structure witness has no risk rows\n{s}"
+            );
+        }
+    }
+
+    // ============================================================
+    // Price quotes, currencies and priced_by
+    // (plan docs/plans/2026-10-07-price-quotes)
+    // ============================================================
+    mod sysml_price {
+        use super::sysml_risk::render_inline;
+
+        const WITNESS: &str = "../data/sysml/sysml_price_witness.hymeko";
+        const STRUCTURE_WITNESS: &str = "../data/sysml/sysml_structure_witness.hymeko";
+
+        const QUERIES: &str = "price_rows {}
+context
+{
+    quotes:     price_quote {}
+    currencies: currency {}
+    @priced:    priced_by {}
+}
+";
+
+        const TEMPLATE: &str = "{{#each quotes}}Q {{name}} {{field:amount}} {{field:currency.label}} {{field:currency.rate}} {{field:vat_included}} {{field:pack}}
+{{/each}}{{#each currencies}}C {{name}}
+{{/each}}{{#each priced}}P {{bind:+:0}} {{bind:-:0}} {{field:per_unit}}
+{{/each}}";
+
+        #[test]
+        fn quotes_resolve_with_currency_vat_pack_and_per_unit() {
+            let s = render_inline(WITNESS, QUERIES, TEMPLATE);
+            for line in [
+                "Q q_box 93510 HUF 1 0.27 305",
+                "Q q_flange 40 EUR 400 0 1",
+                "Q q_tube 180 EUR 400 0 1",
+                "C EUR",
+                "P q_box cable_line 1",
+                "P q_flange housing_kit 2",
+                "P q_tube housing_kit 1",
+            ] {
+                assert!(s.lines().any(|l| l == line), "missing `{line}`\n{s}");
+            }
+        }
+
+        #[test]
+        fn a_model_without_quotes_yields_no_rows() {
+            let s = render_inline(STRUCTURE_WITNESS, QUERIES, TEMPLATE);
+            assert!(s.trim().is_empty(), "structure witness has no quotes\n{s}");
+        }
+    }
 }

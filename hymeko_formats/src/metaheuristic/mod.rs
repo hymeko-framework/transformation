@@ -1,18 +1,15 @@
-//! Static DE-profile validation and canonical operator identity export.
+//! Static DE/GA-profile validation and canonical operator identity export.
 //! Uses Core compilation/path/digest APIs and Query contracts; executes no optimizer.
-//! Run: cargo run -p hymeko_formats --example metaheuristic_contract --locked --offline -- INPUT.hymeko NEW_OUTPUT_DIR
+//! CLI: cargo run -p hymeko_formats --bin metaheuristic_contract -- INPUT.hymeko NEW_OUTPUT_DIR
 
 use hymeko::{
     common::ids::DeclId,
     ir::{
         canonical_hash::{Canon, DerivedPathIndex, build_path_index},
         ir::ValueR,
-        semantic_digest::{
-            SEMANTIC_DIGEST_ALGO_VERSION, SEMANTIC_DIGEST_SCHEMA_VERSION,
-        },
+        semantic_digest::{SEMANTIC_DIGEST_ALGO_VERSION, SEMANTIC_DIGEST_SCHEMA_VERSION},
     },
     module_store::{execution::CompiledModel, source_provider::MemProvider},
-    resolution::string_table::StringTable,
     util::real_parser::RealParser,
 };
 use hymeko_query::{
@@ -23,171 +20,21 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     error::Error,
     fmt::Write as _,
-    fs,
-    io::Read,
     path::Path,
 };
 
-type Result<T> = std::result::Result<T, Box<dyn Error>>;
-const PROFILE: &str = "de-rand-1-bin-clamp-deferred-v1";
-const MAX_SOURCE_BYTES: u64 = 128 * 1024;
+pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
+pub mod catalog;
+mod profiles;
+pub use profiles::{DE_KEY, GA_KEY, HHO_KEY};
+pub const MAX_SOURCE_BYTES: u64 = 128 * 1024;
 #[cfg(test)]
-const SOURCE: &str = include_str!("../data/metaheuristics/de_rand_1_bin.hymeko");
+const SOURCE: &str = include_str!("../../data/metaheuristics/de_rand_1_bin.hymeko");
+#[cfg(test)]
+const GA_SOURCE: &str =
+    include_str!("../../data/metaheuristics/ga_tournament_uniform_reset.hymeko");
 
-/// Fixed-profile expectations are a conformance oracle, not another executable IR.
-const PROFILE_FIELDS: &[(&str, &str)] = &[
-    ("key", PROFILE),
-    ("optimization", "minimize"),
-    ("arithmetic", "python_binary64"),
-    ("dimensions", "D>=1,N>=4,B>=N"),
-    ("parameters", "0<F<=2,0<=CR<=1,finite_bounds_lo<hi"),
-    ("update", "deferred_generation"),
-    ("boundary", "componentwise_clamp_after_crossover"),
-    ("crossover", "uniform_lt_CR_or_forced_coordinate"),
-    ("acceptance", "trial_le_parent"),
-    ("donors", "three_distinct_excluding_target"),
-    (
-        "randomness",
-        "named_decisions;3_ordered_donors;forced_coordinate;D_uniforms_[0,1)",
-    ),
-    ("budget", "initialization_included;stop_before_B_plus_one"),
-    ("early_stop", "none"),
-    ("partial_generation", "retain_unprocessed_parents"),
-    ("target_order", "ascending_index"),
-    (
-        "archive",
-        "min_all_evaluated;ties_keep_previous_archive_vector",
-    ),
-    ("result_tie", "first_population_index_at_minimum"),
-    ("event_coverage", "objective_evaluations_only"),
-];
-
-struct OperatorRule {
-    key: &'static str,
-    rule: &'static str,
-    reads: &'static [&'static str],
-    writes: &'static [&'static str],
-}
-
-const OPERATORS: &[OperatorRule] = &[
-    OperatorRule {
-        key: "de.initialize",
-        rule: "copy_provided_population;evaluate_each_initial_candidate_once",
-        reads: &["initial_population", "objective", "budget_limit"],
-        writes: &[
-            "population_old",
-            "parent_scores",
-            "evaluation_count",
-            "generation",
-            "evaluated_candidate",
-            "evaluated_score",
-        ],
-    },
-    OperatorRule {
-        key: "de.prepare_generation",
-        rule: "copy_old_population_and_scores_to_next;set_target_index_zero",
-        reads: &["population_old", "parent_scores"],
-        writes: &["population_next", "next_scores", "target_index"],
-    },
-    OperatorRule {
-        key: "de.donor_selection",
-        rule: "draw_named_decision_and_resolve_ordered_donors_from_old_population",
-        reads: &[
-            "population_old",
-            "generation",
-            "target_index",
-            "decision_source",
-        ],
-        writes: &[
-            "donor_base",
-            "donor_positive",
-            "donor_negative",
-            "target_old",
-            "forced_coordinate",
-            "crossover_uniforms",
-        ],
-    },
-    OperatorRule {
-        key: "de.mutate",
-        rule: "mutant=donor_base+F*(donor_positive-donor_negative);require_finite",
-        reads: &[
-            "donor_base",
-            "donor_positive",
-            "donor_negative",
-            "differential_weight",
-        ],
-        writes: &["mutant"],
-    },
-    OperatorRule {
-        key: "de.crossover_repair",
-        rule: "trial[j]=clamp(mutant[j])_if_j_forced_or_u[j]<CR_else_target_old[j]",
-        reads: &[
-            "mutant",
-            "target_old",
-            "forced_coordinate",
-            "crossover_uniforms",
-            "crossover_probability",
-            "bounds",
-        ],
-        writes: &["trial"],
-    },
-    OperatorRule {
-        key: "de.evaluate_trial",
-        rule: "require_count<B;count_objective_call;require_finite_result",
-        reads: &["trial", "objective", "budget_limit", "evaluation_count"],
-        writes: &[
-            "trial_score",
-            "evaluation_count",
-            "evaluated_candidate",
-            "evaluated_score",
-        ],
-    },
-    OperatorRule {
-        key: "de.select",
-        rule: "replace_next_target_and_score_iff_trial_score<=parent_score;old_population_unchanged;advance_target",
-        reads: &[
-            "trial",
-            "trial_score",
-            "target_index",
-            "parent_scores",
-            "population_next",
-            "next_scores",
-        ],
-        writes: &["population_next", "next_scores", "target_index"],
-    },
-    OperatorRule {
-        key: "de.archive",
-        rule: "after_each_evaluation_keep_min;equal_value_keeps_previous_vector",
-        reads: &["evaluated_candidate", "evaluated_score", "archive_best"],
-        writes: &["archive_best"],
-    },
-    OperatorRule {
-        key: "de.publish",
-        rule: "after_target_loop_publish_next_snapshot;retain_unprocessed_parents;increment_generation_only_if_complete",
-        reads: &[
-            "population_next",
-            "next_scores",
-            "target_index",
-            "population_old",
-            "parent_scores",
-            "generation",
-        ],
-        writes: &["population_old", "parent_scores", "generation"],
-    },
-    OperatorRule {
-        key: "de.stop",
-        rule: "continue_iff_count<B;no_target_early_stop;return_first_population_index_at_minimum",
-        reads: &[
-            "evaluation_count",
-            "budget_limit",
-            "population_old",
-            "parent_scores",
-        ],
-        writes: &["run_status"],
-    },
-];
-
-fn compile(source: &str) -> Result<CompiledModel> {
+pub fn compile(source: &str) -> Result<CompiledModel> {
     if source.len() as u64 > MAX_SOURCE_BYTES {
         return Err("source exceeds 128 KiB cap".into());
     }
@@ -304,6 +151,53 @@ impl<'a> Contract<'a> {
             .collect()
     }
 
+    /// Shared typed dependency-role admission for exact profiles and descriptive projections.
+    fn dependency_role(
+        &mut self,
+        label: &str,
+        operator: &Predicate,
+        kind: DeclId,
+        opposite: DeclId,
+    ) -> Result<QueryMatch> {
+        let role = self
+            .check(
+                label,
+                Predicate::edge()
+                    .and(Predicate::InheritsFromId(kind))
+                    .and(Predicate::HasParent(Box::new(operator.clone()))),
+                1,
+            )?
+            .remove(0);
+        let engine = QueryEngine::new(&self.model.program().ir, self.model.interner());
+        if engine
+            .query_decl(role.id, &Predicate::InheritsFromId(opposite))
+            .is_some()
+        {
+            return Err("a dependency cannot be both read and write role types".into());
+        }
+        let edge = self
+            .model
+            .program()
+            .ir
+            .edge_for_decl(role.id)
+            .ok_or("role is not an edge")?
+            .1;
+        if edge.arcs.len() != 1
+            || role
+                .arc_bindings
+                .iter()
+                .any(|binding| binding.sign != 0 || binding.weights.is_some())
+        {
+            return Err("role requires exactly one neutral unweighted dependency hyperarc".into());
+        }
+        if self.model.program().ir.decl_children(role.id).any(|id| {
+            self.model.program().ir.decl_nodes[id.raw()].kind != hymeko::ir::ir::DeclKind::HyperArc
+        }) {
+            return Err("dependency role has unrepresented metadata".into());
+        }
+        Ok(role)
+    }
+
     fn validate(mut self) -> Result<Value> {
         let profile_type = self.vocabulary("profile_kind")?;
         let state_type = self.vocabulary("state_kind")?;
@@ -312,8 +206,10 @@ impl<'a> Contract<'a> {
         let write_type = self.vocabulary("write_role")?;
         let profiles = Predicate::node().and(Predicate::InheritsFromId(profile_type));
         let profile = self.check("exactly_one_profile", profiles.clone(), 1)?[0].id;
+        let definition = profiles::get(&self.field(profile, "key")?)
+            .ok_or("unsupported metaheuristic profile")?;
         let mut fields = BTreeMap::new();
-        for &(key, expected) in PROFILE_FIELDS {
+        for &(key, expected) in definition.fields {
             self.check(
                 &format!("profile.{key}"),
                 profiles.clone().and(Predicate::EffectiveChildValue(
@@ -328,14 +224,16 @@ impl<'a> Contract<'a> {
             profile,
             &self.require_fields(
                 profile,
-                &PROFILE_FIELDS
+                &definition
+                    .fields
                     .iter()
                     .map(|(key, _)| *key)
                     .collect::<Vec<_>>(),
             )?,
         )?;
         let state_pred = Predicate::node().and(Predicate::InheritsFromId(state_type));
-        let expected_states: BTreeSet<_> = OPERATORS
+        let expected_states: BTreeSet<_> = definition
+            .operators
             .iter()
             .flat_map(|op| op.reads.iter().chain(op.writes))
             .copied()
@@ -354,16 +252,20 @@ impl<'a> Contract<'a> {
             self.require_children(state.id, &self.require_fields(state.id, &["key"])?)?;
         }
         let operators = Predicate::edge().and(Predicate::InheritsFromId(operator_type));
-        self.check("operator_count", operators.clone(), OPERATORS.len())?;
+        self.check(
+            "operator_count",
+            operators.clone(),
+            definition.operators.len(),
+        )?;
         let role_pred = Predicate::edge()
             .and(Predicate::InheritsFromId(read_type).or(Predicate::InheritsFromId(write_type)));
-        let roles = self.check("role_count", role_pred, OPERATORS.len() * 2)?;
+        let roles = self.check("role_count", role_pred, definition.operators.len() * 2)?;
         if roles.len() > 128 {
             return Err("role cap exceeded".into());
         }
         let mut operators_json = BTreeMap::new();
         let mut visited_roles = BTreeSet::new();
-        for spec in OPERATORS {
+        for spec in definition.operators {
             let op_pred = operators.clone().and(Predicate::EffectiveChildValue(
                 "key".into(),
                 ValuePredicate::StrEq(spec.key.into()),
@@ -389,32 +291,21 @@ impl<'a> Contract<'a> {
                 ("reads", read_type, spec.reads),
                 ("writes", write_type, spec.writes),
             ] {
-                let role = self
-                    .check(
-                        &format!("{}:{role_name}", spec.key),
-                        Predicate::edge()
-                            .and(Predicate::InheritsFromId(kind))
-                            .and(Predicate::HasParent(Box::new(op_pred.clone()))),
-                        1,
-                    )?
-                    .remove(0);
-                if !visited_roles.insert(role.id) {
-                    return Err("one role assigned to several operators".into());
-                }
-                op_children.insert(role.id);
-                // Reject mixed roles explicitly: sign never supplies input/output meaning.
-                let engine = QueryEngine::new(&self.model.program().ir, self.model.interner());
                 let opposite = if kind == read_type {
                     write_type
                 } else {
                     read_type
                 };
-                if engine
-                    .query_decl(role.id, &Predicate::InheritsFromId(opposite))
-                    .is_some()
-                {
-                    return Err("a dependency cannot be both read and write role types".into());
+                let role = self.dependency_role(
+                    &format!("{}:{role_name}", spec.key),
+                    &op_pred,
+                    kind,
+                    opposite,
+                )?;
+                if !visited_roles.insert(role.id) {
+                    return Err("one role assigned to several operators".into());
                 }
+                op_children.insert(role.id);
                 let expected_ids: BTreeSet<_> =
                     expected.iter().map(|key| state_by_key[*key]).collect();
                 let actual_ids: BTreeSet<_> = role
@@ -428,29 +319,6 @@ impl<'a> Contract<'a> {
                         spec.key
                     )
                     .into());
-                }
-                let edge = self
-                    .model
-                    .program()
-                    .ir
-                    .edge_for_decl(role.id)
-                    .ok_or("role is not an edge")?
-                    .1;
-                if edge.arcs.len() != 1
-                    || role
-                        .arc_bindings
-                        .iter()
-                        .any(|binding| binding.sign != 0 || binding.weights.is_some())
-                {
-                    return Err(
-                        "role requires exactly one neutral unweighted dependency hyperarc".into(),
-                    );
-                }
-                if self.model.program().ir.decl_children(role.id).any(|id| {
-                    self.model.program().ir.decl_nodes[id.raw()].kind
-                        != hymeko::ir::ir::DeclKind::HyperArc
-                }) {
-                    return Err("dependency role has unrepresented metadata".into());
                 }
                 let mut bindings = vec![];
                 // Named donor state roles carry meaning; slot order is retained as provenance.
@@ -472,17 +340,17 @@ impl<'a> Contract<'a> {
             .iter()
             .map(|(key, id)| Ok((key, self.identity(*id)?)))
             .collect::<Result<_>>()?;
-        let digest: String =
-            Canon::new(&self.model.program().ir, self.model.interner()).hash()
-                .0
-                .0
-                .iter()
-                .map(|b| format!("{b:02x}"))
-                .collect();
+        let digest: String = Canon::new(&self.model.program().ir, self.model.interner())
+            .hash()
+            .0
+            .0
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
         let checks: Vec<_> = self.checks.iter().map(|check| json!({"label":check.label,"actual":check.actual,"passed":check.passed,
             "witness_decl_ids":check.witnesses.iter().map(|id| id.raw()).collect::<Vec<_>>(),"witnesses_truncated":check.witnesses_truncated})).collect();
         Ok(
-            json!({"schema":"hymeko.metaheuristic.operator-contract/1", "profile":PROFILE,
+            json!({"schema":"hymeko.metaheuristic.operator-contract/1", "profile":definition.key,
             "model_semantic_digest":digest,"digest_schema":SEMANTIC_DIGEST_SCHEMA_VERSION,"digest_algorithm":SEMANTIC_DIGEST_ALGO_VERSION,
             "identity_contract":"(model_semantic_digest, canonical_path); raw DeclId is snapshot-local diagnostic only",
             "role_contract":"typed read/write dependency hyperedges; no direction inferred from sign; memory-slot dependencies, not an executable schedule",
@@ -495,13 +363,17 @@ impl<'a> Contract<'a> {
     }
 }
 
-fn validate(model: &CompiledModel) -> Result<Value> {
+pub fn validate(model: &CompiledModel) -> Result<Value> {
+    if model.program().ir.decl_nodes.len() > 4096 {
+        return Err("declaration cap exceeded".into());
+    }
     Contract::new(model)?.validate()
 }
 
-fn prompt_semantics(contract: &Value) -> Result<String> {
+pub fn prompt_semantics(contract: &Value) -> Result<String> {
     let mut text = format!(
-        "Profile: {PROFILE}\nStatic dependency contract; no execution/equivalence proof.\n"
+        "Profile: {}\nStatic dependency contract; no execution/equivalence proof.\n",
+        contract["profile"].as_str().ok_or("missing profile")?
     );
     for (key, value) in contract["profile_fields"]
         .as_object()
@@ -531,57 +403,57 @@ fn prompt_semantics(contract: &Value) -> Result<String> {
     Ok(text)
 }
 
-fn main() -> Result<()> {
-    let args: Vec<_> = std::env::args_os().skip(1).collect();
-    if args.len() != 2 {
-        return Err("usage: metaheuristic_contract INPUT.hymeko NEW_OUTPUT_DIR".into());
-    }
-    let mut source = String::new();
-    fs::File::open(&args[0])?
-        .take(MAX_SOURCE_BYTES + 1)
-        .read_to_string(&mut source)?;
-    let original = compile(&source)?;
-    let original_contract = validate(&original)?;
-    let canonical =
-        hymeko_emitter::emit_hymeko(&original.program().ir, original.interner(), "de_contract");
-    let roundtrip = compile(&canonical)?;
-    let contract = validate(&roundtrip)?;
-    if original_contract["model_semantic_digest"] != contract["model_semantic_digest"] {
-        return Err("canonical emission changed the semantic digest".into());
-    }
-    let output = Path::new(&args[1]);
-    fs::create_dir(output)?; // never overwrite an existing result directory
-    fs::write(output.join("contract.hymeko"), canonical)?;
-    fs::write(
-        output.join("operator_ids.json"),
-        serde_json::to_vec_pretty(&contract)?,
-    )?;
-    fs::write(
-        output.join("prompt_semantics.txt"),
-        prompt_semantics(&contract)?,
-    )?;
-    fs::write(
-        output.join("contract.dot"),
-        hymeko_formats::snapshot::emit_dot_graph(
-            &roundtrip.program().ir,
-            &StringTable::from_interner(roundtrip.interner()),
-            "DE static dependency contract",
-        ),
-    )?;
-    println!(
-        "profile={PROFILE} operators={} states={} checks={} digest={} output={}",
-        contract["operators"].as_object().unwrap().len(),
-        contract["states"].as_object().unwrap().len(),
-        contract["checks"].as_array().unwrap().len(),
-        contract["model_semantic_digest"],
-        output.display()
-    );
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ga_profile_has_its_own_identity_and_roundtrips() {
+        let model = compile(GA_SOURCE).unwrap();
+        let ga = validate(&model).unwrap();
+        assert_eq!(ga["profile"], profiles::GA_KEY);
+        assert_eq!(ga["operators"].as_object().unwrap().len(), 8);
+        assert_eq!(ga["states"].as_object().unwrap().len(), 22);
+        assert!(ga["operators"].get("de.select").is_none());
+        assert_ne!(
+            ga["model_semantic_digest"],
+            check(SOURCE).unwrap()["model_semantic_digest"]
+        );
+        let emitted =
+            hymeko_emitter::emit_hymeko(&model.program().ir, model.interner(), "ga_contract");
+        let second = check(&emitted).unwrap();
+        assert_eq!(ga["model_semantic_digest"], second["model_semantic_digest"]);
+        assert!(
+            prompt_semantics(&ga)
+                .unwrap()
+                .starts_with(&format!("Profile: {}\n", profiles::GA_KEY))
+        );
+    }
+
+    #[test]
+    fn ga_semantic_and_dependency_drift_is_rejected() {
+        for (from, to) in [
+            (
+                "ga-tournament2-uniform-reset-elitist-v1",
+                "ga-unknown-profile",
+            ),
+            ("parents_before_children", "children_before_parents"),
+            ("two_distinct_indices_each", "indices_with_replacement"),
+            ("reset_probability=1/D", "reset_probability=1/N"),
+            (
+                "(~ states.population_old, ~ states.parent_indices",
+                "(~ states.children, ~ states.parent_indices",
+            ),
+            (
+                "@reads: vocabulary.read_role",
+                "@reads: vocabulary.write_role",
+            ),
+        ] {
+            let changed = GA_SOURCE.replacen(from, to, 1);
+            assert_ne!(changed, GA_SOURCE, "fixture did not mutate {from}");
+            assert!(check(&changed).is_err(), "accepted {from} -> {to}");
+        }
+    }
 
     fn check(source: &str) -> Result<Value> {
         validate(&compile(source)?)

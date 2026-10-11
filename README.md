@@ -52,13 +52,199 @@ and `node --test tools/diagram/render.test.mjs`.
 - Migrated from the `hymeko_framework_rust` monorepo (emitter + query + formats). `core`/`parser` kept external as git deps.
 - `test_mdsd_reuse` was gated out — it reaches into the sibling `hymeko_ros2_demo` crate (a demo, outside this layer).
 
+## Library ownership and command-line clients
+
+Maze generation now accepts a bounded number of extra passages (`--loops`),
+preserving the seeded spanning tree. Hex maps permit 0..24 loops (19 cells),
+polar maps 0..7 (12 cells). Omitting the flag preserves tree generation.
+On Amaterasu, using new output directories:
+
+```sh
+cargo run --release --locked --offline -p hymeko_formats --bin adversarial_grid -- \
+  --generate-maze polar 2 results/polar-looped --loops 3
+cargo run --release --locked --offline -p hymeko_formats --bin adversarial_grid -- \
+  --benchmark-mazes results/maze-search 10 16 30
+```
+
+The benchmark compares existing Graph BFS, Dijkstra and A* on the same endpoints
+and unit passage costs, over tree / three-loop / fully open hex and polar maps.
+It checks equal optimal costs, path incidences, deterministic replay and swept
+clearance against the actual walls. A* uses Euclidean distance divided by the
+largest passage chord, a consistent lower bound for hop cost. Metric distance,
+dynamic obstacles and physical robot completion are separate objectives.
+
+`environment::maze::search::MazeNavigation` borrows a retained `CompiledWorld`;
+`evaluate(start, goal, 0)` checks correctness without reading a clock. Positive
+repetitions measure warm searches with rotated ordering and separate workspaces.
+Compilation, index construction, witness checks and plotting are outside search
+timings. BFS's public API has no expansion counters, so its counter field is null.
+CLI caps are 30 seeds, 64 distinct ordered pairs per map, 1000 repeats and one
+million total timed calls. The fully open topology is identical across seeds;
+different endpoint samples are not independent map realizations.
+
+Outputs include source/view HyMeKo documents, geometry and Query receipts,
+`results.json` with all paths/counters/raw timing samples, `summary.json`,
+`comparison.png/svg`, `maps.png/svg`, and `paths.gif`. The GIF animates a checked
+path witness, not a simulated robot. The existing host matplotlib/Pillow packages
+produce figures; `completed.json` is written only after plotting succeeds.
+The binary expects its source-tree `tools/plot_maze_search.py` to remain present.
+
+Kubota mapping integration is pending identification of the intended paper/code.
+These generators are **not a GNG implementation**. A relevant Kubota-coauthored
+method is [Fast MS-DBL-GNG (Siow et al., 2024)](https://doi.org/10.3390/biomimetics9090560),
+which extracts topological features from observed point clouds. Mapping and world
+generation are distinct operations: the proposed integration is observation ->
+topological map -> constrained variation -> geometry -> remapping and validation.
+It needs explicit free-space/passability semantics: a point-cloud surface graph
+does not itself certify a robot navigation graph. The exact variant, data source
+and round-trip criteria must be settled before claiming a reproduction.
+
+Focused regression: `cargo test --locked --offline -p hymeko_formats --test maze_search`.
+
+Research consumers use `hymeko_formats::environment`, `metaheuristic` and
+`robot_projection`. These are domain projections over Core's retained compilation;
+Query owns semantic assertions, Graph owns search/spanning bases, Geometry owns
+kinematics/collision and Emitter owns canonical source output. Campaign policy,
+command-line parsing and opt-in checks live in `src/bin/adversarial_grid.rs`.
+No research executable or reusable domain implementation is loaded from `examples`.
+
+The three commands are now `cargo run -p hymeko_formats --bin adversarial_grid`,
+`--bin metaheuristic_contract`, and `--bin robot_projection`. The former
+`mujoco_crosscheck` example is replaced by the last command:
+
+```sh
+cargo run --locked --offline -p hymeko_formats --bin robot_projection -- \
+  data/robotics/sim/dual_fanuc/fanuc_lrmate200id.hymeko robot NEW_DIRECTORY
+```
+
+It writes `robot.xml`, `robot_model.json` and `robot_fk.json`, retaining the previous
+artifact schemas. FK timing requires `--benchmark-fk`; ordinary projection does
+not measure performance. Existing files are never replaced. Geometry's current
+extractor reads the document's kinematic declarations; the supplied name labels
+the export, so provide a single-robot document.
+
+`generate_description(..., OutputFormat::Mjcf)`, the registered typed transform and
+`RobotProjection::mjcf()` now use the same articulated MJCF emitter. The incomplete
+flat-body MJCF template has been removed. `TransformRegistry::render` selects the
+registered backend; explicit `render_from_templates("mjcf", ...)` now returns
+`None`. Template errors in other formats remain errors, without a backend fallback.
+
+Library/CLI regressions: `cargo test --locked --offline -p hymeko_formats --lib
+--bins --test research_api`. Physics and campaign execution remain explicit
+Amaterasu operations. Previously archived run commands and binaries are historical
+provenance and are not rewritten by this migration.
+
+## Ten-method structural identification
+
+The [source-cited corpus and usage](hymeko_formats/data/metaheuristics/catalog/README.md)
+compares DE, GA, PSO, HHO, GWO, WOA, BA, FA, CS and ABC through typed HyMeKo
+operator/state descriptions. The existing `metaheuristic_contract --structural`
+mode exports name-free support and mechanism projections using Core/Query.
+The Hystl identification test reports exact, ambiguous and unknown signatures,
+plus similarity matrices and explicit arithmetic counterexamples. This is a
+closed-corpus structural test, not ten optimizer implementations or a performance
+ranking. The exact DE/GA contracts below remain unchanged.
+
+## Bounded HHO execution contract
+
+`hho_sequential_budget.hymeko` adds the exact static contract for the explicitly
+adapted HHO research reference: 11 operators, 26 states, charged repeated parent
+evaluations, scan-only leader updates and two declared energy clocks. Export it
+through the same `metaheuristic_contract` binary used by DE/GA. The descriptor,
+[execution choices and paired numerical pilot](../hystl/research/metaheuristics-pilot/HHO.md)
+keep the authored profile, executable fixture and measured evidence distinct.
+
+## Metaheuristic dependency contracts
+
+The `hymeko_formats::metaheuristic` library validates the bounded HHO profile above
+and these two existing profiles:
+DE/rand/1/bin with clamping and deferred generations, and the research GA with
+tournament-2 selection, uniform/reset variation and stable mu+lambda survival.
+Core owns compilation and canonical identity; Query checks exact profile fields,
+operator rules and typed read/write dependencies. The same validator serves all three
+profiles, and the previous DE export is unchanged.
+
+```sh
+cargo test --locked --offline -p hymeko_formats --lib metaheuristic::
+cargo run --locked --offline -p hymeko_formats --bin metaheuristic_contract -- \
+  hymeko_formats/data/metaheuristics/ga_tournament_uniform_reset.hymeko /path/to/NEW_GA_CONTRACT
+```
+
+The output contains canonical HyMeKo, `operator_ids.json`, common textual
+semantics and a DOT graph. The selected GA profile has eight operators and
+22 state slots. These are fixed-profile structural contracts, not an arbitrary
+expression interpreter or an equivalence proof. See the
+[shared mathematical definitions and GA trace checker](../hystl/research/metaheuristics-pilot/DEFINITIONS.md)
+and [validation report](reports/2026-10-06-metaheuristic-definitions.md).
+
+## Polar and hexagonal mazes
+
+The `hymeko_formats::environment` library exports two small maze profiles:
+`hex` has axial radius 2 (19 cells, six-neighbor connectivity), while `polar`
+has two concentric rings of six sectors with radial and angular passages.
+Graph's rank-2 weighted spanning basis selects a seeded passage tree; these are
+randomized mazes, not a new adversarial difficulty comparison.
+
+Run explicit generation on **Amaterasu**, with a fresh directory per export:
+
+```bash
+cargo run --locked --offline -p hymeko_formats --bin adversarial_grid -- --generate-maze hex 0 /tmp/NEW_HEX
+cargo run --locked --offline -p hymeko_formats --bin adversarial_grid -- --generate-maze polar 0 /tmp/NEW_POLAR
+```
+
+Each directory contains canonical `source.hymeko` cell/passage/wall declarations,
+`geometry.json`, Query and Graph checks in `validation.json`, and `view.hymeko`
+for the existing Kawamirai primitive renderer. Wall boxes carry explicit yaw;
+polar walls use three facets per sector. The world-space route includes arc
+midpoints and passes Geometry's swept-capsule check with a 0.85 m radius around
+the route against all actual wall boxes. This is a geometric route witness,
+not robot navigation.
+
+The same export also composes `model.hymeko`, emits `scene.xml` through the
+existing MJCF owner, and writes Query-projected initial conditions and contact
+settings in `physics.json`. Three free boxes provide a bounded interaction
+fixture for the existing MuJoCo backend. Actual dynamics and Kawamirai replay
+are separate, explicit Amaterasu steps; generation does not start simulation.
+
+Pure owner checks:
+`cargo test --locked --offline -p hymeko_formats --lib environment::`.
+The maze tests cover repeatable seeds, different passage systems, canonical
+validation, and clearance at every possible profile portal. The existing square
+grid CLI and its output format remain supported. Results and reproduction are
+in the local [maze report](reports/2026-10-06-generalized-mazes.md), archived under
+`\\192.168.1.228\hymeko\reports\by-repository`.
+
+To include the existing Cyberdisc robot, append its actor path to the same CLI:
+`--generate-maze hex 0 /tmp/NEW_ROBOT_MAZE ../robotics/examples/cyberdisc/actor.hymeko`.
+This additionally exports `robot.xml` and `robot.json` through the same Core,
+Query, Geometry and MJCF owners. It retains all eleven declared visual parts and
+checks the actor footprint against the validated corridor. The existing Simulator
+`python/maze_contact.py ... --robot` runs the bounded six-second wheel-drive and
+box-pushing exercise on Amaterasu; `--no-drive` supplies its zero-command control.
+See [the simulator usage](../../hymeko_simulator/docs/maze-contacts.md).
+
+For search-driven generation, append `--weights GENES.json` to that same command.
+The file must contain a JSON array of finite values in `[0,1]`, one per candidate
+passage: 42 for hex, 18 for polar. `validation.json` supplies the lexicographically
+ordered `priority_pairs` and the encoding contract. Each priority becomes an exact
+53-bit integer edge weight; the existing Graph minimum-weight spanning-basis
+operation prefers lower weights, with its deterministic arc-order tie break.
+`genome.json` retains the supplied vector. Core compilation, Query checks,
+connectivity and swept-route clearance remain mandatory. Seed-only generation
+retains its prior canonical and physical outputs; the validation metadata is additive.
+
+The [research experiment](../hystl/research/metaheuristics-pilot/README.md#search-driven-world-generation)
+compares a frozen GA, the existing DE reference and random proposals using the
+actual Cyberdisc run as the objective. Optimization and simulation stay explicit
+Amaterasu operations; normal owner tests do not launch that experiment.
+
 ## Kawakern physics engine
 
 The generated adversarial grid can import the reusable Cyberdisc actor and
-export a real Kawakern scene through the existing Formats example:
+export a real Kawakern scene through the Formats application binary:
 
 ```bash
-cargo run -p hymeko_formats --example adversarial_grid --locked --offline -- \
+cargo run -p hymeko_formats --bin adversarial_grid --locked --offline -- \
   --export-physics GRID.hymeko ../robotics/examples/cyberdisc/actor.hymeko NEW_DIRECTORY
 ```
 

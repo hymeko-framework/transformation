@@ -1,0 +1,34 @@
+// sysml_price_witness.hymeko — minimal witness for price_quote, currency and priced_by.
+//
+// One product priced by a gross pack price, one candidate priced by two net components in a
+// foreign currency (per_unit 2 and 1).
+
+sysml_price_witness {
+    @"../paper/meta_sysml_trace.hymeko";
+    @"meta_sysml_structure.hymeko";
+    using meta_sysml_trace.sysml_trace as tr;
+    using meta_sysml_structure.sysml_structure as st;
+    const EUR_RATE = 400.0;
+}
+
+money {
+    HUF: st.elements.currency { label "HUF"; rate 1.0; }
+    EUR: st.elements.currency { label "EUR"; rate EUR_RATE; }
+}
+
+cell {
+    Cable: tr.elements.block {}
+    Housing: tr.elements.block {}
+
+    cable_line: st.elements.product { nev "installation cable"; darab 300.0; egyseg "m"; }
+    housing_kit: st.elements.product_candidate { nev "housing kit"; }
+
+    q_box:    st.elements.price_quote { amount 93510.0; currency -> money.HUF; vat_included 0.27; pack 305.0; source "https://example.org/box"; date "2026-10-07"; quote_text "93 510 Ft"; }
+    q_flange: st.elements.price_quote { amount 40.0; currency -> money.EUR; vat_included 0.0; pack 1.0; source "https://example.org/flange"; date "2026-10-07"; quote_text "40 EUR"; }
+    q_tube:   st.elements.price_quote { amount 180.0; currency -> money.EUR; vat_included 0.0; pack 1.0; source "https://example.org/tube"; date "2026-10-07"; quote_text "180 EUR"; }
+
+    @p_box:    st.priced_by { per_unit 1.0; (+ q_box, - cable_line); }
+    @p_flange: st.priced_by { per_unit 2.0; (+ q_flange, - housing_kit); }
+    @p_tube:   st.priced_by { per_unit 1.0; (+ q_tube, - housing_kit); }
+    @r_cable:  st.realizes { (+ cable_line, - Cable); }
+}

@@ -19,7 +19,6 @@ hymeko_clifford = { workspace = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-[dev-dependencies]
-# Research examples compose the existing graph engine and canonical source emitter.
+# Domain projections reuse the existing graph engine and canonical source emitter.
 hymeko_graph = { workspace = true }
 hymeko_emitter = { path = "../hymeko_emitter" }

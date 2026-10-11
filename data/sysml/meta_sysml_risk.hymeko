@@ -1,0 +1,60 @@
+// meta_sysml_risk.hymeko — risk assessment and decision-option vocabulary.
+//
+// Extends meta_sysml_structure.hymeko (not modified) with what a risk register in the style of
+// NIST SP 800-30 Rev. 1, an Ishikawa (cause–effect) view and a decision view need.
+// Plan: docs/plans/2026-10-07-risk-decision.
+//
+// Element kinds (the consumer chooses the fields; the views read the ones named here):
+//   hazard         an undesired top outcome; the head of an Ishikawa diagram
+//   risk           a scenario: category -> risk_category; likelihood_initial, impact_initial (before)
+//                  and likelihood_residual, impact_residual (after the mitigating requirements)
+//                  -> scale levels; the level itself is never stored, it is read from the cells
+//   risk_category  an Ishikawa bone
+//   risk_cell      one cell of a likelihood × impact table: likelihood -> , impact -> , level ->
+//   decision       an open or decided design question
+//   option         one answer to a decision; its effects are the edges below
+// Scale: a consumer declares its levels `<isa> scale_level` with a numeric `rank` (1 = lowest).
+//
+// Sign conventions (+ / - / ~ are incidence roles, not weights):
+//   mitigates  (+ requirement..., - risk)            requirements whose satisfaction gives the residual values
+//   leads_to   (+ risk, - risk | hazard)             cause → effect; chains form the Ishikawa ribs
+//   considers  (+ decision, - option...)
+//   selects    (+ option, - product_candidate)       the candidate replaces the line it is alternative_of
+//   adds       (+ option, - product_candidate, ~ block)  the candidate is procured and realizes the block
+//   omits      (+ option, - product)                 the line is not procured
+//   overrides  (+ option, - constraint)              edge fields value / value_max replace the
+//                                                    constraint's; field basis states the assumption
+//   introduces (+ option, - constraint)              the constraint is checked only in this option
+
+meta_sysml_risk {
+    // Both imported directly: a `using` of a transitively imported module does not resolve once
+    // this file is itself imported (Core observation, reports/2026-10-07-derived-trace.md).
+    @"../paper/meta_sysml_trace.hymeko";
+    @"meta_sysml_structure.hymeko";
+    using meta_sysml_trace.sysml_trace as tr;
+    using meta_sysml_structure.sysml_structure as st;
+}
+
+sysml_risk {
+    elements {
+        hazard:        + <isa> tr.elements.meta_element {}
+        risk:          + <isa> tr.elements.meta_element {}
+        risk_category: + <isa> tr.elements.meta_element {}
+        risk_cell:     + <isa> tr.elements.meta_element {}
+        decision:      + <isa> tr.elements.meta_element {}
+        option:        + <isa> tr.elements.meta_element {}
+    }
+
+    scales {
+        scale_level {}
+    }
+
+    @mitigates {}
+    @leads_to {}
+    @considers {}
+    @selects {}
+    @adds {}
+    @omits {}
+    @overrides {}
+    @introduces {}
+}

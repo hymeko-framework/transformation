@@ -1,0 +1,22 @@
+// Selects the structural / deployment decls of a model authored with
+// data/sysml/meta_sysml_structure.hymeko for the SysML v2 structural emission.
+// Node types: block, port, item, medium, node, execution_environment, artifact, product.
+// Hyperedge types: composes, connects, realizes, hosts, deploys.
+sysml_structure_transform {}
+context
+{
+    blocks:    block {}
+    ports:     port {}
+    items:     item {}
+    media:     medium {}
+    nodes:     node {}
+    envs:      execution_environment {}
+    artifacts: artifact {}
+    products:  product {}
+
+    @composes_edges: composes {}
+    @connects_edges: connects {}
+    @realizes_edges: realizes {}
+    @hosts_edges:    hosts {}
+    @deploys_edges:  deploys {}
+}

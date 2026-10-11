@@ -1,0 +1,108 @@
+// Memory-slot support for the existing bounded research GA; not an interpreter.
+// Decision results are recorded; raw random gates and reset draws are not.
+ga_contract {}
+
+vocabulary {
+    profile_kind {}
+    state_kind {}
+    @operator_kind {}
+    @read_role {}
+    @write_role {}
+}
+
+profile: vocabulary.profile_kind {
+    key "ga-tournament2-uniform-reset-elitist-v1";
+    optimization "minimize";
+    arithmetic "python_binary64";
+    dimensions "1<=D<=64,4<=N<=8,N<=B<=80";
+    parameters "finite_bounds_lo<hi;reset_probability=1/D;shared_Config_validation";
+    update "frozen_generation;stable_mu_plus_lambda";
+    boundary "inherit_bounded_parent_or_uniform_reset";
+    crossover "independent_coordinate_parent;u>=0.5_selects_parent1";
+    acceptance "stable_lowest_N;parents_before_children;preserve_input_order_on_ties";
+    parents "two_independent_tournaments;two_distinct_indices_each;min_score_then_index";
+    randomness "ordered_uniform_pairs_without_replacement;D_origin_uniforms;D_reset_gates;conditional_uniform_reset_values";
+    budget "initialization_included;stop_before_B_plus_one";
+    early_stop "none";
+    partial_generation "select_N_from_parents_plus_completed_children";
+    target_order "child_creation_order";
+    archive "host_ledger_min_all_evaluated;ties_keep_previous_archive_vector";
+    result_tie "first_survivor_index_at_minimum";
+    event_coverage "objective_evaluations_and_reported_choice_results;raw_uniforms_unobserved";
+}
+
+states {
+    initial_population: vocabulary.state_kind { key "initial_population"; }
+    bounds: vocabulary.state_kind { key "bounds"; }
+    objective: vocabulary.state_kind { key "objective"; }
+    budget_limit: vocabulary.state_kind { key "budget_limit"; }
+    population_old: vocabulary.state_kind { key "population_old"; }
+    parent_scores: vocabulary.state_kind { key "parent_scores"; }
+    evaluation_count: vocabulary.state_kind { key "evaluation_count"; }
+    generation: vocabulary.state_kind { key "generation"; }
+    evaluated_candidate: vocabulary.state_kind { key "evaluated_candidate"; }
+    evaluated_score: vocabulary.state_kind { key "evaluated_score"; }
+    children: vocabulary.state_kind { key "children"; }
+    child_scores: vocabulary.state_kind { key "child_scores"; }
+    child_index: vocabulary.state_kind { key "child_index"; }
+    offspring_count: vocabulary.state_kind { key "offspring_count"; }
+    decision_source: vocabulary.state_kind { key "decision_source"; }
+    tournament_pairs: vocabulary.state_kind { key "tournament_pairs"; }
+    parent_indices: vocabulary.state_kind { key "parent_indices"; }
+    coordinate_parent: vocabulary.state_kind { key "coordinate_parent"; }
+    reset_coordinates: vocabulary.state_kind { key "reset_coordinates"; }
+    child: vocabulary.state_kind { key "child"; }
+    archive_best: vocabulary.state_kind { key "archive_best"; }
+    run_status: vocabulary.state_kind { key "run_status"; }
+}
+
+operators {
+    @initialize: vocabulary.operator_kind {
+        key "ga.initialize";
+        rule "copy_bounded_initial_population;evaluate_once_each_in_order;generation_and_child_index_zero";
+        @reads: vocabulary.read_role { (~ states.initial_population, ~ states.bounds, ~ states.objective, ~ states.budget_limit); }
+        @writes: vocabulary.write_role { (~ states.population_old, ~ states.parent_scores, ~ states.evaluation_count, ~ states.generation, ~ states.child_index, ~ states.evaluated_candidate, ~ states.evaluated_score); }
+    }
+    @prepare_generation: vocabulary.operator_kind {
+        key "ga.prepare_generation";
+        rule "freeze_parents;empty_children;lambda=min(N,B-count)";
+        @reads: vocabulary.read_role { (~ states.population_old, ~ states.parent_scores, ~ states.evaluation_count, ~ states.budget_limit); }
+        @writes: vocabulary.write_role { (~ states.children, ~ states.child_scores, ~ states.child_index, ~ states.offspring_count); }
+    }
+    @parent_selection: vocabulary.operator_kind {
+        key "ga.parent_selection";
+        rule "two_distinct_index_tournaments;winner=min(score,index);parents_may_coincide";
+        @reads: vocabulary.read_role { (~ states.population_old, ~ states.parent_scores, ~ states.decision_source, ~ states.generation, ~ states.child_index); }
+        @writes: vocabulary.write_role { (~ states.tournament_pairs, ~ states.parent_indices); }
+    }
+    @crossover_reset: vocabulary.operator_kind {
+        key "ga.crossover_reset";
+        rule "inherit_coordinate_from_recorded_parent;reset_selected_coordinates_within_bounds;require_finite";
+        @reads: vocabulary.read_role { (~ states.population_old, ~ states.parent_indices, ~ states.bounds, ~ states.decision_source); }
+        @writes: vocabulary.write_role { (~ states.coordinate_parent, ~ states.reset_coordinates, ~ states.child); }
+    }
+    @evaluate_child: vocabulary.operator_kind {
+        key "ga.evaluate_child";
+        rule "require_count<B;count_objective_call;append_child_and_score;advance_child_index";
+        @reads: vocabulary.read_role { (~ states.child, ~ states.objective, ~ states.evaluation_count, ~ states.budget_limit, ~ states.children, ~ states.child_scores, ~ states.child_index); }
+        @writes: vocabulary.write_role { (~ states.children, ~ states.child_scores, ~ states.child_index, ~ states.evaluation_count, ~ states.evaluated_candidate, ~ states.evaluated_score); }
+    }
+    @select: vocabulary.operator_kind {
+        key "ga.select";
+        rule "after_lambda_children;stable_sort_parents_then_children_by_score;keep_first_N;publish;increment_generation_iff_lambda=N;reset_child_index_iff_complete";
+        @reads: vocabulary.read_role { (~ states.population_old, ~ states.parent_scores, ~ states.children, ~ states.child_scores, ~ states.child_index, ~ states.offspring_count, ~ states.generation); }
+        @writes: vocabulary.write_role { (~ states.population_old, ~ states.parent_scores, ~ states.generation, ~ states.child_index); }
+    }
+    @archive: vocabulary.operator_kind {
+        key "ga.archive";
+        rule "host_after_each_evaluation_keep_min;equal_value_keeps_previous_vector";
+        @reads: vocabulary.read_role { (~ states.evaluated_candidate, ~ states.evaluated_score, ~ states.archive_best); }
+        @writes: vocabulary.write_role { (~ states.archive_best); }
+    }
+    @stop: vocabulary.operator_kind {
+        key "ga.stop";
+        rule "continue_iff_count<B;return_first_survivor_index_at_minimum;report_complete_and_partial_generations";
+        @reads: vocabulary.read_role { (~ states.evaluation_count, ~ states.budget_limit, ~ states.population_old, ~ states.parent_scores, ~ states.generation, ~ states.child_index); }
+        @writes: vocabulary.write_role { (~ states.run_status); }
+    }
+}

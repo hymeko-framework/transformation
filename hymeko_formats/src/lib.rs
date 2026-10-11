@@ -1,6 +1,6 @@
 //! HyMeKo built-in format plugins.
 //!
-//! `hymeko_query` owns the plugin API — the [`DomainTransform`] trait,
+//! `hymeko_geometry` owns the plugin API — the [`DomainTransform`] trait,
 //! the [`TransformRegistry`], the template dispatcher — but has zero
 //! hard-coded knowledge of any specific output format. This crate is
 //! the first (and currently only) consumer of that API: it ships the
@@ -17,8 +17,11 @@
 
 pub mod binary_graph;
 pub mod codegen;
+pub mod environment;
 pub mod gazebo;
 pub mod mesh;
+pub mod metaheuristic;
+pub mod robot_projection;
 pub mod sdf;
 pub mod snapshot;
 pub mod texture;
@@ -30,8 +33,8 @@ pub use binary_graph::{BinaryEdge, BinaryGraph};
 pub use codegen::{CodegenError, OutputFormat, generate_description};
 pub use transforms::{
     DotTransform, GazeboWorldTransform, MermaidTransform, MjcfTransform, RequirementsDotTransform,
-    RequirementsSysmlTransform, SdfTransform, SysmlTransform, TorchDataflowTransform,
-    UrdfTransform,
+    RequirementsSysmlTransform, SdfTransform, SysmlStructureTransform, SysmlTransform,
+    TorchDataflowTransform, UrdfTransform,
 };
 
 use hymeko_geometry::transforms::TransformRegistry;
@@ -53,6 +56,7 @@ pub fn register_defaults(reg: &mut TransformRegistry) {
     reg.register(Box::new(SysmlTransform));
     reg.register(Box::new(RequirementsSysmlTransform));
     reg.register(Box::new(RequirementsDotTransform));
+    reg.register(Box::new(SysmlStructureTransform));
 }
 
 /// Build a fresh [`TransformRegistry`] with all built-in transforms

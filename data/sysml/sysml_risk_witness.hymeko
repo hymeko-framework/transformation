@@ -1,0 +1,62 @@
+// sysml_risk_witness.hymeko — minimal witness for meta_sysml_risk.hymeko.
+//
+// Two levels, a full 2 × 2 risk table, one hazard with a two-step cause chain, a mitigating
+// requirement, and a decision whose options use every option effect.
+
+sysml_risk_witness {
+    @"../paper/meta_sysml_trace.hymeko";
+    @"meta_sysml_structure.hymeko";
+    @"meta_sysml_risk.hymeko";
+    using meta_sysml_trace.sysml_trace as tr;
+    using meta_sysml_structure.sysml_structure as st;
+    using meta_sysml_risk.sysml_risk as rk;
+}
+
+scale {
+    low:  + <isa> rk.scales.scale_level { rank 1.0; label "low"; }
+    high: + <isa> rk.scales.scale_level { rank 2.0; label "high"; }
+    c_ll: rk.elements.risk_cell { likelihood -> low;  impact -> low;  level -> low; }
+    c_lh: rk.elements.risk_cell { likelihood -> low;  impact -> high; level -> low; }
+    c_hl: rk.elements.risk_cell { likelihood -> high; impact -> low;  level -> low; }
+    c_hh: rk.elements.risk_cell { likelihood -> high; impact -> high; level -> high; }
+}
+
+cell {
+    Cell:   tr.elements.block {}
+    Heater: tr.elements.block {}
+    Sensor: tr.elements.block {}
+    @c_sensor: st.composes { mult -> st.multiplicities.one; (+ Cell, - Sensor); }
+
+    keep_dry: tr.elements.requirement { text "The sensor stays dry."; }
+    @s_dry: tr.satisfies { (+ Sensor, - keep_dry); }
+
+    environment: rk.elements.risk_category { label "environment"; }
+    data_loss:   rk.elements.hazard { label "measurement lost"; }
+    condensation: rk.elements.risk { category -> environment; likelihood_initial -> scale.high; impact_initial -> scale.high; likelihood_residual -> scale.low; impact_residual -> scale.high; }
+    sensor_fault: rk.elements.risk { category -> environment; likelihood_initial -> scale.high; impact_initial -> scale.low; likelihood_residual -> scale.low; impact_residual -> scale.low; }
+    @m_dry:  rk.mitigates { (+ keep_dry, - condensation); }
+    @l_cond: rk.leads_to  { (+ condensation, - sensor_fault); }
+    @l_lost: rk.leads_to  { (+ sensor_fault, - data_loss); }
+
+    S1: st.elements.product { nev "sensor A"; egysegar 100.0; rh_max_pct 80.0; }
+    S2: st.elements.product_candidate { nev "sensor B"; egysegar 150.0; rh_max_pct 95.0; }
+    H1: st.elements.product_candidate { nev "heater"; egysegar 40.0; }
+    @r_s1:   st.realizes { (+ S1, - Sensor); }
+    @alt_s2: st.alternative_of { (+ S2, - S1); }
+
+    rh: st.elements.constraint { attribute "rh_max_pct"; relation ">="; value 90.0; }
+    heater_on: st.elements.constraint { attribute "egysegar"; relation ">="; value 0.0; }
+    @k_rh: st.constrains { (+ rh, - keep_dry); }
+    @a_rh: st.applies_to { (+ rh, - Sensor); }
+
+    enclosure: rk.elements.decision { label "How is the sensor kept dry?"; }
+    better_sensor: rk.elements.option { label "IP-rated sensor"; }
+    heated_box:    rk.elements.option { label "heated enclosure"; }
+    nothing:       rk.elements.option { label "no change"; }
+    @d_encl: rk.considers  { (+ enclosure, - better_sensor, - heated_box, - nothing); }
+    @o_sel:  rk.selects    { (+ better_sensor, - S2); }
+    @o_add:  rk.adds       { (+ heated_box, - H1, ~ Heater); }
+    @o_ovr:  rk.overrides  { value 70.0; basis "enclosure kept below 70 % RH"; (+ heated_box, - rh); }
+    @o_int:  rk.introduces { (+ heated_box, - heater_on); }
+    @o_omit: rk.omits      { (+ nothing, - S1); }
+}

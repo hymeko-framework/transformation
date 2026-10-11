@@ -1,12 +1,6 @@
-//! End-to-end tests for the template-driven transform pipeline.
-//!
-//! Every format with a `template_dir()` override (urdf, sdf, mjcf, dot,
-//! gazebo, mermaid) can be rendered through
-//! [`TransformRegistry::render_from_templates`] without any Rust
-//! `push_str` in the critical path: the output comes from
-//! `transforms/<name>/template.*` rendered against queries in
-//! `transforms/<name>/queries.hymeko` via
-//! `hymeko_query::rewrite::template::execute_transform`.
+//! End-to-end registry dispatch for template-backed formats and native MJCF.
+//! Template formats still delegate to Query's template interpreter. MJCF uses
+//! the sole articulated emitter; no second flat-body template is registered.
 
 #[cfg(test)]
 mod test_template_driven {
@@ -32,17 +26,22 @@ mod test_template_driven {
         let (store, compiled) = load_and_lower(fixture).expect("compile");
         let reg = hymeko_formats::default_registry();
         let cfg = TransformConfig::default().with_name(name);
-        reg.render_from_templates(transform, &compiled.ir, &store.it, &cfg, &transforms_root())
-            .expect("transform registered")
-            .expect("template render succeeded")
+        reg.render(
+            transform,
+            &hymeko_query::QueryEngine::new(&compiled.ir, &store.it),
+            &cfg,
+            &transforms_root(),
+        )
+        .expect("transform registered")
+        .expect("template render succeeded")
     }
 
     // ---- presence / surface ------------------------------------------------
 
     #[test]
-    fn every_shipped_transform_exposes_a_template_dir() {
+    fn registry_declares_template_backends_and_native_mjcf() {
         let reg = hymeko_formats::default_registry();
-        for name in ["urdf", "sdf", "mjcf", "dot", "gazebo", "mermaid"] {
+        for name in ["urdf", "sdf", "dot", "gazebo", "mermaid"] {
             let t = reg.get(name).expect(name);
             assert_eq!(
                 t.template_dir(),
@@ -50,6 +49,7 @@ mod test_template_driven {
                 "{name}.template_dir() should equal its name — that's the subdirectory lookup"
             );
         }
+        assert_eq!(reg.get("mjcf").unwrap().template_dir(), None);
     }
 
     #[test]
@@ -94,10 +94,12 @@ mod test_template_driven {
     }
 
     #[test]
-    fn mjcf_template_wraps_mujoco_model() {
+    fn mjcf_dispatch_preserves_articulated_model() {
         let out = render("mjcf", MOVEO, "moveo");
         assert!(out.contains("<mujoco model=\"moveo\""));
         assert!(out.contains("<worldbody>"));
+        assert!(out.contains("type=\"hinge\""));
+        assert!(out.contains("<actuator>"));
     }
 
     #[test]
@@ -170,7 +172,7 @@ mod test_template_driven {
     #[test]
     fn mini_arm_renders_every_format_non_empty() {
         // The minimal 2-link / 1-joint fixture should produce non-empty
-        // output from every registered template-backed transform.
+        // output from every registered transform backend.
         //
         // `gazebo` is excluded from the robot-name substring check: its
         // world.sdf is a stage only (physics + plugins + ground_plane),

@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**12 package(s), 649 public symbol(s).**
+**12 package(s), 736 public symbol(s).**
 
 ## generated (python)
 
@@ -284,19 +284,33 @@ docstring are all excluded for a stated reason rather than by luck.
 - `ArcDto` — `hymeko_formats/src/snapshot.rs`
 - `BinaryEdge` — `hymeko_formats/src/binary_graph.rs`
 - `BinaryGraph` — `hymeko_formats/src/binary_graph.rs`
+- `CompiledWorld` — `hymeko_formats/src/environment/mod.rs`
+- `Counters` — `hymeko_formats/src/environment/mod.rs`
 - `DotTransform` — `hymeko_formats/src/transforms.rs`
+- `Evaluation` — `hymeko_formats/src/environment/mod.rs`
 - `GazeboWorldTransform` — `hymeko_formats/src/transforms.rs`
+- `Layout` — `hymeko_formats/src/environment/mod.rs`
+- `MazeCell` — `hymeko_formats/src/environment/maze.rs`
+- `MazeGeometry` — `hymeko_formats/src/environment/maze.rs`
+- `MazeNavigation` — `hymeko_formats/src/environment/maze/search.rs`
+- `MazeWall` — `hymeko_formats/src/environment/maze.rs`
 - `MermaidTransform` — `hymeko_formats/src/transforms.rs`
 - `MeshImport` — `hymeko_formats/src/mesh.rs`
 - `MeshPart` — `hymeko_formats/src/mesh.rs`
 - `MjcfTransform` — `hymeko_formats/src/transforms.rs`
 - `NodeDto` — `hymeko_formats/src/snapshot.rs`
+- `Point` — `hymeko_formats/src/environment/mod.rs`
+- `Projection` — `hymeko_formats/src/environment/mod.rs`
 - `RelDto` — `hymeko_formats/src/snapshot.rs`
 - `RequirementsDotTransform` — `hymeko_formats/src/transforms.rs`
 - `RequirementsSysmlTransform` — `hymeko_formats/src/transforms.rs`
+- `RobotProjection` — `hymeko_formats/src/robot_projection.rs`
 - `SdfTransform` — `hymeko_formats/src/transforms.rs`
+- `SearchRun` — `hymeko_formats/src/environment/maze/search.rs`
 - `SnapshotDto` — `hymeko_formats/src/snapshot.rs`
+- `SysmlStructureTransform` — `hymeko_formats/src/transforms.rs`
 - `SysmlTransform` — `hymeko_formats/src/transforms.rs`
+- `Topology` — `hymeko_formats/src/environment/maze.rs`
 - `TorchDataflowTransform` — `hymeko_formats/src/transforms.rs`
 - `UrdfTransform` — `hymeko_formats/src/transforms.rs`
 
@@ -304,29 +318,73 @@ docstring are all excluded for a stated reason rather than by luck.
 
 - `CodegenError` — `hymeko_formats/src/codegen.rs`
 - `OutputFormat` — `hymeko_formats/src/codegen.rs`
+- `Profile` — `hymeko_formats/src/environment/maze.rs`
 
 ### functions
 
+- `canonical` — `hymeko_formats/src/environment/mod.rs`
+- `cells` — `hymeko_formats/src/environment/maze.rs`
+- `check_receipts` — `hymeko_formats/src/environment/mod.rs`
+- `checks` — `hymeko_formats/src/environment/mod.rs`
+- `clearance_radius_m` — `hymeko_formats/src/environment/maze.rs`
 - `clique_edge_count` — `hymeko_formats/src/binary_graph.rs`
+- `compile` — `hymeko_formats/src/environment/mod.rs`
+- `compile` — `hymeko_formats/src/metaheuristic/mod.rs`
 - `default_registry` — `hymeko_formats/src/lib.rs`
 - `default_transforms_root` — `hymeko_formats/src/gazebo.rs`
+- `diagnostic_pose` — `hymeko_formats/src/robot_projection.rs`
+- `digest` — `hymeko_formats/src/environment/mod.rs`
 - `dot_escape` — `hymeko_formats/src/snapshot.rs`
 - `emit_dot_graph` — `hymeko_formats/src/snapshot.rs`
+- `evaluate` — `hymeko_formats/src/environment/maze/search.rs`
+- `evaluate` — `hymeko_formats/src/environment/mod.rs`
+- `export` — `hymeko_formats/src/environment/maze_physics.rs`
+- `export_physics` — `hymeko_formats/src/environment/physical.rs`
+- `forward_poses` — `hymeko_formats/src/robot_projection.rs`
 - `from_hyperedges` — `hymeko_formats/src/binary_graph.rs`
+- `generate` — `hymeko_formats/src/environment/maze.rs`
 - `generate_description` — `hymeko_formats/src/codegen.rs`
 - `generate_gazebo_world` — `hymeko_formats/src/gazebo.rs`
+- `generate_loops` — `hymeko_formats/src/environment/maze.rs`
+- `generate_priorities` — `hymeko_formats/src/environment/maze.rs`
 - `generate_sdf` — `hymeko_formats/src/sdf.rs`
 - `generate_sdf_from_model` — `hymeko_formats/src/sdf.rs`
 - `generate_urdf` — `hymeko_formats/src/urdf.rs`
 - `generate_urdf_from_model` — `hymeko_formats/src/urdf.rs`
+- `geometry` — `hymeko_formats/src/environment/maze/search.rs`
 - `glb` — `hymeko_formats/src/mesh.rs`
+- `layout` — `hymeko_formats/src/environment/mod.rs`
+- `max_loops` — `hymeko_formats/src/environment/maze.rs`
+- `metadata` — `hymeko_formats/src/robot_projection.rs`
+- `mjcf` — `hymeko_formats/src/robot_projection.rs`
 - `mock_emit` — `hymeko_formats/src/binary_graph.rs`
+- `model` — `hymeko_formats/src/robot_projection.rs`
+- `new` — `hymeko_formats/src/environment/maze.rs`
+- `new` — `hymeko_formats/src/environment/maze/search.rs`
+- `new` — `hymeko_formats/src/robot_projection.rs`
+- `parse` — `hymeko_formats/src/environment/maze.rs`
+- `passages` — `hymeko_formats/src/environment/maze.rs`
+- `priority_pairs` — `hymeko_formats/src/environment/maze.rs`
+- `project` — `hymeko_formats/src/environment/mod.rs`
+- `project` — `hymeko_formats/src/metaheuristic/catalog.rs`
+- `prompt_semantics` — `hymeko_formats/src/metaheuristic/mod.rs`
 - `radiance` — `hymeko_formats/src/texture.rs`
+- `reemit` — `hymeko_formats/src/environment/mod.rs`
 - `register_defaults` — `hymeko_formats/src/lib.rs`
+- `route_cell_indices` — `hymeko_formats/src/environment/maze.rs`
+- `route_points_m` — `hymeko_formats/src/environment/maze.rs`
 - `snapshot` — `hymeko_formats/src/snapshot.rs`
 - `snapshot_json` — `hymeko_formats/src/snapshot.rs`
+- `source` — `hymeko_formats/src/environment/mod.rs`
+- `structure_checks` — `hymeko_formats/src/environment/mod.rs`
 - `urdf_queries` — `hymeko_formats/src/urdf.rs`
+- `validate` — `hymeko_formats/src/environment/mod.rs`
+- `validate` — `hymeko_formats/src/metaheuristic/mod.rs`
 - `validate_robot_schema` — `hymeko_formats/src/urdf.rs`
+- `visual_source` — `hymeko_formats/src/environment/maze.rs`
+- `visual_source` — `hymeko_formats/src/environment/visual.rs`
+- `walls` — `hymeko_formats/src/environment/maze.rs`
+- `world_sdf` — `hymeko_formats/src/environment/mod.rs`
 - `xml_escape` — `hymeko_formats/src/xml_util.rs`
 
 ## hymeko_formats (python)
@@ -338,6 +396,21 @@ docstring are all excluded for a stated reason rather than by luck.
 ### classes
 
 - `RobotMesh` — `hymeko_formats/tools/robot-mesh.py`
+
+### functions
+
+- `capture` — `hymeko_formats/tools/capture_adversarial_grid.py`
+- `draw_layout` — `hymeko_formats/tools/adversarial_grid_artifacts.py`
+- `draw_map` — `hymeko_formats/tools/plot_maze_search.py`
+- `main` — `hymeko_formats/tools/adversarial_grid_artifacts.py`
+- `main` — `hymeko_formats/tools/capture_adversarial_grid.py`
+- `main` — `hymeko_formats/tools/validate_adversarial_grid_gazebo.py`
+- `render` — `hymeko_formats/tools/plot_maze_search.py`
+- `run` — `hymeko_formats/tools/validate_adversarial_grid_gazebo.py`
+- `simulation_seconds` — `hymeko_formats/tools/validate_adversarial_grid_gazebo.py`
+- `summarize_pairs` — `hymeko_formats/tools/adversarial_grid_artifacts.py`
+- `topic` — `hymeko_formats/tools/validate_adversarial_grid_gazebo.py`
+- `validate` — `hymeko_formats/tools/validate_adversarial_grid_gazebo.py`
 
 ## hymeko_geometry (rust)
 
@@ -529,6 +602,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `reach` — `hymeko_geometry/src/articulated.rs`
 - `regime_counts` — `hymeko_geometry/src/engine.rs`
 - `register` — `hymeko_geometry/src/transforms/mod.rs`
+- `render` — `hymeko_geometry/src/transforms/mod.rs`
 - `render_from_templates` — `hymeko_geometry/src/transforms/mod.rs`
 - `replay` — `hymeko_geometry/src/contact.rs`
 - `reset` — `hymeko_geometry/src/vehicle.rs`
@@ -670,30 +744,41 @@ docstring are all excluded for a stated reason rather than by luck.
 ### structs
 
 - `ArcBinding` — `hymeko_query/src/engine.rs`
+- `EachFilter` — `hymeko_query/src/rewrite/template.rs`
+- `FieldBinding` — `hymeko_query/src/fields.rs`
 - `MatchContext` — `hymeko_query/src/rewrite/match_context.rs`
 - `NamedQuery` — `hymeko_query/src/predicate.rs`
+- `QueryCheck` — `hymeko_query/src/checks.rs`
 - `QueryConfig` — `hymeko_query/src/engine.rs`
 - `QueryEngine` — `hymeko_query/src/engine.rs`
 - `QueryMatch` — `hymeko_query/src/engine.rs`
 - `RenderContext` — `hymeko_query/src/rewrite/template.rs`
+- `ScopeClause` — `hymeko_query/src/rewrite/template.rs`
 - `SplitProposal` — `hymeko_query/src/rewrite/split.rs`
 - `StructuralEntropy` — `hymeko_query/src/entropy.rs`
 - `TransformSpec` — `hymeko_query/src/rewrite/template.rs`
 
 ### enums
 
+- `BaseError` — `hymeko_query/src/bases.rs`
+- `BasePolicy` — `hymeko_query/src/bases.rs`
 - `Block` — `hymeko_query/src/rewrite/template.rs`
 - `Cluster` — `hymeko_query/src/rewrite/split.rs`
 - `FieldValue` — `hymeko_query/src/rewrite/match_context.rs`
+- `MatchExpectation` — `hymeko_query/src/checks.rs`
 - `Predicate` — `hymeko_query/src/predicate.rs`
+- `ScopeMode` — `hymeko_query/src/rewrite/template.rs`
 - `TransformSpecError` — `hymeko_query/src/rewrite/template.rs`
 - `ValuePredicate` — `hymeko_query/src/predicate.rs`
 - `WeightAggregation` — `hymeko_query/src/rewrite/split.rs`
 
 ### functions
 
+- `accepts` — `hymeko_query/src/checks.rs`
 - `and` — `hymeko_query/src/predicate.rs`
+- `bases` — `hymeko_query/src/bases.rs`
 - `binding_target` — `hymeko_query/src/rewrite/match_context.rs`
+- `check_query` — `hymeko_query/src/checks.rs`
 - `children_fields` — `hymeko_query/src/rewrite/match_context.rs`
 - `compute_entropy` — `hymeko_query/src/entropy.rs`
 - `compute_entropy_hierarchical` — `hymeko_query/src/entropy.rs`
@@ -702,6 +787,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `decl_scoped_in` — `hymeko_query/src/predicate_expr.rs`
 - `edge` — `hymeko_query/src/predicate.rs`
 - `edges_in` — `hymeko_query/src/rewrite/split.rs`
+- `effective_binding` — `hymeko_query/src/fields.rs`
 - `effective_child` — `hymeko_query/src/fields.rs`
 - `effective_field` — `hymeko_query/src/rewrite/match_context.rs`
 - `effective_value` — `hymeko_query/src/fields.rs`
@@ -716,7 +802,9 @@ docstring are all excluded for a stated reason rather than by luck.
 - `interpret_query_source` — `hymeko_query/src/interpret.rs`
 - `interpret_transform_queries` — `hymeko_query/src/interpret.rs`
 - `ir` — `hymeko_query/src/engine.rs`
+- `is_a` — `hymeko_query/src/bases.rs`
 - `is_missing` — `hymeko_query/src/rewrite/match_context.rs`
+- `is_own` — `hymeko_query/src/fields.rs`
 - `is_present` — `hymeko_query/src/rewrite/match_context.rs`
 - `kind` — `hymeko_query/src/rewrite/template.rs`
 - `match_atom` — `hymeko_query/src/predicate_expr.rs`
@@ -731,6 +819,8 @@ docstring are all excluded for a stated reason rather than by luck.
 - `node` — `hymeko_query/src/predicate.rs`
 - `not` — `hymeko_query/src/predicate.rs`
 - `or` — `hymeko_query/src/predicate.rs`
+- `own_child` — `hymeko_query/src/fields.rs`
+- `own_child_where` — `hymeko_query/src/fields.rs`
 - `parse_template` — `hymeko_query/src/rewrite/template.rs`
 - `positive_bindings` — `hymeko_query/src/rewrite/match_context.rs`
 - `propose_split` — `hymeko_query/src/rewrite/split.rs`

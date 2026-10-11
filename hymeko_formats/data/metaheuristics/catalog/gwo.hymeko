@@ -1,0 +1,84 @@
+// Descriptive macro projection; not an executable optimizer.
+metaheuristic_structure {}
+vocabulary { method_kind {} state_kind {} @operator_kind {} @read_role {} @write_role {} }
+method: vocabulary.method_kind {
+    label "Grey Wolf Optimizer";
+    source "https://doi.org/10.1016/j.advengsoft.2013.12.007";
+    notes "Three-leader distance and averaging macro; source equations 3.1-3.7; no numerical execution profile.";
+    schedule "deferred";
+    states {
+        slot_population: vocabulary.state_kind { space "population"; }
+        slot_scores: vocabulary.state_kind { space "scores"; }
+        slot_best: vocabulary.state_kind { space "point"; }
+        slot_bounds: vocabulary.state_kind { space "bounds"; }
+        slot_parameters: vocabulary.state_kind { space "scalar"; }
+        slot_random: vocabulary.state_kind { space "random"; }
+        slot_objective: vocabulary.state_kind { space "function"; }
+        slot_count: vocabulary.state_kind { space "counter"; }
+        slot_clock: vocabulary.state_kind { space "counter"; }
+        slot_leader_a: vocabulary.state_kind { space "point"; }
+        slot_leader_b: vocabulary.state_kind { space "point"; }
+        slot_leader_c: vocabulary.state_kind { space "point"; }
+        slot_coefficient_a: vocabulary.state_kind { space "vector"; }
+        slot_coefficient_c: vocabulary.state_kind { space "vector"; }
+        slot_candidate_a: vocabulary.state_kind { space "point"; }
+        slot_candidate_b: vocabulary.state_kind { space "point"; }
+        slot_candidate_c: vocabulary.state_kind { space "point"; }
+    }
+    operators {
+        @op_initialize: vocabulary.operator_kind {
+            stage 0; category "initialize"; family "uniform_initialization"; guard "always";
+            rule "Initialize candidate population; auxiliary initial values belong to the declared source profile.";
+            @reads: vocabulary.read_role { (~ method.states.slot_bounds, ~ method.states.slot_random, ~ method.states.slot_parameters); }
+            @writes: vocabulary.write_role { (~ method.states.slot_population); }
+        }
+        @op_evaluate: vocabulary.operator_kind {
+            stage 1; category "evaluate"; family "objective_evaluation"; guard "always";
+            rule "Evaluate each supplied candidate; every objective invocation consumes one unit.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_objective, ~ method.states.slot_count); }
+            @writes: vocabulary.write_role { (~ method.states.slot_scores, ~ method.states.slot_count); }
+        }
+        @op_archive: vocabulary.operator_kind {
+            stage 2; category "archive"; family "minimum_archive"; guard "always";
+            rule "Retain the best observed population member under minimization.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_scores, ~ method.states.slot_best); }
+            @writes: vocabulary.write_role { (~ method.states.slot_best); }
+        }
+        @op_leaders: vocabulary.operator_kind {
+            stage 3; category "select"; family "ranked_leaders"; guard "always";
+            rule "Select the three best-ranked leaders.";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_scores); }
+            @writes: vocabulary.write_role { (~ method.states.slot_leader_a, ~ method.states.slot_leader_b, ~ method.states.slot_leader_c); }
+        }
+        @op_coefficients: vocabulary.operator_kind {
+            stage 4; category "adapt"; family "coefficient_schedule"; guard "always";
+            rule "A = 2*a*r1-a; C=2*r2; a decreases from two to zero.";
+            @reads: vocabulary.read_role { (~ method.states.slot_parameters, ~ method.states.slot_clock, ~ method.states.slot_random); }
+            @writes: vocabulary.write_role { (~ method.states.slot_coefficient_a, ~ method.states.slot_coefficient_c); }
+        }
+        @op_distance_a: vocabulary.operator_kind {
+            stage 5; category "vary"; family "distance_attraction"; guard "always";
+            rule "z_k = leader_k - A_k*abs(C_k*leader_k-x).";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_leader_a, ~ method.states.slot_coefficient_a, ~ method.states.slot_coefficient_c); }
+            @writes: vocabulary.write_role { (~ method.states.slot_candidate_a); }
+        }
+        @op_distance_b: vocabulary.operator_kind {
+            stage 6; category "vary"; family "distance_attraction"; guard "always";
+            rule "z_k = leader_k - A_k*abs(C_k*leader_k-x).";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_leader_b, ~ method.states.slot_coefficient_a, ~ method.states.slot_coefficient_c); }
+            @writes: vocabulary.write_role { (~ method.states.slot_candidate_b); }
+        }
+        @op_distance_c: vocabulary.operator_kind {
+            stage 7; category "vary"; family "distance_attraction"; guard "always";
+            rule "z_k = leader_k - A_k*abs(C_k*leader_k-x).";
+            @reads: vocabulary.read_role { (~ method.states.slot_population, ~ method.states.slot_leader_c, ~ method.states.slot_coefficient_a, ~ method.states.slot_coefficient_c); }
+            @writes: vocabulary.write_role { (~ method.states.slot_candidate_c); }
+        }
+        @op_combine: vocabulary.operator_kind {
+            stage 8; category "vary"; family "mean_aggregation"; guard "always";
+            rule "x_next = (z_a+z_b+z_c)/3.";
+            @reads: vocabulary.read_role { (~ method.states.slot_candidate_a, ~ method.states.slot_candidate_b, ~ method.states.slot_candidate_c); }
+            @writes: vocabulary.write_role { (~ method.states.slot_population); }
+        }
+    }
+}

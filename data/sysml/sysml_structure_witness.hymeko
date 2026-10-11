@@ -1,0 +1,41 @@
+// sysml_structure_witness.hymeko — minimal witness for transforms/sysml_structure.
+//
+// A two-camera inspection cell exercising every construct the structural
+// template projects: specialization between blocks, ports owned by blocks,
+// composition multiplicity from a shared definition and from constant
+// arithmetic, an n-ary connector with conveyed item and medium, and an n-ary
+// deployment.
+
+sysml_structure_witness {
+    @"meta_sysml_structure.hymeko";
+    using meta_sysml_trace.sysml_trace as tr;
+    using meta_sysml_structure.sysml_structure as st;
+    const N_LEFT  = 1.0;
+    const N_RIGHT = 1.0;
+}
+
+cell {
+    Video:  st.elements.item {}
+    Cat6:   st.elements.medium {}
+
+    Cell:   tr.elements.block {}
+    Camera: tr.elements.block {}
+    IPCamera: + <isa> Camera { eth: st.elements.port {} }
+    Switch: tr.elements.block { access: st.elements.port {} }
+    Edge:   tr.elements.block { nic: st.elements.port {} }
+
+    @c_cams:   st.composes { role "cameras"; lower (N_LEFT + N_RIGHT); upper (N_LEFT + N_RIGHT); (+ Cell, - IPCamera); }
+    @c_switch: st.composes { role "switch"; mult -> st.multiplicities.one; (+ Cell, - Switch); }
+    @c_edge:   st.composes { role "edge";   mult -> st.multiplicities.optional; (+ Cell, - Edge); }
+
+    @f_video:  st.connects { (+ IPCamera.eth, - Switch.access, ~ Video, ~ Cat6); }
+
+    host:     st.elements.node {}
+    runtime:  st.elements.execution_environment {}
+    pipeline: st.elements.artifact {}
+    database: st.elements.artifact {}
+
+    @r_edge:   st.realizes { (+ host, - Edge); }
+    @h_host:   st.hosts    { (+ host, - runtime); }
+    @d_stack:  st.deploys  { (+ runtime, - pipeline, - database); }
+}
