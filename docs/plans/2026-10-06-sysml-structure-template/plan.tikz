@@ -1,0 +1,8 @@
+\begin{tikzpicture}[node distance=6mm and 10mm, every node/.style={draw, rounded corners, font=\small, align=center}]
+\node (m) {model.hymeko\\(SysML profile)};
+\node (c) [right=of m] {Core\\compile + IR};
+\node (q) [right=of c] {Query\\queries.hymeko};
+\node (t) [below=of q] {template.sysml\\owner / bindowner / bases:L};
+\node (o) [left=of t] {SysML v2 text};
+\draw[->] (m) -- (c); \draw[->] (c) -- (q); \draw[->] (q) -- (t); \draw[->] (t) -- (o);
+\end{tikzpicture}

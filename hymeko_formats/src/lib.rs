@@ -33,8 +33,8 @@ pub use binary_graph::{BinaryEdge, BinaryGraph};
 pub use codegen::{CodegenError, OutputFormat, generate_description};
 pub use transforms::{
     DotTransform, GazeboWorldTransform, MermaidTransform, MjcfTransform, RequirementsDotTransform,
-    RequirementsSysmlTransform, SdfTransform, SysmlTransform, TorchDataflowTransform,
-    UrdfTransform,
+    RequirementsSysmlTransform, SdfTransform, SysmlStructureTransform, SysmlTransform,
+    TorchDataflowTransform, UrdfTransform,
 };
 
 use hymeko_geometry::transforms::TransformRegistry;
@@ -56,6 +56,7 @@ pub fn register_defaults(reg: &mut TransformRegistry) {
     reg.register(Box::new(SysmlTransform));
     reg.register(Box::new(RequirementsSysmlTransform));
     reg.register(Box::new(RequirementsDotTransform));
+    reg.register(Box::new(SysmlStructureTransform));
 }
 
 /// Build a fresh [`TransformRegistry`] with all built-in transforms

@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**12 package(s), 732 public symbol(s).**
+**12 package(s), 736 public symbol(s).**
 
 ## generated (python)
 
@@ -308,6 +308,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `SdfTransform` — `hymeko_formats/src/transforms.rs`
 - `SearchRun` — `hymeko_formats/src/environment/maze/search.rs`
 - `SnapshotDto` — `hymeko_formats/src/snapshot.rs`
+- `SysmlStructureTransform` — `hymeko_formats/src/transforms.rs`
 - `SysmlTransform` — `hymeko_formats/src/transforms.rs`
 - `Topology` — `hymeko_formats/src/environment/maze.rs`
 - `TorchDataflowTransform` — `hymeko_formats/src/transforms.rs`
@@ -743,6 +744,7 @@ docstring are all excluded for a stated reason rather than by luck.
 ### structs
 
 - `ArcBinding` — `hymeko_query/src/engine.rs`
+- `EachFilter` — `hymeko_query/src/rewrite/template.rs`
 - `FieldBinding` — `hymeko_query/src/fields.rs`
 - `MatchContext` — `hymeko_query/src/rewrite/match_context.rs`
 - `NamedQuery` — `hymeko_query/src/predicate.rs`
@@ -751,6 +753,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `QueryEngine` — `hymeko_query/src/engine.rs`
 - `QueryMatch` — `hymeko_query/src/engine.rs`
 - `RenderContext` — `hymeko_query/src/rewrite/template.rs`
+- `ScopeClause` — `hymeko_query/src/rewrite/template.rs`
 - `SplitProposal` — `hymeko_query/src/rewrite/split.rs`
 - `StructuralEntropy` — `hymeko_query/src/entropy.rs`
 - `TransformSpec` — `hymeko_query/src/rewrite/template.rs`
@@ -764,6 +767,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `FieldValue` — `hymeko_query/src/rewrite/match_context.rs`
 - `MatchExpectation` — `hymeko_query/src/checks.rs`
 - `Predicate` — `hymeko_query/src/predicate.rs`
+- `ScopeMode` — `hymeko_query/src/rewrite/template.rs`
 - `TransformSpecError` — `hymeko_query/src/rewrite/template.rs`
 - `ValuePredicate` — `hymeko_query/src/predicate.rs`
 - `WeightAggregation` — `hymeko_query/src/rewrite/split.rs`

@@ -261,54 +261,55 @@ impl DomainTransform for SysmlTransform {
     }
 }
 
+// ─── Template-only transforms ─────────────────────────────────────────────
+
+/// `DomainTransform` for a transform rendered only from `transforms/<name>/` via
+/// `render_from_templates`: it reads declarations and signed hyperedges, not a kinematic
+/// model, so `emit()` has no Rust fallback and `accepts()` is unused on the template path.
+/// The struct stays an ordinary declaration so the symbol index and rustdoc see it.
+macro_rules! template_only_transform {
+    ($ty:ident, $name:literal, $extension:literal) => {
+        impl DomainTransform for $ty {
+            fn name(&self) -> &'static str {
+                $name
+            }
+            fn extension(&self) -> &'static str {
+                $extension
+            }
+            fn accepts(&self) -> ModelKind {
+                ModelKind::Kinematic
+            }
+            fn emit(&self, _model: &ModelView, _config: &TransformConfig) -> Option<String> {
+                None
+            }
+            fn template_dir(&self) -> Option<&'static str> {
+                Some($name)
+            }
+        }
+    };
+}
+
 // ─── Requirements traceability (SysML v2 + DOT) — SMC #5 witness ───────────
 
-/// SysML v2 requirements-traceability emission (paper witness, SMC #5).
-/// Template-only: rendered via `render_from_templates` from
-/// `transforms/requirements_sysml/` — it consumes requirement/block decls and
-/// signed trace hyperedges, not a kinematic model, so `emit()` has no Rust
-/// fallback. The same template is reused in the WASM editor via `include_str!`.
+/// SysML v2 requirements-traceability emission (paper witness, SMC #5), rendered from
+/// `transforms/requirements_sysml/`: requirement/block decls and signed trace hyperedges.
+/// The same template is reused in the WASM editor via `include_str!`.
 pub struct RequirementsSysmlTransform;
-
-impl DomainTransform for RequirementsSysmlTransform {
-    fn name(&self) -> &'static str {
-        "requirements_sysml"
-    }
-    fn extension(&self) -> &'static str {
-        "sysml"
-    }
-    fn accepts(&self) -> ModelKind {
-        ModelKind::Kinematic // unused on the template path; no kinematic extraction occurs
-    }
-    fn emit(&self, _model: &ModelView, _config: &TransformConfig) -> Option<String> {
-        None // template-only — see render_from_templates("requirements_sysml", …)
-    }
-    fn template_dir(&self) -> Option<&'static str> {
-        Some("requirements_sysml")
-    }
-}
+template_only_transform!(RequirementsSysmlTransform, "requirements_sysml", "sysml");
 
 /// DOT traceability-graph emission for the same requirements witness (SMC #5).
-/// Template-only, paired with [`RequirementsSysmlTransform`].
+/// Paired with [`RequirementsSysmlTransform`].
 pub struct RequirementsDotTransform;
+template_only_transform!(RequirementsDotTransform, "requirements_dot", "dot");
 
-impl DomainTransform for RequirementsDotTransform {
-    fn name(&self) -> &'static str {
-        "requirements_dot"
-    }
-    fn extension(&self) -> &'static str {
-        "dot"
-    }
-    fn accepts(&self) -> ModelKind {
-        ModelKind::Kinematic // unused on the template path
-    }
-    fn emit(&self, _model: &ModelView, _config: &TransformConfig) -> Option<String> {
-        None // template-only — see render_from_templates("requirements_dot", …)
-    }
-    fn template_dir(&self) -> Option<&'static str> {
-        Some("requirements_dot")
-    }
-}
+// ─── SysML v2 structure (BDD / IBD / deployment) ─────────────────────────
+
+/// SysML v2 structural emission for models authored with
+/// `data/sysml/meta_sysml_structure.hymeko`: blocks with specialization, ports,
+/// composition multiplicities, n-ary item-flow connectors and deployment, rendered from
+/// `transforms/sysml_structure/`.
+pub struct SysmlStructureTransform;
+template_only_transform!(SysmlStructureTransform, "sysml_structure", "sysml");
 
 // ─── Gazebo world (gz sim) ────────────────────────────────────────────────
 
