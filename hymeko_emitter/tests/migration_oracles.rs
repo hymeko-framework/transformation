@@ -252,8 +252,8 @@ fn emitter_output_fingerprints_are_frozen() {
     let ir = &compiled.ir;
     let it = &store.it;
 
-    // Frozen FNV-1a-64 of each emitter's output on mini_arm at core 15223bc.
-    // A migration that changes any emitter output by a byte flips one of these.
+    // Frozen FNV-1a-64 of each emitter's output on mini_arm. A migration that changes any emitter
+    // output by a byte flips one of these.
     assert_eq!(
         fnv1a_64(emit_hymeko(ir, it, "mini_arm").as_bytes()),
         FP_HYMEKO,
@@ -284,8 +284,13 @@ fn fnv_known_answer_vector_is_stable() {
     assert_eq!(fnv1a_64(b"hymeko"), FP_KAT_HYMEKO);
 }
 
-// Frozen constants — harvested from `dump_oracle_constants` at core 15223bc.
-const FP_HYMEKO: u64 = 0xe0bce0b5fac08061;
+// Frozen constants — harvested from `dump_oracle_constants` at core 15223bc; FP_HYMEKO re-harvested at
+// transformation 90d64a8 (core b66cb4d), APPROVED-TRANSFORMATION-TEST-EDIT: emitter-fingerprint-reharvest
+// (user 2026-10-12). Since a0b5420 emit_hymeko writes references by canonical path from the path index
+// (`meta_kinematics.kinematics.elements.link`, `mini_arm.base_link.link_geometry`) instead of the bare
+// local name, which wrote both links' `link_geometry` alike; that was the only change in its output
+// (diffed against the output at 15223bc). The SysML, Rust and Lean fingerprints are unchanged.
+const FP_HYMEKO: u64 = 0xaad2066ad957bb13;
 const FP_SYSML: u64 = 0xe52b4791df3c183d;
 const FP_RUST: u64 = 0xbfcd6bfecd8bb267;
 const FP_LEAN: u64 = 0xa5a456794b5bdb45;
