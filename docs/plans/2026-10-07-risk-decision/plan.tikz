@@ -1,0 +1,13 @@
+\begin{tikzpicture}[node distance=6mm and 8mm, every node/.style={draw, rounded corners, font=\small, align=center}]
+\node (q) {requirement};
+\node (r) [right=of q] {risk\\likelihood, impact};
+\node (h) [right=of r] {hazard\\(Ishikawa head)};
+\node (c) [below=of r] {risk\_cell\\level};
+\node (o) [below=of q] {option\\selects, adds, omits,\\overrides, introduces};
+\node (d) [below=of o] {decision};
+\draw[->] (q) -- node[draw=none, above, font=\scriptsize]{mitigates} (r);
+\draw[->] (r) -- node[draw=none, above, font=\scriptsize]{leads\_to} (h);
+\draw[->] (r) -- (c);
+\draw[->] (d) -- node[draw=none, right, font=\scriptsize]{considers} (o);
+\draw[->] (o) -- node[draw=none, right, font=\scriptsize]{re-check} (q);
+\end{tikzpicture}

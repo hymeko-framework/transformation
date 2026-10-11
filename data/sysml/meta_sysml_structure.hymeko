@@ -1,0 +1,121 @@
+// meta_sysml_structure.hymeko — SysML structural / deployment vocabulary.
+//
+// Extends the existing requirements-trace vocabulary (transformation/data/paper/
+// meta_sysml_trace.hymeko: requirement, block, satisfies, derives, allocated_to)
+// with what BDD, IBD and deployment views need. Location:
+// transformation/data/sysml/, importing the paper witness vocabulary
+// (data/paper/meta_sysml_trace.hymeko) without modifying it.
+//
+// Sign conventions (+ / - / ~ are incidence roles, not weights):
+//   composes     (+ whole, - part)                         role, lower/upper or mult
+//   connects     (+ source port, - target port, ~ item..., ~ medium...)
+//                n-ary: one connector carries its conveyed items and physical carrier
+//   verifies     (+ verification_case, - requirement)
+//   realizes     (+ node | product, - block)               physical node or procured product realizes a block
+//   hosts        (+ node, - execution_environment)
+//   deploys      (+ execution_environment | node, - artifact...)
+//   located_at   (+ location, - node...)
+//   communicates (+ node, - node, ~ item..., ~ medium)     communication path; protocol ref
+//   cites        (+ requirement, - standard_ref...)        standard clauses a requirement answers
+//   affects      (+ element..., - requirement)             <derived>: may be impacted when the
+//                requirement changes or is checked; field via -> the manual satisfies edge it was
+//                derived from, direction "down" (parts, products, nodes) or "up" (wholes). Never a
+//                satisfies: transforms that read satisfies do not see it.
+//   alternative_of (+ product_candidate, - product)        a considered option for a procured line
+//   constrains   (+ constraint, - requirement)             a measurable condition a requirement imposes
+//   applies_to   (+ constraint, - block...)                the products realizing these blocks (and their
+//                candidates) are checked against the constraint
+// A constraint names an attribute field of products (`attribute "ip_viz"`), a relation
+// (`relation ">="`, "<=", "==", "between", "true") and `value` (plus `value_max` for "between").
+//   priced_by    (+ price_quote, - product | product_candidate)   field per_unit: packs per item unit
+// A price_quote records what its source shows: amount, currency -> currency (field rate: home-currency
+// units per unit), vat_included (the VAT rate contained in amount; 0 when the shown price is net), pack
+// (units the amount buys), source, date, quote_text. Net home-currency unit price of an item =
+// sum over its quotes of per_unit * amount / (1 + vat_included) / pack * rate. An item priced by
+// quotes carries no typed price (plan docs/plans/2026-10-07-price-quotes).
+
+meta_sysml_structure {
+    @"../paper/meta_sysml_trace.hymeko";
+    using meta_sysml_trace.sysml_trace as tr;
+}
+
+sysml_structure {
+    elements {
+        port:                  + <isa> tr.elements.meta_element {}
+        item:                  + <isa> tr.elements.meta_element {}
+        medium:                + <isa> tr.elements.meta_element {}
+        verification_case:     + <isa> tr.elements.meta_element {}
+        node:                  + <isa> tr.elements.meta_element {}
+        // Not `<isa> node`: a query for `node` would then also match this metaclass
+        // (the query language has no negation). `hosts` carries env-on-node.
+        execution_environment: + <isa> tr.elements.meta_element {}
+        artifact:              + <isa> tr.elements.meta_element {}
+        location:              + <isa> tr.elements.meta_element {}
+        safety_function:       + <isa> tr.elements.meta_element {}
+        standard_ref:          + <isa> tr.elements.meta_element {}
+        product:               + <isa> tr.elements.meta_element {}
+        product_candidate:     + <isa> tr.elements.meta_element {}
+        constraint:            + <isa> tr.elements.meta_element {}
+        price_quote:           + <isa> tr.elements.meta_element {}
+        currency:              + <isa> tr.elements.meta_element {}
+    }
+
+    // A consumer declares its own levels `<isa> priority_level` with a numeric `rank`
+    // (1 = most urgent) and a label; the same shape as Mission Control's program priorities.
+    priorities {
+        priority_level {}
+    }
+
+    // Standards that standard_ref entries belong to (standard -> ...).
+    standards {
+        standard {}
+    }
+
+    // Shared multiplicity definitions; an edge references one (mult -> ...) or
+    // states lower/upper itself when the bound is derived from model constants.
+    multiplicities {
+        one      { lower 1.0; upper 1.0; }
+        optional { lower 0.0; upper 1.0; }
+    }
+
+    // Requirement classification, verification method and review state:
+    // referenced (tipus -> ..., ellenorzes -> ..., allapot -> ...), never strings.
+    requirement_kinds {
+        requirement_kind {}
+        functional:    + <isa> requirement_kind {}
+        performance:   + <isa> requirement_kind {}
+        environmental: + <isa> requirement_kind {}
+        interface:     + <isa> requirement_kind {}
+        reliability:   + <isa> requirement_kind {}
+        data:          + <isa> requirement_kind {}
+        constraint:    + <isa> requirement_kind {}
+    }
+    verification_methods {
+        verification_method {}
+        test:          + <isa> verification_method {}
+        analysis:      + <isa> verification_method {}
+        inspection:    + <isa> verification_method {}
+        demonstration: + <isa> verification_method {}
+    }
+    review_states {
+        review_state {}
+        proposed:      + <isa> review_state {}
+        to_be_agreed:  + <isa> review_state {}
+        accepted:      + <isa> review_state {}
+    }
+
+    @composes {}
+    @connects {}
+    @verifies {}
+    @realizes {}
+    @hosts {}
+    @deploys {}
+    @located_at {}
+    @communicates {}
+    @cites {}
+    @affects {}
+    @alternative_of {}
+    @constrains {}
+    @applies_to {}
+    @priced_by {}
+}

@@ -1,0 +1,6 @@
+flowchart LR
+  Q[requirement] -->|mitigates| R[risk<br/>likelihood, impact]
+  R -->|leads_to| H[hazard<br/>Ishikawa head]
+  R --> C[risk_cell<br/>level]
+  D[decision] -->|considers| O[option<br/>selects, adds, omits,<br/>overrides, introduces]
+  O -->|re-check| Q
