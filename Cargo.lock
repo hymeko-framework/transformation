@@ -635,6 +635,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "hymeko_relational"
+version = "0.1.0"
+dependencies = [
+ "hymeko_core",
+ "hymeko_query",
+]
+
+[[package]]
 name = "hymeko_sbsh"
 version = "0.1.0"
 source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=ed7d0cf720228cf296f81bc7fadadcebd27aa699#ed7d0cf720228cf296f81bc7fadadcebd27aa699"

@@ -7,10 +7,11 @@
 #   hymeko_dynamics: IR -> port-Hamiltonian system (J from signed incidence, modal analysis)
 #   hymeko_sources : a SourceProvider over strings, so a model compiles where there is no disk
 #   hymeko_webxr  : WebXR/spatial vocabulary, validation and borrowed queries over the canonical IR
+#   hymeko_relational: IR -> relational tables (declarations, fields, bases, arcs, a table per kind) + PostgreSQL
 # `core` and `parser` are external repos, pulled as git dependencies.
 [workspace]
 resolver = "2"
-members = ["hymeko_emitter", "hymeko_query", "hymeko_geometry", "hymeko_formats", "hymeko_optimize", "hymeko_dynamics", "hymeko_sources", "hymeko_webxr"]
+members = ["hymeko_emitter", "hymeko_query", "hymeko_geometry", "hymeko_formats", "hymeko_optimize", "hymeko_dynamics", "hymeko_sources", "hymeko_webxr", "hymeko_relational"]
 
 [workspace.dependencies]
 # Pinned to the integrated core commit: WebXR is supplied by this workspace's

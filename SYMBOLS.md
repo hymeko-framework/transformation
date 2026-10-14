@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**12 package(s), 736 public symbol(s).**
+**13 package(s), 759 public symbol(s).**
 
 ## generated (python)
 
@@ -790,6 +790,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `effective_binding` — `hymeko_query/src/fields.rs`
 - `effective_child` — `hymeko_query/src/fields.rs`
 - `effective_field` — `hymeko_query/src/rewrite/match_context.rs`
+- `effective_fields` — `hymeko_query/src/fields.rs`
 - `effective_value` — `hymeko_query/src/fields.rs`
 - `emit_split_rewrite` — `hymeko_query/src/rewrite/regen.rs`
 - `execute_transform` — `hymeko_query/src/rewrite/template.rs`
@@ -806,6 +807,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `is_missing` — `hymeko_query/src/rewrite/match_context.rs`
 - `is_own` — `hymeko_query/src/fields.rs`
 - `is_present` — `hymeko_query/src/rewrite/match_context.rs`
+- `isa_tag` — `hymeko_query/src/bases.rs`
 - `kind` — `hymeko_query/src/rewrite/template.rs`
 - `match_atom` — `hymeko_query/src/predicate_expr.rs`
 - `match_expr` — `hymeko_query/src/predicate_expr.rs`
@@ -837,6 +839,42 @@ docstring are all excluded for a stated reason rather than by luck.
 - `resolver` — `hymeko_query/src/engine.rs`
 - `tagged` — `hymeko_query/src/predicate.rs`
 - `to_template_string` — `hymeko_query/src/rewrite/match_context.rs`
+
+## hymeko_relational (rust)
+
+- **Root:** `hymeko_relational`
+- **Manifest:** `hymeko_relational/Cargo.toml`
+- **Charter:** The relational reading of a compiled HyMeKo model: the canonical IR as the tables a SQL database holds, and the
+
+### structs
+
+- `ArcRow` — `hymeko_relational/src/lib.rs`
+- `BaseRow` — `hymeko_relational/src/lib.rs`
+- `Column` — `hymeko_relational/src/lib.rs`
+- `DeclarationRow` — `hymeko_relational/src/lib.rs`
+- `EffectiveFieldRow` — `hymeko_relational/src/lib.rs`
+- `FieldRow` — `hymeko_relational/src/lib.rs`
+- `KindRow` — `hymeko_relational/src/lib.rs`
+- `KindTable` — `hymeko_relational/src/lib.rs`
+- `Projection` — `hymeko_relational/src/lib.rs`
+
+### enums
+
+- `ColumnType` — `hymeko_relational/src/lib.rs`
+- `ProjectionError` — `hymeko_relational/src/lib.rs`
+- `Value` — `hymeko_relational/src/lib.rs`
+
+### functions
+
+- `column_type` — `hymeko_relational/src/lib.rs`
+- `identifier` — `hymeko_relational/src/postgres.rs`
+- `json` — `hymeko_relational/src/postgres.rs`
+- `literal` — `hymeko_relational/src/postgres.rs`
+- `number` — `hymeko_relational/src/postgres.rs`
+- `project` — `hymeko_relational/src/lib.rs`
+- `script` — `hymeko_relational/src/postgres.rs`
+- `sql_name` — `hymeko_relational/src/lib.rs`
+- `statements` — `hymeko_relational/src/postgres.rs`
 
 ## hymeko_sources (rust)
 

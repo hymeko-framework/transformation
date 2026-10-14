@@ -80,6 +80,35 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
         self.effective_child(decl, key)
             .and_then(|child| ir.decl_node(child)?.anno.value.as_ref())
     }
+
+    /// Every effective field of `decl`: the value-carrying children of `decl` and of its bases, as
+    /// keys in walk order (own first, then bases depth-first in authored order), each bound by
+    /// [`Self::effective_binding`] — so which child supplies a key is decided in one place. A child
+    /// without a value is structure, not a field. Repeated bases and cycles terminate.
+    pub fn effective_fields(&self, decl: DeclId) -> Vec<(&'a str, FieldBinding)> {
+        let ir = self.ir();
+        let mut keys = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        let mut visited = std::collections::HashSet::new();
+        let mut pending = vec![decl];
+        while let Some(provider) = pending.pop() {
+            if ir.decl_node(provider).is_none() || !visited.insert(provider) {
+                continue;
+            }
+            for child in ir.decl_children(provider) {
+                if let Some(node) = ir.decl_node(child).filter(|node| node.anno.value.is_some()) {
+                    let key = self.resolver().resolve(node.name);
+                    if seen.insert(key) {
+                        keys.push(key);
+                    }
+                }
+            }
+            pending.extend(bases(ir, provider, BasePolicy::All).rev());
+        }
+        keys.into_iter()
+            .filter_map(|key| Some((key, self.effective_binding(decl, key)?)))
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -94,6 +123,27 @@ mod tests {
             Some(ValueR::Num(value)) => Some(*value),
             _ => None,
         }
+    }
+
+    #[test]
+    fn effective_fields_list_own_then_inherited_keys_each_bound_as_effective_binding_binds_it() {
+        let model = compile(
+            "fields {} types { thing { size 1; mass 10; } heavy { mass 50; colour 3; } } \
+             c: + <isa> types.heavy, + <isa> types.thing { mass 7; label \"c\"; nested { depth 2; } }",
+        );
+        let ir = &model.program().ir;
+        let engine = QueryEngine::new(ir, model.interner());
+        let c = decl(&model, "c");
+        let fields = engine.effective_fields(c);
+        let keys: Vec<&str> = fields.iter().map(|(key, _)| *key).collect();
+        assert_eq!(keys, ["mass", "label", "colour", "size"], "own first, then bases in authored order");
+        for (key, binding) in &fields {
+            assert_eq!(Some(*binding), engine.effective_binding(c, key), "one precedence rule");
+        }
+        let own: Vec<bool> = fields.iter().map(|(_, binding)| binding.is_own(c)).collect();
+        assert_eq!(own, [true, true, false, false]);
+        assert!(!keys.contains(&"nested"), "a child without a value is structure");
+        assert!(engine.effective_fields(decl(&model, "types")).is_empty());
     }
 
     #[test]

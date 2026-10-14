@@ -1,0 +1,12 @@
+[package]
+name = "hymeko_relational"
+version = "0.1.0"
+edition = "2024"
+description = "The relational reading of a compiled HyMeKo model: the canonical IR as tables (declarations, own and effective fields, bases, arcs, one table per kind) and the PostgreSQL that holds them"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/kyberszittya/hymeko_framework_rust"
+
+[dependencies]
+hymeko_core = { workspace = true }
+# Bases, is-a and effective fields are hymeko_query's; the projection reads them, it does not re-derive them.
+hymeko_query = { path = "../hymeko_query", default-features = false }

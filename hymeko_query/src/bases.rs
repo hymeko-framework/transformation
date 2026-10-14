@@ -195,6 +195,19 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
     pub fn is_a(&self, decl: DeclId, kind: DeclId, policy: BasePolicy) -> Result<bool, BaseError> {
         is_a(self.ir(), decl, kind, policy)
     }
+
+    /// The interned `isa`, found where it is written: on a base's annotation (`+ <isa> kind`). `None`
+    /// when no base of the document carries it — then [`BasePolicy::Tagged`] counts no base, and no
+    /// declaration is a kind.
+    pub fn isa_tag(&self) -> Option<SymId> {
+        let ir = self.ir();
+        let nodes = ir.nodes.iter().flat_map(|node| node.bases.iter());
+        let edges = ir.edges.iter().flat_map(|edge| edge.bases.iter());
+        nodes
+            .chain(edges)
+            .flat_map(|base| base.atom().anno.tags.iter().copied())
+            .find(|tag| self.resolver().resolve(*tag) == "isa")
+    }
 }
 
 #[cfg(test)]
