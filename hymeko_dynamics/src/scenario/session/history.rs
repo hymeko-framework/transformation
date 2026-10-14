@@ -25,7 +25,6 @@ impl ScenarioSession {
         let end = (start as usize + MAX_SNAPSHOT_EVENTS).min(self.log.events.len());
         let result = Snapshot {
             schema: SCHEMA.into(),
-            schema_version: 1,
             scenario: self.model().identity.clone(),
             revision: self.revision(),
             logical_step: self.state.logical_step,

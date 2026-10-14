@@ -233,7 +233,7 @@ impl Projection<'_> {
                 "invariants",
             ],
         )?;
-        if self.text(root, "runtime")? != SCHEMA {
+        if !runtime_is(&self.text(root, "runtime")?) {
             return Err(Refusal::new(
                 RefusalCode::SchemaMismatch,
                 "unsupported scenario schema",
