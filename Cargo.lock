@@ -524,7 +524,7 @@ source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=9317ecf773d55a0
 [[package]]
 name = "hymeko_core"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/core.git?rev=77003fa15f0c92c9b56ee5f75c73eab26a079f35#77003fa15f0c92c9b56ee5f75c73eab26a079f35"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/core.git?rev=9f533ca8f9cd39806d8db9a0a68cda7932c81ae2#9f533ca8f9cd39806d8db9a0a68cda7932c81ae2"
 dependencies = [
  "blake3",
  "ciborium",
@@ -600,7 +600,7 @@ dependencies = [
 [[package]]
 name = "hymeko_graph"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=ebc974f1e1502c4f1edc73779b5076aa12f9f47d#ebc974f1e1502c4f1edc73779b5076aa12f9f47d"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=ea1c588697dd07412bc008a4a41813db8969a83e#ea1c588697dd07412bc008a4a41813db8969a83e"
 dependencies = [
  "dashmap",
  "hymeko_core",
@@ -645,7 +645,7 @@ dependencies = [
 [[package]]
 name = "hymeko_sbsh"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=ebc974f1e1502c4f1edc73779b5076aa12f9f47d#ebc974f1e1502c4f1edc73779b5076aa12f9f47d"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=ea1c588697dd07412bc008a4a41813db8969a83e#ea1c588697dd07412bc008a4a41813db8969a83e"
 dependencies = [
  "hymeko_core",
  "hymeko_graph",
