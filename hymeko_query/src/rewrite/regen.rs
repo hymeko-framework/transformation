@@ -273,7 +273,7 @@ fn scope_bases(ir: &Ir, it: &Interner, did: DeclId) -> String {
     let Some(nid) = ir.as_node(did) else {
         return String::new();
     };
-    let bases = &ir.nodes[nid.raw()].bases;
+    let bases = &ir[ir.nodes[nid.raw()].bases];
     if bases.is_empty() {
         return String::new();
     }
@@ -315,10 +315,10 @@ fn emit_node_decl(
 ) {
     let bases = ir
         .as_node(did)
-        .map(|nid| emit_bases(ir, it, &ir.nodes[nid.raw()].bases))
+        .map(|nid| emit_bases(ir, it, &ir[ir.nodes[nid.raw()].bases]))
         .unwrap_or_default();
     let tags = emit_tags(ir, it, did);
-    let inline_value = ir.decl_nodes[did.raw()].anno.value.as_ref();
+    let inline_value = ir.decl_annotation(did).unwrap().value.as_ref();
     let has_children = ir.decl_nodes[did.raw()].first_child.is_some();
 
     match (inline_value, has_children) {
@@ -356,7 +356,7 @@ fn emit_edge_decl(
 ) {
     let bases = ir
         .as_edge(did)
-        .map(|eid| emit_bases(ir, it, &ir.edges[eid.raw()].bases))
+        .map(|eid| emit_bases(ir, it, &ir[ir.edges[eid.raw()].bases]))
         .unwrap_or_default();
     let tags = emit_tags(ir, it, did);
     let _ = writeln!(out, "{pad}@{name}{bases}{tags} {{");
@@ -381,12 +381,12 @@ fn emit_edge_decl(
 }
 
 fn emit_signed_ref(ir: &Ir, it: &Interner, r: &SignedRefR) -> String {
-    let sign = match r {
-        SignedRefR::Plus(_) => '+',
-        SignedRefR::Minus(_) => '-',
-        SignedRefR::Neutral(_) => '~',
+    let sign = match r.sign() {
+        1 => '+',
+        -1 => '-',
+        _ => '~',
     };
-    let atom = r.atom();
+    let atom = ir.reference_atom(r).expect("model-local reference");
     let mut s = format!("{sign} {}", decl_name(ir, it, atom.target));
     if let Some(ws) = &atom.weights {
         let items: Vec<String> = ws.iter().map(|v| emit_value(ir, it, v)).collect();
@@ -409,7 +409,7 @@ fn emit_bases(ir: &Ir, it: &Interner, bases: &[SignedRefR]) -> String {
 }
 
 fn emit_tags(ir: &Ir, it: &Interner, did: DeclId) -> String {
-    let tags = &ir.decl_nodes[did.raw()].anno.tags;
+    let tags = &ir.decl_annotation(did).unwrap().tags;
     if tags.is_empty() {
         return String::new();
     }
@@ -445,7 +445,7 @@ mod tests {
     use super::*;
     use crate::rewrite::split::propose_split;
     use hymeko::common::ids::{EdgeId, HyperArcId, NodeId, SymId};
-    use hymeko::ir::ir::{AnnoR, ArcRec, DeclNode, EdgeRec, NodeRec, RefAtomR};
+    use hymeko::ir::ir::{AnnoR, ArcRec, DeclNode, EdgeRec, NodeRec};
 
     fn push_decl(ir: &mut Ir, parent: DeclId, kind: DeclKind, name: SymId) -> DeclId {
         let did = ir.push_decl(DeclNode {
@@ -474,7 +474,8 @@ mod tests {
     fn push_node_named(ir: &mut Ir, parent: DeclId, name: SymId) -> DeclId {
         let did = push_decl(ir, parent, DeclKind::Node, name);
         let nid = NodeId::new(ir.nodes.len());
-        ir.nodes.push(NodeRec::new(did, Vec::new()));
+        ir.nodes
+            .push(NodeRec::new(did, hymeko::common::ids::BaseListId::NONE));
         ir.bind_node_decl(did, nid)
             .expect("fresh decl: NONE slot, in-range record");
         did
@@ -488,7 +489,8 @@ mod tests {
     ) -> DeclId {
         let e_did = push_decl(ir, parent, DeclKind::Edge, name);
         let eid = EdgeId::new(ir.edges.len());
-        ir.edges.push(EdgeRec::new(e_did, Vec::new()));
+        ir.edges
+            .push(EdgeRec::new(e_did, hymeko::common::ids::BaseListId::NONE));
         ir.bind_edge_decl(e_did, eid)
             .expect("fresh decl: NONE slot, in-range record");
 
@@ -496,17 +498,14 @@ mod tests {
         let aid = HyperArcId::new(ir.arcs.len());
         let refs = incidences
             .iter()
-            .map(|&(sign, target)| {
-                let atom = RefAtomR::plain(target);
-                match sign {
-                    1 => SignedRefR::Plus(atom),
-                    -1 => SignedRefR::Minus(atom),
-                    _ => SignedRefR::Neutral(atom),
-                }
+            .map(|&(sign, target)| match sign {
+                1 => SignedRefR::plain(target, hymeko::ir::ir::IncidenceSign::Plus),
+                -1 => SignedRefR::plain(target, hymeko::ir::ir::IncidenceSign::Minus),
+                _ => SignedRefR::plain(target, hymeko::ir::ir::IncidenceSign::Neutral),
             })
             .collect();
         ir.arcs.push(ArcRec {
-            anno: AnnoR::default(),
+            anno: hymeko::common::ids::AnnotationId::NONE,
             in_edge: e_did,
             refs,
         });

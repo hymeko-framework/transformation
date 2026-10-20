@@ -67,7 +67,7 @@ fn find_child_str<R: NameResolver>(ir: &Ir, res: &R, did: DeclId, name: &str) ->
         if res.resolve(child.name) != name {
             return None;
         }
-        match &child.anno.value {
+        match &ir[child.anno].value {
             Some(ValueR::Str(sid)) => Some(res.resolve(*sid).to_string()),
             _ => None,
         }

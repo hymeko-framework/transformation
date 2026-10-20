@@ -132,8 +132,7 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
             DeclKind::Node => ir
                 .as_node(did)
                 .map(|nid| {
-                    ir.nodes[nid.raw()]
-                        .bases
+                    ir[ir.nodes[nid.raw()].bases]
                         .iter()
                         .map(|b| st.resolve(ir.decl_nodes[b.target().raw()].name).to_string())
                         .collect()
@@ -142,8 +141,7 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
             DeclKind::Edge => ir
                 .as_edge(did)
                 .map(|eid| {
-                    ir.edges[eid.raw()]
-                        .bases
+                    ir[ir.edges[eid.raw()].bases]
                         .iter()
                         .map(|b| st.resolve(ir.decl_nodes[b.target().raw()].name).to_string())
                         .collect()
@@ -152,8 +150,7 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
             _ => Vec::new(),
         };
 
-        let tags: Vec<String> = decl
-            .anno
+        let tags: Vec<String> = ir[decl.anno]
             .tags
             .iter()
             .map(|&s| st.resolve(s).to_string())
@@ -176,7 +173,10 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
                 }
             }
         }
-        let value = decl.anno.value.as_ref().map(|v| render_value(v, ir, st));
+        let value = ir[decl.anno]
+            .value
+            .as_ref()
+            .map(|v| render_value(v, ir, st));
         NodeDto {
             id: did.raw(),
             name,
@@ -215,7 +215,7 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
                 to: parent.raw(),
             });
         }
-        if let Some(val) = &decl.anno.value {
+        if let Some(val) = &ir[decl.anno].value {
             let mut targets = Vec::new();
             collect_ref_targets(val, &mut targets);
             for t in targets {
@@ -231,7 +231,7 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
     }
     for rec in &ir.nodes {
         if let Some(nid) = ir.as_node(rec.decl) {
-            for b in &ir.nodes[nid.raw()].bases {
+            for b in &ir[ir.nodes[nid.raw()].bases] {
                 if !b.target().is_none() {
                     relationships.push(RelDto {
                         kind: "isa".to_string(),
@@ -244,7 +244,7 @@ pub fn snapshot(ir: &Ir, st: &StringTable) -> SnapshotDto {
     }
     for rec in &ir.edges {
         if let Some(eid) = ir.as_edge(rec.decl) {
-            for b in &ir.edges[eid.raw()].bases {
+            for b in &ir[ir.edges[eid.raw()].bases] {
                 if !b.target().is_none() {
                     relationships.push(RelDto {
                         kind: "isa".to_string(),
@@ -357,13 +357,14 @@ pub fn emit_dot_graph(ir: &Ir, st: &StringTable, graph_name: &str) -> String {
                     -1 => ("-", "#B54747"),
                     _ => ("~", "#737D8C"),
                 };
-                let dir = match r.atom().direction {
+                let dir = match r.direction() {
                     PortDirection::In => "back",
                     PortDirection::Out => "forward",
                     PortDirection::Unspecified => "none",
                 };
                 let mut label = format!("{sign} [{slot}]");
-                if let Some(weights) = &r.atom().weights {
+                if let Some(weights) = &ir.reference_atom(r).expect("model-local reference").weights
+                {
                     let values: Vec<_> = weights.iter().map(|v| render_value(v, ir, st)).collect();
                     let _ = write!(label, " w=[{}]", values.join(", "));
                 }
@@ -372,7 +373,7 @@ pub fn emit_dot_graph(ir: &Ir, st: &StringTable, graph_name: &str) -> String {
                     "  \"a{aid_num}\" -> \"{}\" [id=\"incidence-{aid_num}-{slot}\", label=\"{}\", tooltip=\"arc {aid_num}, slot {slot}, direction {:?}\", color=\"{color}\", fontcolor=\"{color}\", dir={dir}, arrowhead=normal, arrowtail=normal, penwidth=1.4];",
                     id_of(r.target()),
                     dot_escape(&label),
-                    r.atom().direction
+                    r.direction()
                 );
             }
         }

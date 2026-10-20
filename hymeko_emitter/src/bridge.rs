@@ -14,7 +14,7 @@
 //! Structural round-trip for the **editor-visible subset**:
 //!
 //! ```text
-//! from_compiler_ir(to_compiler_ir(editor)) ≡structural editor
+//! EditorIrBuilder(CompilerIrBuilder(editor).build()).build() ≡structural editor
 //! ```
 //!
 //! where `≡structural` means:
@@ -29,172 +29,144 @@
 //! arena-side representation yet); the bridge sets them to defaults on
 //! the reverse path.
 
-use std::collections::BTreeMap;
-
-use hymeko::common::ids::{DeclId, EdgeId, HyperArcId, NodeId, SymId};
+use crate::editor_ir::{EdgeKey, HyMeKoEditorIR, HyperEdge, Sign, Vertex, VertexKey};
+use hymeko::common::ids::DeclId;
+pub use hymeko::ir::ir::IrBuilder;
 use hymeko::ir::ir::{
-    AnnoR, ArcRec, DeclKind, DeclNode, EdgeRec, Ir, NodeRec, RefAtomR, SignedRefR,
+    AnnoR, ArcPlacement, IncidenceSign, Ir, IrCapacities, IrConstruction, RefAtomR, ReferenceDraft,
+    SignedRefR, dispatch,
 };
 use hymeko::resolution::interner::Interner;
+use std::collections::BTreeMap;
 
-use crate::editor_ir::{EdgeKey, HyMeKoEditorIR, HyperEdge, Sign, Vertex, VertexKey};
-
-// ---------------------------------------------------------------------------
-// editor → arena
-// ---------------------------------------------------------------------------
-
-fn fresh_decl_node(kind: DeclKind, name: SymId) -> DeclNode {
-    DeclNode {
-        kind,
-        name,
-        parent: DeclId::NONE,
-        first_child: DeclId::NONE,
-        last_child: DeclId::NONE,
-        next_sibling: DeclId::NONE,
-        anno: AnnoR::default(),
+/// Editor input adapter for Core's sole checked construction owner.
+/// Named entities and anonymous arc declarations retain the editor's flat
+/// hierarchy. Arc ownership is represented independently by the owning edge.
+/// Editor-only layout/attributes remain outside the compiler-visible subset.
+pub struct CompilerIrBuilder<'a> {
+    editor: &'a HyMeKoEditorIR,
+    interner: &'a mut Interner,
+}
+impl<'a> CompilerIrBuilder<'a> {
+    pub fn new(editor: &'a HyMeKoEditorIR, interner: &'a mut Interner) -> Self {
+        Self { editor, interner }
+    }
+    fn reference(target: DeclId, sign: Sign) -> ReferenceDraft {
+        let atom = RefAtomR::plain(target);
+        match sign {
+            Sign::Plus => ReferenceDraft::new(IncidenceSign::Plus, atom),
+            Sign::Minus => ReferenceDraft::new(IncidenceSign::Minus, atom),
+            Sign::Neutral => ReferenceDraft::new(IncidenceSign::Neutral, atom),
+        }
+    }
+}
+impl IrBuilder for CompilerIrBuilder<'_> {
+    type Output = Ir;
+    type Error = dispatch::DispatchError;
+    fn capacities(&self) -> IrCapacities {
+        let nodes = self.editor.vertices.len();
+        let edges = self.editor.hyperedges.len();
+        IrCapacities {
+            declarations: nodes + 2 * edges,
+            nodes,
+            edges,
+            arcs: edges,
+        }
+    }
+    fn populate(&mut self, construction: &mut IrConstruction<'_>) -> Result<(), Self::Error> {
+        let mut vertex_to_decl = BTreeMap::new();
+        for (key, vertex) in &self.editor.vertices {
+            let name = self.interner.intern(&vertex.name);
+            let id = construction.append_node(name, AnnoR::default(), Vec::new())?;
+            vertex_to_decl.insert(key, id);
+        }
+        for (_, edge) in &self.editor.hyperedges {
+            let name = self.interner.intern(&edge.name);
+            let owner = construction.append_edge(name, AnnoR::default(), Vec::new())?;
+            let references = edge
+                .incident
+                .iter()
+                .filter_map(|(key, sign)| {
+                    vertex_to_decl
+                        .get(key)
+                        .map(|&target| Self::reference(target, *sign))
+                })
+                .collect();
+            construction.append_arc(
+                ArcPlacement {
+                    owner,
+                    parent: DeclId::NONE,
+                },
+                AnnoR::default(),
+                references,
+            )?;
+        }
+        Ok(())
+    }
+    fn finish(self, ir: Ir) -> Ir {
+        ir
     }
 }
 
-fn signed_ref_for(target: DeclId, sign: Sign) -> SignedRefR {
-    let atom = RefAtomR::plain(target);
-    match sign {
-        Sign::Plus => SignedRefR::Plus(atom),
-        Sign::Minus => SignedRefR::Minus(atom),
-        Sign::Neutral => SignedRefR::Neutral(atom),
-    }
+/// Read-only projection from canonical IR into the existing editor-facing DTO.
+/// This owns no compiler-IR mutation or independent table-building algorithm.
+pub struct EditorIrBuilder<'a> {
+    ir: &'a Ir,
+    interner: &'a Interner,
 }
-
-/// Convert an editor IR snapshot into a fresh compile-time arena `Ir`.
-///
-/// Layout produced:
-/// - One `Ir::decl_nodes` entry per vertex (kind `Node`) and per
-///   hyperedge (kind `Edge`), plus one anonymous entry per arc (kind
-///   `HyperArc`).
-/// - `Ir::nodes`, `Ir::edges`, `Ir::arcs` populated in editor iteration
-///   order.
-/// - All `decl_nodes[i].parent == DeclId::NONE` (flat layout — editor IR
-///   does not track containment yet).
-///
-/// Editor-only fields (level, attributes, position, patch_id) are
-/// dropped. They have no arena-side home today; once the arena IR grows
-/// value-attribute support beyond scalar `AnnoR.value`, this function
-/// will thread them through.
-pub fn to_compiler_ir(editor: &HyMeKoEditorIR, interner: &mut Interner) -> Ir {
-    let mut ir = Ir::default();
-
-    // Vertices → decl_nodes[kind=Node] + NodeRec.
-    let mut vertex_to_decl: BTreeMap<VertexKey, DeclId> = BTreeMap::new();
-    for (vkey, v) in editor.vertices.iter() {
-        let sym = interner.intern(&v.name);
-        let did = ir.push_decl(fresh_decl_node(DeclKind::Node, sym));
-
-        let nid = NodeId::new(ir.nodes.len());
-        ir.nodes.push(NodeRec::new(did, Vec::new()));
-        ir.bind_node_decl(did, nid)
-            .expect("fresh decl: NONE dispatch slot, record index in 62-bit domain");
-
-        vertex_to_decl.insert(vkey, did);
+impl<'a> EditorIrBuilder<'a> {
+    pub fn new(ir: &'a Ir, interner: &'a Interner) -> Self {
+        Self { ir, interner }
     }
-
-    // Hyperedges → decl_nodes[kind=Edge] + EdgeRec + one ArcRec per edge.
-    for (_ekey, he) in editor.hyperedges.iter() {
-        let sym = interner.intern(&he.name);
-        let edge_did = ir.push_decl(fresh_decl_node(DeclKind::Edge, sym));
-
-        let eid = EdgeId::new(ir.edges.len());
-        let mut edge_rec = EdgeRec::new(edge_did, Vec::new());
-
-        // Build the arc.
-        let arc_did = ir.push_decl(fresh_decl_node(DeclKind::HyperArc, SymId::new(0)));
-        let refs: Vec<SignedRefR> = he
-            .incident
-            .iter()
-            .filter_map(|(vkey, sign)| {
-                vertex_to_decl
-                    .get(vkey)
-                    .map(|&tgt| signed_ref_for(tgt, *sign))
-            })
-            .collect();
-        let arc_id = HyperArcId::new(ir.arcs.len());
-        ir.arcs.push(ArcRec {
-            anno: AnnoR::default(),
-            in_edge: edge_did,
-            refs,
-        });
-        ir.bind_arc_decl(arc_did, arc_id)
-            .expect("fresh decl: NONE dispatch slot, record index in 62-bit domain");
-        edge_rec.arcs.push(arc_id);
-
-        ir.edges.push(edge_rec);
-        ir.bind_edge_decl(edge_did, eid)
-            .expect("fresh decl: NONE dispatch slot, record index in 62-bit domain");
+    fn sign(reference: &SignedRefR) -> Sign {
+        match reference.sign() {
+            1 => Sign::Plus,
+            -1 => Sign::Minus,
+            0 => Sign::Neutral,
+            _ => unreachable!("closed incidence sign domain"),
+        }
     }
+    pub fn build(self) -> HyMeKoEditorIR {
+        let Self { ir, interner } = self;
+        let mut editor = HyMeKoEditorIR::new();
+        let mut node_decl_to_vkey: BTreeMap<DeclId, VertexKey> = BTreeMap::new();
 
-    ir
-}
-
-// ---------------------------------------------------------------------------
-// arena → editor
-// ---------------------------------------------------------------------------
-
-fn sign_from_ref(r: &SignedRefR) -> Sign {
-    match r {
-        SignedRefR::Plus(_) => Sign::Plus,
-        SignedRefR::Minus(_) => Sign::Minus,
-        SignedRefR::Neutral(_) => Sign::Neutral,
-    }
-}
-
-/// Walk a compile-time arena `Ir` and populate a fresh editor IR.
-///
-/// Each `NodeRec` becomes an editor `Vertex` with default editor
-/// metadata (level 0, no attributes, no layout position). Each
-/// `EdgeRec`'s arcs are flattened into a single editor `HyperEdge` with
-/// the concatenated `(VertexKey, Sign)` list — this matches the editor's
-/// "one atomic hyperedge per named edge" model.
-///
-/// References that don't resolve to a `Node` (e.g. edge-to-edge refs
-/// from the rewrite engine) are skipped, matching the editor's
-/// vertex-centric surface.
-pub fn from_compiler_ir(ir: &Ir, interner: &Interner) -> HyMeKoEditorIR {
-    let mut editor = HyMeKoEditorIR::new();
-    let mut node_decl_to_vkey: BTreeMap<DeclId, VertexKey> = BTreeMap::new();
-
-    for node in &ir.nodes {
-        let name = interner
-            .resolve(ir.decl_nodes[node.decl.raw()].name)
-            .to_string();
-        let vkey = editor.vertices.insert(Vertex {
-            name,
-            level: 0,
-            attributes: Vec::new(),
-            position: None,
-        });
-        node_decl_to_vkey.insert(node.decl, vkey);
-    }
-
-    for edge in &ir.edges {
-        let name = interner
-            .resolve(ir.decl_nodes[edge.decl.raw()].name)
-            .to_string();
-        let mut incident: Vec<(VertexKey, Sign)> = Vec::new();
-
-        for &arc_id in &edge.arcs {
-            let arc = &ir.arcs[arc_id.raw()];
-            for r in &arc.refs {
-                if let Some(&vkey) = node_decl_to_vkey.get(&r.target()) {
-                    incident.push((vkey, sign_from_ref(r)));
-                }
-            }
+        for node in &ir.nodes {
+            let name = interner
+                .resolve(ir.decl_nodes[node.decl.raw()].name)
+                .to_string();
+            let vkey = editor.vertices.insert(Vertex {
+                name,
+                level: 0,
+                attributes: Vec::new(),
+                position: None,
+            });
+            node_decl_to_vkey.insert(node.decl, vkey);
         }
 
-        let _ekey: EdgeKey = editor.hyperedges.insert(HyperEdge {
-            name,
-            incident,
-            weight: 1.0,
-            patch_id: None,
-        });
-    }
+        for edge in &ir.edges {
+            let name = interner
+                .resolve(ir.decl_nodes[edge.decl.raw()].name)
+                .to_string();
+            let mut incident: Vec<(VertexKey, Sign)> = Vec::new();
 
-    editor
+            for &arc_id in &edge.arcs {
+                let arc = &ir.arcs[arc_id.raw()];
+                for r in &arc.refs {
+                    if let Some(&vkey) = node_decl_to_vkey.get(&r.target()) {
+                        incident.push((vkey, Self::sign(r)));
+                    }
+                }
+            }
+
+            let _ekey: EdgeKey = editor.hyperedges.insert(HyperEdge {
+                name,
+                incident,
+                weight: 1.0,
+                patch_id: None,
+            });
+        }
+
+        editor
+    }
 }

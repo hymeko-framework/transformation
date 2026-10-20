@@ -17,7 +17,7 @@
 
 use hymeko::ir::ir::Ir;
 use hymeko::resolution::interner::Interner;
-use hymeko_emitter::bridge::to_compiler_ir;
+use hymeko_emitter::bridge::{CompilerIrBuilder, IrBuilder};
 use hymeko_emitter::editor_ir::{HyMeKoEditorIR, HyperEdge, Sign, Vertex};
 use hymeko_emitter::emit_hymeko;
 
@@ -59,7 +59,9 @@ fn editor_edge(incident: &[(&str, Sign)]) -> HyMeKoEditorIR {
 
 fn hymeko_fp(ed: &HyMeKoEditorIR) -> u64 {
     let mut it = Interner::new();
-    let ir = to_compiler_ir(ed, &mut it);
+    let ir = CompilerIrBuilder::new(ed, &mut it)
+        .build()
+        .expect("canonical editor construction");
     fnv1a_64(emit_hymeko(&ir, &it, "m").as_bytes())
 }
 
@@ -91,7 +93,9 @@ fn mutant_duplicate_incidence_not_deduped() {
         patch_id: None,
     });
     let mut it = Interner::new();
-    let ir = to_compiler_ir(&ed, &mut it);
+    let ir = CompilerIrBuilder::new(&ed, &mut it)
+        .build()
+        .expect("canonical editor construction");
     assert_eq!(ir.arcs.len(), 1, "one arc for the edge");
     assert_eq!(
         ir.arcs[0].refs.len(),
@@ -107,10 +111,12 @@ fn mutant_wrong_bind_caught_by_accessor_bijection() {
     // A mutant that binds the wrong record id fails this back-link (the same
     // invariant `migration_oracles` characterizes).
     let mut it = Interner::new();
-    let ir = to_compiler_ir(
+    let ir = CompilerIrBuilder::new(
         &editor_edge(&[("a", Sign::Plus), ("b", Sign::Minus)]),
         &mut it,
-    );
+    )
+    .build()
+    .expect("canonical editor construction");
     for (did, _) in ir.decls() {
         if let Some((_nid, rec)) = ir.node_for_decl(did) {
             assert_eq!(rec.decl, did, "node back-link");
@@ -139,10 +145,12 @@ fn mutant_emit_does_not_mutate_input_ir() {
     // Emit takes `&Ir`; a partial-commit / in-place-mutation mutant is impossible
     // by type, and observably the Ir is unchanged across repeated emits.
     let mut it = Interner::new();
-    let ir: Ir = to_compiler_ir(
+    let ir: Ir = CompilerIrBuilder::new(
         &editor_edge(&[("a", Sign::Plus), ("b", Sign::Minus)]),
         &mut it,
-    );
+    )
+    .build()
+    .expect("canonical editor construction");
     let before = (
         ir.decl_nodes.len(),
         ir.nodes.len(),

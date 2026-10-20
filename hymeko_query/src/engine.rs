@@ -129,8 +129,7 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
                 })
             }
 
-            Predicate::HasTag(tag) => decl
-                .anno
+            Predicate::HasTag(tag) => self.ir[decl.anno]
                 .tags
                 .iter()
                 .any(|&t| self.resolver.resolve(t) == tag.as_str()),
@@ -186,11 +185,11 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
             DeclKind::Node => self
                 .ir
                 .as_node(did)
-                .map(|nid| &self.ir.nodes[nid.raw()].bases),
+                .map(|nid| &self.ir[self.ir.nodes[nid.raw()].bases]),
             DeclKind::Edge => self
                 .ir
                 .as_edge(did)
-                .map(|eid| &self.ir.edges[eid.raw()].bases),
+                .map(|eid| &self.ir[self.ir.edges[eid.raw()].bases]),
             DeclKind::HyperArc => None,
         };
 
@@ -230,7 +229,7 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
 
     fn match_value(&self, did: DeclId, vp: &ValuePredicate) -> bool {
         let decl = &self.ir.decl_nodes[did.raw()];
-        match &decl.anno.value {
+        match &self.ir[decl.anno].value {
             Some(ValueR::Num(n)) => vp.matches_num(*n),
             Some(ValueR::Str(s)) => vp.matches_str(self.resolver.resolve(*s)),
             _ => matches!(vp, ValuePredicate::Any),
@@ -248,7 +247,7 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
             for &aid in &edge.arcs {
                 let arc = &self.ir.arcs[aid.raw()];
                 for r in &arc.refs {
-                    let atom = r.atom();
+                    let atom = self.ir.reference_atom(r).expect("model-local reference");
                     let target_name = if !atom.target.is_none() {
                         self.resolver
                             .resolve(self.ir.decl_nodes[atom.target.raw()].name)
@@ -257,7 +256,7 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
                         String::new()
                     };
 
-                    let weights = atom.weights.clone();
+                    let weights = atom.weights.map(<[ValueR]>::to_vec);
 
                     bindings.push(ArcBinding {
                         sign: r.sign(),

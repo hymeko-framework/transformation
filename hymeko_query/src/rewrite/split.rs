@@ -255,7 +255,7 @@ fn incidence_signatures(
                 let Some(&row) = v_idx.get(&r.target()) else {
                     continue;
                 };
-                sigs[row][e_idx] += arc_weight_magnitude(r, weight_agg);
+                sigs[row][e_idx] += arc_weight_magnitude(ir, r, weight_agg);
             }
         }
     }
@@ -270,8 +270,8 @@ fn incidence_signatures(
 /// the exception). `Str` and `Ref` entries are skipped. If no scalar
 /// survives, or the weights are absent entirely, returns `1.0` so the
 /// arc still counts as a unit participation in the feature space.
-fn arc_weight_magnitude(r: &SignedRefR, agg: WeightAggregation) -> f64 {
-    let Some(ws) = r.atom().weights.as_ref() else {
+fn arc_weight_magnitude(ir: &Ir, r: &SignedRefR, agg: WeightAggregation) -> f64 {
+    let Some(ws) = ir.reference_atom(r).expect("model-local reference").weights else {
         return 1.0;
     };
     let mut scalars = Vec::new();
@@ -481,7 +481,8 @@ mod tests {
     fn push_node(ir: &mut Ir, parent: DeclId) -> DeclId {
         let did = push_decl(ir, parent, DeclKind::Node);
         let nid = NodeId::new(ir.nodes.len());
-        ir.nodes.push(NodeRec::new(did, Vec::new()));
+        ir.nodes
+            .push(NodeRec::new(did, hymeko::common::ids::BaseListId::NONE));
         ir.bind_node_decl(did, nid)
             .expect("fresh decl: NONE slot, in-range record");
         did
@@ -500,7 +501,8 @@ mod tests {
     ) -> DeclId {
         let e_did = push_decl(ir, parent, DeclKind::Edge);
         let eid = EdgeId::new(ir.edges.len());
-        ir.edges.push(EdgeRec::new(e_did, Vec::new()));
+        ir.edges
+            .push(EdgeRec::new(e_did, hymeko::common::ids::BaseListId::NONE));
         ir.bind_edge_decl(e_did, eid)
             .expect("fresh decl: NONE slot, in-range record");
 
@@ -515,14 +517,23 @@ mod tests {
                     ..RefAtomR::plain(target)
                 };
                 match sign {
-                    1 => SignedRefR::Plus(atom),
-                    -1 => SignedRefR::Minus(atom),
-                    _ => SignedRefR::Neutral(atom),
+                    1 => ir.store_reference(hymeko::ir::ir::ReferenceDraft::new(
+                        hymeko::ir::ir::IncidenceSign::Plus,
+                        atom,
+                    )),
+                    -1 => ir.store_reference(hymeko::ir::ir::ReferenceDraft::new(
+                        hymeko::ir::ir::IncidenceSign::Minus,
+                        atom,
+                    )),
+                    _ => ir.store_reference(hymeko::ir::ir::ReferenceDraft::new(
+                        hymeko::ir::ir::IncidenceSign::Neutral,
+                        atom,
+                    )),
                 }
             })
             .collect();
         ir.arcs.push(ArcRec {
-            anno: AnnoR::default(),
+            anno: hymeko::common::ids::AnnotationId::NONE,
             in_edge: e_did,
             refs,
         });
@@ -696,7 +707,8 @@ mod tests {
         );
         let e_did = push_decl(ir, parent, DeclKind::Edge);
         let eid = EdgeId::new(ir.edges.len());
-        ir.edges.push(EdgeRec::new(e_did, Vec::new()));
+        ir.edges
+            .push(EdgeRec::new(e_did, hymeko::common::ids::BaseListId::NONE));
         ir.bind_edge_decl(e_did, eid)
             .expect("fresh decl: NONE slot, in-range record");
 
@@ -714,14 +726,23 @@ mod tests {
                     ..RefAtomR::plain(target)
                 };
                 match sign {
-                    1 => SignedRefR::Plus(atom),
-                    -1 => SignedRefR::Minus(atom),
-                    _ => SignedRefR::Neutral(atom),
+                    1 => ir.store_reference(hymeko::ir::ir::ReferenceDraft::new(
+                        hymeko::ir::ir::IncidenceSign::Plus,
+                        atom,
+                    )),
+                    -1 => ir.store_reference(hymeko::ir::ir::ReferenceDraft::new(
+                        hymeko::ir::ir::IncidenceSign::Minus,
+                        atom,
+                    )),
+                    _ => ir.store_reference(hymeko::ir::ir::ReferenceDraft::new(
+                        hymeko::ir::ir::IncidenceSign::Neutral,
+                        atom,
+                    )),
                 }
             })
             .collect();
         ir.arcs.push(ArcRec {
-            anno: AnnoR::default(),
+            anno: hymeko::common::ids::AnnotationId::NONE,
             in_edge: e_did,
             refs,
         });

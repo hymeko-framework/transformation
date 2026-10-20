@@ -381,14 +381,12 @@ fn decl_inherits_from<R: NameResolver>(
 
     // Pull bases list from NodeRec or EdgeRec.
     let bases: Vec<hymeko::common::ids::DeclId> = if let Some(nid) = ir.as_node(did) {
-        ir.nodes[nid.raw()]
-            .bases
+        ir[ir.nodes[nid.raw()].bases]
             .iter()
             .map(|b| b.target())
             .collect()
     } else if let Some(eid) = ir.as_edge(did) {
-        ir.edges[eid.raw()]
-            .bases
+        ir[ir.edges[eid.raw()].bases]
             .iter()
             .map(|b| b.target())
             .collect()

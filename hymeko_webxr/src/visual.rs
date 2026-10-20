@@ -192,7 +192,7 @@ impl<'a> SpatialQuery<'a> {
         let value = self
             .ir()
             .decl_node(leaf)
-            .and_then(|node| node.anno.value.as_ref());
+            .and_then(|node| self.ir()[node.anno].value.as_ref());
         let value = value.ok_or(SpatialQueryError::InvalidSample {
             leaf,
             reason: super::room::PoseSampleError::Layout,
@@ -208,7 +208,7 @@ impl<'a> SpatialQuery<'a> {
         match self
             .ir()
             .decl_node(child)
-            .and_then(|node| node.anno.value.as_ref())
+            .and_then(|node| self.ir()[node.anno].value.as_ref())
         {
             Some(ValueR::Ref(target)) if self.ir().decl_node(*target).is_some() => {
                 Ok(Some(*target))
