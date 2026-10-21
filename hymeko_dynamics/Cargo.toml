@@ -27,7 +27,7 @@ hymeko_core = { workspace = true }
 # The Tensor pillar, consumed as a repository rather than as the directory next door. A path
 # that leaves this repo builds only where the whole framework happens to be checked out side
 # by side, which is a property of one laptop and not of the code.
-hymeko_numerics = { git = "ssh://git@192.168.1.228:2222/hymeko/tensor.git", rev = "9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7" }
+hymeko_numerics = { git = "https://github.com/hymeko-framework/tensor.git", rev = "2d5c64347c4e75c6a520a1d1ee26e0895e127680" }
 # The shared in-memory SourceProvider, so a model compiles where there is no disk.
 hymeko_sources = { path = "../hymeko_sources" }
 

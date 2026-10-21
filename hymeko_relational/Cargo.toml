@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 description = "The relational reading of a compiled HyMeKo model: the canonical IR as tables (declarations, own and effective fields, bases, arcs, one table per kind) and the PostgreSQL that holds them"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/kyberszittya/hymeko_framework_rust"
+repository = "https://github.com/hymeko-framework/transformation"
 
 [dependencies]
 hymeko_core = { workspace = true }

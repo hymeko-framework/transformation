@@ -2,6 +2,39 @@
 
 The HyMeKo IR→output (transformation) layer — a standalone cargo workspace.
 
+## Published integration: compact Core IR and declarative PageRank
+
+The October 2026 integration uses Core's model-local annotations, bases and
+signed-reference accessors. `CompilerIrBuilder` delegates editor-to-compiler
+construction to Core `IrConstruction`; it does not maintain a parallel IR builder.
+`PageRankSource` retains separately compiled graph and execution-profile models,
+reads inherited settings through Query, and invokes the existing Graph solver.
+
+The retained publication checks compiled all nine workspace libraries and passed
+**28 focused tests** (graph execution profiles, diagram export and Emitter
+bridge/fault/migration checks); three documented migration counterexamples stayed
+ignored. A subsequent provider integration also passed the two graph-profile and
+six bridge tests. These are correctness results, not a transformation speed benchmark.
+
+```sh
+cargo test --locked -p hymeko_formats --test graph_execution --test diagram
+cargo test --locked -p hymeko_emitter --test test_bridge --test fault_mutants --test migration_oracles
+cargo run --locked -p hymeko_formats --bin graph_rank -- hymeko_formats/data/graph_execution/run.hymeko job
+```
+
+The same fixture defines `ordered_job` and `parallel_job` (four workers).
+All three CLI jobs were checked on the 32-node fixture: they converge and
+return normalized scores.
+Ordering changes execution preparation while preserving canonical model identity.
+Multi-worker execution is explicit; it is not universally faster.
+[Graph's performance evidence](https://github.com/hymeko-framework/graph/tree/main/docs/evidence/graph-algorithms)
+measures graph operations and states the phases it excludes.
+
+This public snapshot contains the merged integration. Separate working-tree
+SMC geometry/traceability, robot-design and RL pilot results are not claimed as
+part of this release. Existing Geometry dead-code warnings and explicitly ignored
+migration counterexamples remain documented limitations.
+
 - **`hymeko_emitter/`** — editor IR (slotmap, `IRDelta`) + M2T emitters (`.hymeko`, SysML v2, Rust stubs, Lean 4)
 - **`hymeko_query/`** — pattern-matching query engine over the hypergraph IR
 - **`hymeko_formats/`** — built-in format emitters (URDF / SDF / MJCF / DOT / Mermaid / Gazebo world) — a query plugin
@@ -23,8 +56,8 @@ The HyMeKo IR→output (transformation) layer — a standalone cargo workspace.
 ## Build & test
 
 ```sh
-cargo build --workspace
-cargo test  --workspace
+cargo build --locked -p hymeko_formats --bin graph_rank
+cargo test --locked -p hymeko_formats --test graph_execution --test diagram
 ```
 
 ## Fixtures
@@ -172,7 +205,7 @@ ranking. The exact DE/GA contracts below remain unchanged.
 adapted HHO research reference: 11 operators, 26 states, charged repeated parent
 evaluations, scan-only leader updates and two declared energy clocks. Export it
 through the same `metaheuristic_contract` binary used by DE/GA. The descriptor,
-[execution choices and paired numerical pilot](../hystl/research/metaheuristics-pilot/HHO.md)
+execution choices and paired numerical pilot (local workspace path: `../hystl/research/metaheuristics-pilot/HHO.md`)
 keep the authored profile, executable fixture and measured evidence distinct.
 
 ## Metaheuristic dependency contracts
@@ -195,8 +228,8 @@ The output contains canonical HyMeKo, `operator_ids.json`, common textual
 semantics and a DOT graph. The selected GA profile has eight operators and
 22 state slots. These are fixed-profile structural contracts, not an arbitrary
 expression interpreter or an equivalence proof. See the
-[shared mathematical definitions and GA trace checker](../hystl/research/metaheuristics-pilot/DEFINITIONS.md)
-and [validation report](reports/2026-10-06-metaheuristic-definitions.md).
+shared mathematical definitions and GA trace checker (local workspace path: `../hystl/research/metaheuristics-pilot/DEFINITIONS.md`)
+and validation report (local workspace path: `reports/2026-10-06-metaheuristic-definitions.md`).
 
 ## Polar and hexagonal mazes
 
@@ -232,7 +265,7 @@ Pure owner checks:
 The maze tests cover repeatable seeds, different passage systems, canonical
 validation, and clearance at every possible profile portal. The existing square
 grid CLI and its output format remain supported. Results and reproduction are
-in the local [maze report](reports/2026-10-06-generalized-mazes.md), archived under
+in the local maze report (local workspace path: `reports/2026-10-06-generalized-mazes.md`), archived under
 `\\192.168.1.228\hymeko\reports\by-repository`.
 
 To include the existing Cyberdisc robot, append its actor path to the same CLI:
@@ -242,7 +275,7 @@ Query, Geometry and MJCF owners. It retains all eleven declared visual parts and
 checks the actor footprint against the validated corridor. The existing Simulator
 `python/maze_contact.py ... --robot` runs the bounded six-second wheel-drive and
 box-pushing exercise on Amaterasu; `--no-drive` supplies its zero-command control.
-See [the simulator usage](../../hymeko_simulator/docs/maze-contacts.md).
+See the simulator usage (local workspace path: `../../hymeko_simulator/docs/maze-contacts.md`).
 
 For search-driven generation, append `--weights GENES.json` to that same command.
 The file must contain a JSON array of finite values in `[0,1]`, one per candidate
@@ -254,7 +287,7 @@ operation prefers lower weights, with its deterministic arc-order tie break.
 connectivity and swept-route clearance remain mandatory. Seed-only generation
 retains its prior canonical and physical outputs; the validation metadata is additive.
 
-The [research experiment](../hystl/research/metaheuristics-pilot/README.md#search-driven-world-generation)
+The research experiment (local workspace path: `../hystl/research/metaheuristics-pilot/README.md#search-driven-world-generation`)
 compares a frozen GA, the existing DE reference and random proposals using the
 actual Cyberdisc run as the objective. Optimization and simulation stay explicit
 Amaterasu operations; normal owner tests do not launch that experiment.
@@ -275,7 +308,7 @@ verifies actor footprint (including collider offsets) and all 64 fixed box
 colliders. Outputs are `model.hymeko`, `scene.hymeko` and `composition.json`.
 This is data composition; Simulator executes physics on Amaterasu and Kawamirai
 renders its actual state. See the local
-[integration report](reports/2026-09-29-adversarial-cyberdisc.md), archived under
+integration report (local workspace path: `reports/2026-09-29-adversarial-cyberdisc.md`), archived under
 `\\192.168.1.228\hymeko\reports\by-repository`.
 
 **Kawakern** names the existing HyMeKo physical engine family used by Kawamirai.
