@@ -34,7 +34,9 @@ pub use query::{
     CameraFrame, FiducialBinding, FiducialKind, FrameParent, Placement, Pose, SpatialFrame,
     SpatialQuery, SpatialQueryError,
 };
-pub use room::{ArucoMarker, Manipulable, PoseSample, PoseSampleError, Room, RoomQuery, TrackedDevice};
+pub use room::{
+    ArucoMarker, Manipulable, PoseSample, PoseSampleError, Room, RoomQuery, TrackedDevice,
+};
 pub use visual::{DeclaredLight, LightKind, Observation, Visual};
 
 /// Vocabulary sources. HyMeKo imports resolve beside the importing file, so room models carry
@@ -343,7 +345,7 @@ fn edge_participants_into(ir: &Ir, edge: DeclId, buf: &mut Vec<(i8, DeclId)>) {
 fn attr_value(ir: &Ir, d: DeclId, attr: SymId) -> Option<&ValueR> {
     ir.child_decls(d)
         .find(|&c| ir.decl_node(c).map(|n| n.name == attr).unwrap_or(false))
-        .and_then(|c| ir.decl_node(c).and_then(|n| n.anno.value.as_ref()))
+        .and_then(|c| ir.decl_node(c).and_then(|n| ir[n.anno].value.as_ref()))
 }
 
 /// The scene that (transitively) contains `d`, found by a bounded parent walk.

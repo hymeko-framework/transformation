@@ -222,7 +222,7 @@ fn canonical_cbor_json_schema_and_no_presentation_fields() {
     let decoded: Snapshot = ciborium::de::from_reader(cbor.as_slice()).unwrap();
     assert_eq!(decoded, snapshot);
     assert_eq!(decoded.to_cbor().unwrap(), cbor);
-    assert_eq!(snapshot.schema_version, 1);
+    assert_eq!(snapshot.schema, "hymeko-scenario", "a snapshot names its schema without a version");
     let value: ciborium::value::Value = ciborium::de::from_reader(cbor.as_slice()).unwrap();
     fn check(value: &ciborium::value::Value) {
         use ciborium::value::{CanonicalValue, Value};
@@ -261,9 +261,17 @@ fn canonical_cbor_json_schema_and_no_presentation_fields() {
 }
 
 #[test]
+fn a_model_authored_with_the_versioned_runtime_name_still_opens() {
+    let earlier = CELL.replace("runtime \"hymeko-scenario\"", "runtime \"hymeko-scenario/v1\"");
+    assert_ne!(earlier, CELL, "the fixture names the runtime");
+    let mut session = open(&earlier, OpenOptions::default()).unwrap();
+    assert_eq!(session.snapshot(Some(0)).unwrap().schema, "hymeko-scenario");
+}
+
+#[test]
 fn invalid_source_contract_and_capacity_refusals() {
     for (old, new) in [
-        ("hymeko-scenario/v1", "hymeko-scenario/v2"),
+        ("runtime \"hymeko-scenario\"", "runtime \"hymeko-other\""),
         ("untimed", "seconds"),
         ("roundRobin", "random"),
         ("initial 1; capacity 1;", "initial 2; capacity 1;"),

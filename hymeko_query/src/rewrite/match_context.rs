@@ -164,7 +164,7 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
             if decl.kind == DeclKind::Edge {
                 if let Some(eid) = self.ir.as_edge(child) {
                     let edge = &self.ir.edges[eid.raw()];
-                    for base in &edge.bases {
+                    for base in &self.ir[edge.bases] {
                         let target = base.target();
                         if !target.is_none() {
                             let target_name_resolved =
@@ -189,7 +189,7 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
     // path length so cyclic aliases cannot recurse indefinitely.
     fn reference_scope(&self, mut id: DeclId) -> Option<DeclId> {
         for _ in 0..32 {
-            match self.ir.decl_node(id)?.anno.value {
+            match self.ir.decl_annotation(id)?.value {
                 Some(ValueR::Ref(target)) => id = target,
                 _ => return Some(id),
             }
@@ -205,7 +205,7 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
         let decl = &self.ir.decl_nodes[did.raw()];
 
         // Check annotation value first
-        if let Some(ref val) = decl.anno.value {
+        if let Some(ref val) = self.ir[decl.anno].value {
             return self.value_r_to_field(val);
         }
 
@@ -220,7 +220,7 @@ impl<'a, R: NameResolver> MatchContext<'a, R> {
         if child_count == 1 {
             if let Some(c) = single_child {
                 let c_decl = &self.ir.decl_nodes[c.raw()];
-                if let Some(ref val) = c_decl.anno.value {
+                if let Some(ref val) = self.ir[c_decl.anno].value {
                     return self.value_r_to_field(val);
                 }
             }
@@ -308,18 +308,36 @@ mod tests {
     fn dotted_fields_follow_aliases_but_preserve_terminal_reference_identity() {
         let mut files = MemProvider::default();
         files.insert_file("/references.hymeko", "description {} state { value 7; } alias -> state; item { observation -> alias; } cycle { next -> loop; } loop -> cycle.next;");
-        let model = CompiledModel::compile(files, RealParser, std::path::Path::new("/references.hymeko")).unwrap();
+        let model = CompiledModel::compile(
+            files,
+            RealParser,
+            std::path::Path::new("/references.hymeko"),
+        )
+        .unwrap();
         let ir = &model.program().ir;
         let query = QueryEngine::new(ir, model.interner());
         let declarations = query.query(&Predicate::Any);
         let item = declarations.iter().find(|d| d.name == "item").unwrap();
         let context = MatchContext::new(ir, model.interner(), item);
-        assert!(matches!(context.get_field("observation.value"), FieldValue::Num(7.)));
+        assert!(matches!(
+            context.get_field("observation.value"),
+            FieldValue::Num(7.)
+        ));
         let value = context.resolve_field_decl("observation.value").unwrap();
-        assert_eq!(model.interner().resolve(ir.decl_node(value).unwrap().name), "value");
+        assert_eq!(
+            model.interner().resolve(ir.decl_node(value).unwrap().name),
+            "value"
+        );
         let reference = context.resolve_field_decl("observation").unwrap();
-        assert_eq!(model.interner().resolve(ir.decl_node(reference).unwrap().name), "observation");
-        assert!(matches!(context.get_field("observation"), FieldValue::Str(name) if name == "alias"));
+        assert_eq!(
+            model
+                .interner()
+                .resolve(ir.decl_node(reference).unwrap().name),
+            "observation"
+        );
+        assert!(
+            matches!(context.get_field("observation"), FieldValue::Str(name) if name == "alias")
+        );
         assert!(context.get_field("observation.missing").is_missing());
         let cycle = declarations.iter().find(|d| d.name == "cycle").unwrap();
         let context = MatchContext::new(ir, model.interner(), cycle);
@@ -335,17 +353,25 @@ mod tests {
             "description {} marker { size_m 0.08; sample { valid 0; } } \
              root: + <isa> marker { sample { valid 1; } } landmark: + <isa> marker {}",
         );
-        let model = CompiledModel::compile(files, RealParser, std::path::Path::new("/inherited.hymeko")).unwrap();
+        let model =
+            CompiledModel::compile(files, RealParser, std::path::Path::new("/inherited.hymeko"))
+                .unwrap();
         let ir = &model.program().ir;
         let query = QueryEngine::new(ir, model.interner());
         let declarations = query.query(&Predicate::Any);
         let named = |name: &str| declarations.iter().find(|d| d.name == name).unwrap();
         let landmark = MatchContext::new(ir, model.interner(), named("landmark"));
-        assert!(landmark.get_field("size_m").is_missing(), "get_field keeps its direct-child contract");
+        assert!(
+            landmark.get_field("size_m").is_missing(),
+            "get_field keeps its direct-child contract"
+        );
         assert!(matches!(landmark.effective_field("size_m"), FieldValue::Num(v) if v == 0.08));
         assert!(matches!(landmark.effective_field("sample.valid"), FieldValue::Num(v) if v == 0.));
         let root = MatchContext::new(ir, model.interner(), named("root"));
-        assert!(matches!(root.effective_field("sample.valid"), FieldValue::Num(v) if v == 1.), "own block overrides");
+        assert!(
+            matches!(root.effective_field("sample.valid"), FieldValue::Num(v) if v == 1.),
+            "own block overrides"
+        );
         assert!(matches!(root.effective_field("size_m"), FieldValue::Num(v) if v == 0.08));
         assert!(root.effective_field("sample.missing").is_missing());
     }

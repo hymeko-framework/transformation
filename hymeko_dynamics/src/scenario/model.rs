@@ -1,6 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA: &str = "hymeko-scenario/v1";
+/// The scenario runtime a model names, and a snapshot's schema: named without a version.
+pub const SCHEMA: &str = "hymeko-scenario";
+/// Whether a model names this runtime; one authored before 2026-10-14 says `hymeko-scenario/v1`.
+pub fn runtime_is(name: &str) -> bool {
+    name == SCHEMA || name.strip_suffix("/v1") == Some(SCHEMA)
+}
 pub const MAX_ELEMENTS: usize = 256;
 pub const MAX_ACTIONS: usize = 256;
 pub const MAX_OBSERVERS: usize = 64;
@@ -261,7 +266,6 @@ pub struct TransitionStatus {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Snapshot {
     pub schema: String,
-    pub schema_version: u32,
     pub scenario: Identity,
     pub revision: u32,
     pub logical_step: u32,

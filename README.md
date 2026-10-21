@@ -11,6 +11,13 @@ The HyMeKo IR→output (transformation) layer — a standalone cargo workspace.
   Frame/anchor attributes are effective fields (a kind's value is the instance default). Room models
   in other repositories import copies written by `hymeko_webxr/tools/sync-vocabulary.ps1`.
 
+- **`hymeko_relational/`** — the relational reading of a compiled model: the canonical IR as tables
+  (`declaration`, own `field`s, `effective_field`s with the declaration that provides each, `base`s with
+  `<isa>` told apart from an instance's type, `arc`s with their signs) and a `kind_<name>` table per kind —
+  a row per instance at any depth, a typed column (text, number, reference, JSON) per field it carries.
+  `postgres` renders the PostgreSQL that creates and fills them. Bases, is-a and effective fields are
+  `hymeko_query`'s (`effective_fields`, `isa_tag`), read and never re-derived.
+
 `hymeko_core` and `parser` are external repos (`hymeko/core`, `hymeko/parser`), pulled as `git` dependencies.
 
 ## Build & test
@@ -46,6 +53,20 @@ lossless serialization. The full structural view can become dense on large model
 
 Focused checks: `cargo test -p hymeko_formats --test diagram --locked --offline`
 and `node --test tools/diagram/render.test.mjs`.
+
+## Relational projection
+
+Identity across revisions is the canonical path; ids are the IR's and hold within one projection only.
+Every reference is a deferrable foreign key to `declaration`, so a projection loads in one transaction.
+
+```sh
+cargo run -p hymeko_relational --example project --locked --offline -- MODEL.hymeko SCHEMA > model.sql
+psql -v ON_ERROR_STOP=1 -f model.sql      # into an empty (or dropped) SCHEMA
+```
+
+Focused checks: `cargo test -p hymeko_relational --locked --offline`. A projection is checked against a real
+PostgreSQL 17 by loading the script (a throwaway `postgres:17` container) and querying it: kind tables with
+inherited values, `effective_field` providers, category trees by a recursive query over `base`.
 
 ## Provenance / notes
 

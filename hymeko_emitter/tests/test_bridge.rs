@@ -1,6 +1,6 @@
 //! Bridge round-trip property tests.
 //!
-//! Checks that `from_compiler_ir(to_compiler_ir(editor))` matches the
+//! Checks that `EditorIrBuilder(CompilerIrBuilder(editor).build()).build()` matches the
 //! source editor IR under the structural-equality contract documented in
 //! `docs/plans/06_wasm_editor/step1_ir_design.md` § "Risks".
 //!
@@ -20,7 +20,7 @@ use hymeko::module_store::source_provider::StdFsProvider;
 use hymeko::resolution::interner::Interner;
 use parser::ast::AstStr;
 
-use hymeko_emitter::bridge::{from_compiler_ir, to_compiler_ir};
+use hymeko_emitter::bridge::{CompilerIrBuilder, EditorIrBuilder, IrBuilder};
 use hymeko_emitter::editor_ir::{HyMeKoEditorIR, HyperEdge, Sign, Vertex};
 
 // ---- mini compile-pipeline helper (private) -----------------------------
@@ -137,8 +137,10 @@ fn editor_roundtrips_through_compiler_ir() {
     });
 
     let mut interner = Interner::new();
-    let arena = to_compiler_ir(&editor, &mut interner);
-    let editor_back = from_compiler_ir(&arena, &interner);
+    let arena = CompilerIrBuilder::new(&editor, &mut interner)
+        .build()
+        .expect("canonical editor construction");
+    let editor_back = EditorIrBuilder::new(&arena, &interner).build();
 
     assert_eq!(structural(&editor_back), structural(&editor));
 }
@@ -147,12 +149,14 @@ fn editor_roundtrips_through_compiler_ir() {
 fn empty_editor_roundtrips_to_empty_arena() {
     let editor = HyMeKoEditorIR::new();
     let mut interner = Interner::new();
-    let arena = to_compiler_ir(&editor, &mut interner);
+    let arena = CompilerIrBuilder::new(&editor, &mut interner)
+        .build()
+        .expect("canonical editor construction");
     assert_eq!(arena.nodes.len(), 0);
     assert_eq!(arena.edges.len(), 0);
     assert_eq!(arena.arcs.len(), 0);
 
-    let back = from_compiler_ir(&arena, &interner);
+    let back = EditorIrBuilder::new(&arena, &interner).build();
     assert_eq!(structural(&back), structural(&editor));
 }
 
@@ -187,8 +191,10 @@ fn editor_with_multiple_edges_preserves_per_edge_signs() {
     });
 
     let mut interner = Interner::new();
-    let arena = to_compiler_ir(&editor, &mut interner);
-    let back = from_compiler_ir(&arena, &interner);
+    let arena = CompilerIrBuilder::new(&editor, &mut interner)
+        .build()
+        .expect("canonical editor construction");
+    let back = EditorIrBuilder::new(&arena, &interner).build();
 
     // The legacy editor declares signs, never data-flow directions.
     assert_eq!(
@@ -196,12 +202,10 @@ fn editor_with_multiple_edges_preserves_per_edge_signs() {
         4
     );
     for reference in arena.arcs.iter().flat_map(|arc| &arc.refs) {
-        let atom = match reference {
-            hymeko::ir::ir::SignedRefR::Plus(atom)
-            | hymeko::ir::ir::SignedRefR::Minus(atom)
-            | hymeko::ir::ir::SignedRefR::Neutral(atom) => atom,
-        };
-        assert_eq!(atom.direction, hymeko::ir::ir::PortDirection::Unspecified);
+        assert_eq!(
+            reference.direction(),
+            hymeko::ir::ir::PortDirection::Unspecified
+        );
     }
 
     // Every edge should still have exactly 2 incidents with the same sign mix.
@@ -220,7 +224,7 @@ fn mini_arm_compile_ir_projects_into_editor_and_back() {
     // the robot's visible nodes and the spin_joint edge.
     let (store, compiled) =
         load_and_lower("../data/robotics/robots/mini_arm.hymeko").expect("compile");
-    let editor = from_compiler_ir(&compiled.ir, &store.it);
+    let editor = EditorIrBuilder::new(&compiled.ir, &store.it).build();
 
     let names: BTreeSet<&str> = editor.vertices.values().map(|v| v.name.as_str()).collect();
     assert!(names.contains("base_link"), "missing base_link");
@@ -241,13 +245,15 @@ fn arena_editor_arena_roundtrip_preserves_node_and_edge_counts() {
     let n_nodes = compiled.ir.nodes.len();
     let n_edges = compiled.ir.edges.len();
 
-    let editor = from_compiler_ir(&compiled.ir, &store.it);
+    let editor = EditorIrBuilder::new(&compiled.ir, &store.it).build();
 
     // Now project back. We intern against a fresh interner — the names
-    // will re-intern; since `to_compiler_ir` uses the `interner` param
+    // will re-intern; since `CompilerIrBuilder` uses the `interner` param
     // mutably, we need a mut binding.
     let mut fresh_interner = Interner::new();
-    let arena2 = to_compiler_ir(&editor, &mut fresh_interner);
+    let arena2 = CompilerIrBuilder::new(&editor, &mut fresh_interner)
+        .build()
+        .expect("canonical editor construction");
 
     assert_eq!(arena2.nodes.len(), n_nodes);
     assert_eq!(arena2.edges.len(), n_edges);
@@ -261,7 +267,7 @@ fn incident_vertices_that_are_edges_in_arena_are_filtered_on_reverse() {
     // such refs rather than insert bogus entries.
     use hymeko::common::ids::{DeclId, EdgeId, HyperArcId, NodeId, SymId};
     use hymeko::ir::ir::{
-        AnnoR, ArcRec, DeclKind, DeclNode, EdgeRec, Ir, NodeRec, RefAtomR, SignedRefR,
+        AnnoR, ArcRec, DeclKind, DeclNode, EdgeRec, IncidenceSign, Ir, NodeRec, SignedRefR,
     };
 
     let mut interner = Interner::new();
@@ -283,27 +289,32 @@ fn incident_vertices_that_are_edges_in_arena_are_filtered_on_reverse() {
     };
 
     let node_did = ir.push_decl(fresh(DeclKind::Node, node_sym));
-    ir.nodes.push(NodeRec::new(node_did, Vec::new()));
+    ir.nodes.push(NodeRec::new(
+        node_did,
+        hymeko::common::ids::BaseListId::NONE,
+    ));
     ir.bind_node_decl(node_did, NodeId::new(0))
         .expect("fresh decl: NONE slot, in-range record");
 
     let edge1_did = ir.push_decl(fresh(DeclKind::Edge, edge1_sym));
-    ir.edges.push(EdgeRec::new(edge1_did, Vec::new()));
+    ir.edges.push(EdgeRec::new(
+        edge1_did,
+        hymeko::common::ids::BaseListId::NONE,
+    ));
     ir.bind_edge_decl(edge1_did, EdgeId::new(0))
         .expect("fresh decl: NONE slot, in-range record");
 
     let edge2_did = ir.push_decl(fresh(DeclKind::Edge, edge2_sym));
-    let mut e2 = EdgeRec::new(edge2_did, Vec::new());
+    let mut e2 = EdgeRec::new(edge2_did, hymeko::common::ids::BaseListId::NONE);
 
     // Arc references `a` (node, allowed) and `e1` (edge, should be filtered).
     let arc_did = ir.push_decl(fresh(DeclKind::HyperArc, SymId::new(0)));
-    let atom = RefAtomR::plain;
     ir.arcs.push(ArcRec {
-        anno: AnnoR::default(),
+        anno: hymeko::common::ids::AnnotationId::NONE,
         in_edge: edge2_did,
         refs: vec![
-            SignedRefR::Plus(atom(node_did)),
-            SignedRefR::Plus(atom(edge1_did)),
+            SignedRefR::plain(node_did, IncidenceSign::Plus),
+            SignedRefR::plain(edge1_did, IncidenceSign::Plus),
         ],
     });
     let arc_id = HyperArcId::new(0);
@@ -314,7 +325,7 @@ fn incident_vertices_that_are_edges_in_arena_are_filtered_on_reverse() {
     ir.bind_edge_decl(edge2_did, EdgeId::new(1))
         .expect("fresh decl: NONE slot, in-range record");
 
-    let editor = from_compiler_ir(&ir, &interner);
+    let editor = EditorIrBuilder::new(&ir, &interner).build();
     // Two edges on the arena side; each projects into the editor.
     assert_eq!(editor.hyperedges.len(), 2);
     // The second edge's arc refs should be filtered to just the node `a`.

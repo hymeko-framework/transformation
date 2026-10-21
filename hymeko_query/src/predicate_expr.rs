@@ -60,7 +60,7 @@ pub fn decl_kind_name<'a>(did: DeclId, ir: &'a Ir, st: &'a StringTable) -> &'a s
     match decl.kind {
         DeclKind::Node => {
             if let Some(nid) = ir.as_node(did) {
-                if let Some(b) = ir.nodes[nid.raw()].bases.first() {
+                if let Some(b) = ir[ir.nodes[nid.raw()].bases].first() {
                     return st.resolve(ir.decl_nodes[b.target().raw()].name);
                 }
             }
@@ -68,7 +68,7 @@ pub fn decl_kind_name<'a>(did: DeclId, ir: &'a Ir, st: &'a StringTable) -> &'a s
         }
         DeclKind::Edge => {
             if let Some(eid) = ir.as_edge(did) {
-                if let Some(b) = ir.edges[eid.raw()].bases.first() {
+                if let Some(b) = ir[ir.edges[eid.raw()].bases].first() {
                     return st.resolve(ir.decl_nodes[b.target().raw()].name);
                 }
             }
@@ -93,14 +93,14 @@ pub fn decl_inherits(did: DeclId, target_name: &str, ir: &Ir, st: &StringTable) 
         match decl.kind {
             DeclKind::Node => {
                 if let Some(nid) = ir.as_node(d) {
-                    for b in &ir.nodes[nid.raw()].bases {
+                    for b in &ir[ir.nodes[nid.raw()].bases] {
                         stack.push(b.target());
                     }
                 }
             }
             DeclKind::Edge => {
                 if let Some(eid) = ir.as_edge(d) {
-                    for b in &ir.edges[eid.raw()].bases {
+                    for b in &ir[ir.edges[eid.raw()].bases] {
                         stack.push(b.target());
                     }
                 }

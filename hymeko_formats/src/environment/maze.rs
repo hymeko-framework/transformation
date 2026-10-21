@@ -1,7 +1,7 @@
 //! Small polar/hex maze profiles: canonical IR owns passages, Graph owns selection/search.
 pub mod search;
 use super::*;
-use hymeko::ir::ir::SignedRefR;
+
 use hymeko_geometry::collide::{Convex, Placement, intersects};
 use hymeko_graph::rand_lcg::Lcg;
 use hymeko_graph::{
@@ -390,12 +390,7 @@ impl Topology {
     }
 
     fn arc_pair(arc: &hymeko::ir::ir::ArcRec, ids: &BTreeMap<DeclId, usize>) -> Result<[usize; 2]> {
-        if arc.refs.len() != 2
-            || arc
-                .refs
-                .iter()
-                .any(|r| !matches!(r, SignedRefR::Neutral(_)))
-        {
+        if arc.refs.len() != 2 || arc.refs.iter().any(|r| r.sign() != 0) {
             return Err("maze passage must have two neutral cell incidences".into());
         }
         let a = *ids

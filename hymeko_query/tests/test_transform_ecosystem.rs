@@ -759,13 +759,18 @@ mod test_transform_ecosystem {
             );
             assert!(s.contains("part def SafetyController"), "block -> part def");
             assert!(
-                s.contains("satisfy R1_safe_stop by SafetyController;"),
+                s.contains("satisfy requirement sat_safe references hymeko_req_R1_safe_stop by hymeko_part_SafetyController;"),
                 "satisfy"
             );
             // R2 has two realizers -> two satisfy statements (binary projection).
-            assert!(s.contains("satisfy R2_pos_accuracy by MotionPlanner;"));
-            assert!(s.contains("satisfy R2_pos_accuracy by Arm;"));
-            assert!(s.contains("allocate R2a_repeatability to Arm;"), "allocate");
+            assert!(s.contains("satisfy requirement sat_pos_mp references hymeko_req_R2_pos_accuracy by hymeko_part_MotionPlanner;"));
+            assert!(s.contains("satisfy requirement sat_pos_arm references hymeko_req_R2_pos_accuracy by hymeko_part_Arm;"));
+            assert!(
+                s.contains(
+                    "allocation alloc_rep allocate hymeko_req_R2a_repeatability to hymeko_part_Arm;"
+                ),
+                "allocate"
+            );
             assert!(s.contains("derive_der_rep"), "derive connection");
         }
 

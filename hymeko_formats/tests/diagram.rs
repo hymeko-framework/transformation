@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use hymeko::common::ids::DeclId;
-use hymeko::ir::ir::{Ir, PortDirection, SignedRefR};
+use hymeko::ir::ir::{Ir, PortDirection};
 use hymeko::module_store::{module_store::ModuleStore, source_provider::StdFsProvider};
 use hymeko::resolution::string_table::StringTable;
 use hymeko::util::real_parser::RealParser;
@@ -45,7 +45,7 @@ fn source_values_references_inheritance_and_duplicate_names_survive() {
     }
     let alias = named(&ir, &st, "alias");
     let hymeko::ir::ir::ValueR::Ref(target) =
-        ir.decl_nodes[alias.raw()].anno.value.as_ref().unwrap()
+        ir.decl_annotation(alias).unwrap().value.as_ref().unwrap()
     else {
         panic!()
     };
@@ -82,20 +82,19 @@ fn arrows_follow_explicit_direction_independently_of_all_three_signs() {
     let (mut ir, st) = fixture();
     let constraint = named(&ir, &st, "constraint");
     let aid = ir.edges[ir.as_edge(constraint).unwrap().raw()].arcs[0].raw();
-    let original = ir.arcs[aid].refs[0].atom().clone();
+    let original = ir.arcs[aid].refs[0];
     for (direction, dot_dir) in [
         (PortDirection::In, "back"),
         (PortDirection::Out, "forward"),
         (PortDirection::Unspecified, "none"),
     ] {
         for sign in [1, -1, 0] {
-            let mut atom = original.clone();
-            atom.direction = direction;
-            ir.arcs[aid].refs[0] = match sign {
-                1 => SignedRefR::Plus(atom),
-                -1 => SignedRefR::Minus(atom),
-                _ => SignedRefR::Neutral(atom),
+            let kind = match sign {
+                1 => hymeko::ir::ir::IncidenceSign::Plus,
+                -1 => hymeko::ir::ir::IncidenceSign::Minus,
+                _ => hymeko::ir::ir::IncidenceSign::Neutral,
             };
+            ir.arcs[aid].refs[0] = original.with_direction(direction).with_sign(kind);
             let out = emit_dot_graph(&ir, &st, "directions");
             let line = out
                 .lines()
@@ -134,9 +133,9 @@ fn a_reference_to_a_hyperarc_uses_its_existing_junction() {
         .expect("compiled arc has a declaration");
     let wrapper = named(&ir, &st, "wrapper");
     let wrapper_arc = ir.edges[ir.as_edge(wrapper).unwrap().raw()].arcs[0].raw();
-    let mut atom = ir.arcs[wrapper_arc].refs[0].atom().clone();
-    atom.target = decl;
-    ir.arcs[wrapper_arc].refs[0] = SignedRefR::Neutral(atom);
+    ir.arcs[wrapper_arc].refs[0] = ir.arcs[wrapper_arc].refs[0]
+        .with_target(decl)
+        .with_sign(hymeko::ir::ir::IncidenceSign::Neutral);
     let out = emit_dot_graph(&ir, &st, "arc target");
     assert!(out.contains(&format!(
         "\"a{wrapper_arc}\" -> \"a{}\" [id=\"incidence-{wrapper_arc}-0\"",

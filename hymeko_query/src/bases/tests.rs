@@ -1,6 +1,5 @@
 use super::*;
 use crate::test_support::{compile, decl};
-use hymeko::ir::ir::RefAtomR;
 use hymeko::module_store::execution::CompiledModel;
 
 const TYPES: &str = "bases {} types { thing {} part: + <isa> thing {} tool: + <isa> thing {} \
@@ -11,13 +10,12 @@ const TYPES: &str = "bases {} types { thing {} part: + <isa> thing {} tool: + <i
 /// (thing -> part -> thing), a number past the table a dangling base.
 fn thing_with_base(model: &CompiledModel, target: DeclId) -> Ir {
     let mut ir = model.program().ir.clone();
-    let mut base = ir.node_for_decl(decl(model, "part")).unwrap().1.bases[0].clone();
-    let (SignedRefR::Plus(RefAtomR { target: t, .. })
-    | SignedRefR::Minus(RefAtomR { target: t, .. })
-    | SignedRefR::Neutral(RefAtomR { target: t, .. })) = &mut base;
-    *t = target;
+    let mut base = ir[ir.node_for_decl(decl(model, "part")).unwrap().1.bases][0];
+    base = base.with_target(target);
     let node = ir.node_for_decl(decl(model, "thing")).unwrap().0.raw();
-    ir.nodes[node].bases.push(base);
+    let mut bases = ir[ir.nodes[node].bases].to_vec();
+    bases.push(base);
+    ir.nodes[node].bases = ir.store_bases(bases);
     ir
 }
 

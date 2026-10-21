@@ -78,7 +78,39 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
     pub fn effective_value(&self, decl: DeclId, key: &str) -> Option<&'a ValueR> {
         let ir = self.ir();
         self.effective_child(decl, key)
-            .and_then(|child| ir.decl_node(child)?.anno.value.as_ref())
+            .and_then(|child| ir.decl_annotation(child)?.value.as_ref())
+    }
+
+    /// Every effective field of `decl`: the value-carrying children of `decl` and of its bases, as
+    /// keys in walk order (own first, then bases depth-first in authored order), each bound by
+    /// [`Self::effective_binding`] — so which child supplies a key is decided in one place. A child
+    /// without a value is structure, not a field. Repeated bases and cycles terminate.
+    pub fn effective_fields(&self, decl: DeclId) -> Vec<(&'a str, FieldBinding)> {
+        let ir = self.ir();
+        let mut keys = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        let mut visited = std::collections::HashSet::new();
+        let mut pending = vec![decl];
+        while let Some(provider) = pending.pop() {
+            if ir.decl_node(provider).is_none() || !visited.insert(provider) {
+                continue;
+            }
+            for child in ir.decl_children(provider) {
+                if let Some(node) = ir
+                    .decl_node(child)
+                    .filter(|node| ir[node.anno].value.is_some())
+                {
+                    let key = self.resolver().resolve(node.name);
+                    if seen.insert(key) {
+                        keys.push(key);
+                    }
+                }
+            }
+            pending.extend(bases(ir, provider, BasePolicy::All).rev());
+        }
+        keys.into_iter()
+            .filter_map(|key| Some((key, self.effective_binding(decl, key)?)))
+            .collect()
     }
 }
 
@@ -97,6 +129,41 @@ mod tests {
     }
 
     #[test]
+    fn effective_fields_list_own_then_inherited_keys_each_bound_as_effective_binding_binds_it() {
+        let model = compile(
+            "fields {} types { thing { size 1; mass 10; } heavy { mass 50; colour 3; } } \
+             c: + <isa> types.heavy, + <isa> types.thing { mass 7; label \"c\"; nested { depth 2; } }",
+        );
+        let ir = &model.program().ir;
+        let engine = QueryEngine::new(ir, model.interner());
+        let c = decl(&model, "c");
+        let fields = engine.effective_fields(c);
+        let keys: Vec<&str> = fields.iter().map(|(key, _)| *key).collect();
+        assert_eq!(
+            keys,
+            ["mass", "label", "colour", "size"],
+            "own first, then bases in authored order"
+        );
+        for (key, binding) in &fields {
+            assert_eq!(
+                Some(*binding),
+                engine.effective_binding(c, key),
+                "one precedence rule"
+            );
+        }
+        let own: Vec<bool> = fields
+            .iter()
+            .map(|(_, binding)| binding.is_own(c))
+            .collect();
+        assert_eq!(own, [true, true, false, false]);
+        assert!(
+            !keys.contains(&"nested"),
+            "a child without a value is structure"
+        );
+        assert!(engine.effective_fields(decl(&model, "types")).is_empty());
+    }
+
+    #[test]
     fn own_fields_override_bases_which_are_searched_in_authored_order() {
         let model = compile(
             "fields {} types { thing { size 1; mass 10; } heavy { mass 50; colour 3; } } \
@@ -105,16 +172,38 @@ mod tests {
              c: + <isa> types.heavy { mass 7; } \
              d: + <isa> c {}",
         );
-        assert_eq!(number(&model, "a", "mass"), Some(50.), "the first authored base wins");
+        assert_eq!(
+            number(&model, "a", "mass"),
+            Some(50.),
+            "the first authored base wins"
+        );
         assert_eq!(number(&model, "b", "mass"), Some(10.));
-        assert_eq!(number(&model, "a", "size"), Some(1.), "later bases fill what earlier ones lack");
-        assert_eq!(number(&model, "c", "mass"), Some(7.), "an own declaration overrides every base");
-        assert_eq!(number(&model, "d", "mass"), Some(7.), "inheritance is transitive");
+        assert_eq!(
+            number(&model, "a", "size"),
+            Some(1.),
+            "later bases fill what earlier ones lack"
+        );
+        assert_eq!(
+            number(&model, "c", "mass"),
+            Some(7.),
+            "an own declaration overrides every base"
+        );
+        assert_eq!(
+            number(&model, "d", "mass"),
+            Some(7.),
+            "inheritance is transitive"
+        );
         assert_eq!(number(&model, "d", "colour"), Some(3.));
         assert_eq!(number(&model, "d", "missing"), None);
         let ir = &model.program().ir;
-        let size = QueryEngine::new(ir, model.interner()).effective_child(decl(&model, "a"), "size").unwrap();
-        assert_eq!(ir.parent(size), decl(&model, "thing"), "the child keeps the base's identity");
+        let size = QueryEngine::new(ir, model.interner())
+            .effective_child(decl(&model, "a"), "size")
+            .unwrap();
+        assert_eq!(
+            ir.parent(size),
+            decl(&model, "thing"),
+            "the child keeps the base's identity"
+        );
     }
 
     #[test]
@@ -126,7 +215,11 @@ mod tests {
         assert_eq!(number(&model, "joined", "v"), Some(1.));
         assert_eq!(number(&model, "joined", "w"), None);
         let engine = QueryEngine::new(&model.program().ir, model.interner());
-        assert!(engine.effective_child(DeclId::new(usize::MAX >> 1), "v").is_none());
+        assert!(
+            engine
+                .effective_child(DeclId::new(usize::MAX >> 1), "v")
+                .is_none()
+        );
     }
 
     #[test]

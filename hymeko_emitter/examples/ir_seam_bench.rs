@@ -4,7 +4,7 @@
 //! Per scale it builds an editor IR programmatically, then times, with medians
 //! over `ITERS` after a warm-up:
 //!
-//! * `to_compiler_ir` — the **sole production writer** (editor -> arena);
+//! * `CompilerIrBuilder::build` — the **sole production writer** (editor -> arena);
 //! * each of the four M2T emitters — **readers** (`&Ir` -> `String`).
 //!
 //! Every output carries a **stable FNV-1a-64** fingerprint and its byte length,
@@ -17,7 +17,7 @@
 use std::time::Instant;
 
 use hymeko::resolution::interner::Interner;
-use hymeko_emitter::bridge::to_compiler_ir;
+use hymeko_emitter::bridge::{CompilerIrBuilder, IrBuilder};
 use hymeko_emitter::editor_ir::{HyMeKoEditorIR, HyperEdge, Sign, Vertex};
 use hymeko_emitter::{emit_hymeko, emit_lean4, emit_rust_stubs, emit_sysml};
 
@@ -81,11 +81,15 @@ fn bench(rows: usize, cols: usize, iters: usize) {
     let mut interner = Interner::new();
 
     let write_us = time_median(iters, || {
-        let ir = to_compiler_ir(&editor, &mut Interner::new());
+        let ir = CompilerIrBuilder::new(&editor, &mut Interner::new())
+            .build()
+            .expect("canonical editor construction");
         std::hint::black_box(&ir);
     });
 
-    let ir = to_compiler_ir(&editor, &mut interner);
+    let ir = CompilerIrBuilder::new(&editor, &mut interner)
+        .build()
+        .expect("canonical editor construction");
     let incidences: usize = ir.arcs.iter().map(|a| a.refs.len()).sum();
 
     let h = emit_hymeko(&ir, &interner, "bench");
@@ -124,7 +128,9 @@ fn bench(rows: usize, cols: usize, iters: usize) {
 }
 
 fn main() {
-    println!("# ir_seam_bench (release, medians) — writer=to_compiler_ir, readers=4 emitters");
+    println!(
+        "# ir_seam_bench (release, medians) — writer=CompilerIrBuilder::build, readers=4 emitters"
+    );
     bench(4, 3, 200);
     bench(32, 4, 100);
     bench(128, 5, 50);

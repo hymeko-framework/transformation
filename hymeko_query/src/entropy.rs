@@ -10,7 +10,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use hymeko::common::ids::DeclId;
-use hymeko::ir::ir::{DeclKind, Ir, SignedRefR};
+use hymeko::ir::ir::{DeclKind, Ir};
 
 /// Per-scope structural entropy, in nats. Components are returned
 /// separately so callers can reweight without recomputing.
@@ -144,10 +144,10 @@ fn arity_sign_and_degrees(ir: &Ir, edges: &[DeclId]) -> (f64, f64, HashMap<DeclI
             let arc = &ir.arcs[aid.raw()];
             for r in &arc.refs {
                 arity += 1;
-                match r {
-                    SignedRefR::Plus(_) => n_plus += 1,
-                    SignedRefR::Minus(_) => n_minus += 1,
-                    SignedRefR::Neutral(_) => n_neutral += 1,
+                match r.sign() {
+                    1 => n_plus += 1,
+                    -1 => n_minus += 1,
+                    _ => n_neutral += 1,
                 }
                 let tgt = r.target();
                 if tgt.is_some() {
@@ -228,7 +228,7 @@ fn scope_children<'a>(ir: &'a Ir, scope: DeclId) -> Box<dyn Iterator<Item = Decl
 mod tests {
     use super::*;
     use hymeko::common::ids::{EdgeId, HyperArcId, NodeId, SymId};
-    use hymeko::ir::ir::{AnnoR, ArcRec, DeclNode, EdgeRec, NodeRec, RefAtomR};
+    use hymeko::ir::ir::{AnnoR, ArcRec, DeclNode, EdgeRec, NodeRec, SignedRefR};
 
     fn empty_ir() -> Ir {
         Ir::default()
@@ -263,7 +263,8 @@ mod tests {
     fn push_node(ir: &mut Ir, parent: DeclId) -> DeclId {
         let did = push_decl(ir, parent, DeclKind::Node);
         let nid = NodeId::new(ir.nodes.len());
-        ir.nodes.push(NodeRec::new(did, Vec::new()));
+        ir.nodes
+            .push(NodeRec::new(did, hymeko::common::ids::BaseListId::NONE));
         ir.bind_node_decl(did, nid)
             .expect("fresh decl: NONE slot, in-range record");
         did
@@ -272,7 +273,8 @@ mod tests {
     fn push_edge(ir: &mut Ir, parent: DeclId, incidences: &[(i8, DeclId)]) -> DeclId {
         let e_did = push_decl(ir, parent, DeclKind::Edge);
         let eid = EdgeId::new(ir.edges.len());
-        ir.edges.push(EdgeRec::new(e_did, Vec::new()));
+        ir.edges
+            .push(EdgeRec::new(e_did, hymeko::common::ids::BaseListId::NONE));
         ir.bind_edge_decl(e_did, eid)
             .expect("fresh decl: NONE slot, in-range record");
 
@@ -283,17 +285,14 @@ mod tests {
         let aid = HyperArcId::new(ir.arcs.len());
         let refs = incidences
             .iter()
-            .map(|&(sign, target)| {
-                let atom = RefAtomR::plain(target);
-                match sign {
-                    1 => SignedRefR::Plus(atom),
-                    -1 => SignedRefR::Minus(atom),
-                    _ => SignedRefR::Neutral(atom),
-                }
+            .map(|&(sign, target)| match sign {
+                1 => SignedRefR::plain(target, hymeko::ir::ir::IncidenceSign::Plus),
+                -1 => SignedRefR::plain(target, hymeko::ir::ir::IncidenceSign::Minus),
+                _ => SignedRefR::plain(target, hymeko::ir::ir::IncidenceSign::Neutral),
             })
             .collect();
         ir.arcs.push(ArcRec {
-            anno: AnnoR::default(),
+            anno: hymeko::common::ids::AnnotationId::NONE,
             in_edge: e_did,
             refs,
         });

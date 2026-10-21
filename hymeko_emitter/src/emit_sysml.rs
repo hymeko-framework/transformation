@@ -30,10 +30,10 @@ fn decl_name<'a>(ir: &'a Ir, it: &'a Interner, did: DeclId) -> &'a str {
 }
 
 fn sign_value(r: &SignedRefR) -> &'static str {
-    match r {
-        SignedRefR::Plus(_) => "+1.0",
-        SignedRefR::Minus(_) => "-1.0",
-        SignedRefR::Neutral(_) => "0.0",
+    match r.sign() {
+        1 => "+1.0",
+        -1 => "-1.0",
+        _ => "0.0",
     }
 }
 
@@ -65,7 +65,7 @@ fn emit_node_attributes(ir: &Ir, it: &Interner, did: DeclId, depth: usize, out: 
         if ir.decl_nodes[child.raw()].kind == DeclKind::HyperArc {
             continue;
         }
-        let anno = &ir.decl_nodes[child.raw()].anno;
+        let anno = ir.decl_annotation(child).expect("existing declaration");
         if let Some(v) = &anno.value {
             let child_name = decl_name(ir, it, child);
             let _ = writeln!(
@@ -123,9 +123,8 @@ fn emit_part_defs(ir: &Ir, interner: &Interner, out: &mut String) {
     for node in &ir.nodes {
         let name = decl_name(ir, interner, node.decl);
         let _ = writeln!(out, "    part def {name} {{");
-        if !node.bases.is_empty() {
-            let bases: Vec<&str> = node
-                .bases
+        if !ir[node.bases].is_empty() {
+            let bases: Vec<&str> = ir[node.bases]
                 .iter()
                 .map(|b| decl_name(ir, interner, b.target()))
                 .collect();

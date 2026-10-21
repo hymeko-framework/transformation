@@ -1,6 +1,6 @@
 reference_cell {}
 cell {
-    runtime "hymeko-scenario/v1";
+    runtime "hymeko-scenario";
     timing "untimed";
     policy "roundRobin";
     resetCause -> causes.operator;

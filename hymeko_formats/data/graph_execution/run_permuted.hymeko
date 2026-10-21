@@ -1,0 +1,5 @@
+permuted_graph_run { @"run.hymeko" -> defaults; }
+permuted_graph_file: + <isa> defaults.graph_file { path "model_permuted.hymeko"; }
+permuted_job: + <isa> defaults.job { model -> permuted_graph_file; }
+permuted_ordered: + <isa> permuted_job { ordering "first_encounter"; }
+permuted_parallel: + <isa> permuted_job { workers 4; ordering "canonical"; }

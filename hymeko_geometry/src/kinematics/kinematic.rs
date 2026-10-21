@@ -205,7 +205,10 @@ pub fn extract_kinematic_model<R: NameResolver>(
 
 /// Read a physical numeric property through the shared inherited field reader.
 fn find_child_num<R: NameResolver>(ir: &Ir, res: &R, did: DeclId, name: &str) -> Option<f64> {
-    match (super::actuation::Fields { ir, res, did }).value(name).ok()? {
+    match (super::actuation::Fields { ir, res, did })
+        .value(name)
+        .ok()?
+    {
         ValueR::Num(value) => Some(*value),
         _ => None,
     }
@@ -225,7 +228,7 @@ fn find_child_ref_value_list<R: NameResolver>(
     let fields = super::actuation::Fields { ir, res, did };
     let value = fields.value(name).ok()?;
     let value = if let ValueR::Ref(target) = value {
-        ir.decl_node(*target)?.anno.value.as_ref()?
+        ir.decl_annotation(*target)?.value.as_ref()?
     } else {
         value
     };
@@ -235,13 +238,12 @@ fn find_child_ref_value_list<R: NameResolver>(
 fn find_child_ref_target(ir: &Ir, did: DeclId) -> Option<DeclId> {
     ir.decl_children(did).find_map(|cid| {
         let child = &ir.decl_nodes[cid.raw()];
-        match &child.anno.value {
+        match &ir[child.anno].value {
             Some(ValueR::Ref(target_did)) => Some(*target_did),
             _ => None,
         }
     })
 }
-
 
 fn extract_num_list(val: Option<&ValueR>) -> Option<Vec<f64>> {
     match val {
@@ -260,7 +262,7 @@ fn extract_num_list(val: Option<&ValueR>) -> Option<Vec<f64>> {
 }
 fn extract_value_list(ir: &Ir, did: DeclId) -> Option<Vec<f64>> {
     let decl = &ir.decl_nodes[did.raw()];
-    extract_num_list(decl.anno.value.as_ref())
+    extract_num_list(ir[decl.anno].value.as_ref())
 }
 
 /// Extract geometry from a child named `link_geometry` that inherits
@@ -282,7 +284,7 @@ pub(super) fn geometry_decl<R: NameResolver>(
 ) -> Result<Option<GeometryInfo>, String> {
     if let Some(nid) = ir.as_node(cid) {
         let mut unknown_shape: Option<String> = None;
-        for base in &ir.nodes[nid.raw()].bases {
+        for base in &ir[ir.nodes[nid.raw()].bases] {
             let target = base.target();
             if target.is_none() {
                 continue;
@@ -379,7 +381,7 @@ fn check_inherits_simple<R: NameResolver>(
     }
 
     if let Some(nid) = ir.as_node(did) {
-        for base_ref in &ir.nodes[nid.raw()].bases {
+        for base_ref in &ir[ir.nodes[nid.raw()].bases] {
             let target = base_ref.target();
             if target.is_none() {
                 continue;
@@ -394,7 +396,7 @@ fn check_inherits_simple<R: NameResolver>(
         }
     }
     if let Some(eid) = ir.as_edge(did) {
-        for base_ref in &ir.edges[eid.raw()].bases {
+        for base_ref in &ir[ir.edges[eid.raw()].bases] {
             let target = base_ref.target();
             if target.is_none() {
                 continue;

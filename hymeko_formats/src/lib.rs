@@ -18,6 +18,7 @@
 pub mod binary_graph;
 pub mod codegen;
 pub mod environment;
+pub mod graph_execution;
 pub mod gazebo;
 pub mod mesh;
 pub mod metaheuristic;

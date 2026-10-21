@@ -1,6 +1,6 @@
 //! Shared format dispatch through the registered backend.
-//! Templates use Query's template engine. MJCF uses the single articulated
-//! model emitter registered by Formats; no flat-body template bypass remains.
+//! Templates use Query's template engine. URDF, SDF and MJCF use the same
+//! model emitters as TransformEngine, with no static kinematic-template bypass.
 
 use std::path::{Path, PathBuf};
 

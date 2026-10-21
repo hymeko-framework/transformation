@@ -7,21 +7,22 @@
 #   hymeko_dynamics: IR -> port-Hamiltonian system (J from signed incidence, modal analysis)
 #   hymeko_sources : a SourceProvider over strings, so a model compiles where there is no disk
 #   hymeko_webxr  : WebXR/spatial vocabulary, validation and borrowed queries over the canonical IR
+#   hymeko_relational: IR -> relational tables (declarations, fields, bases, arcs, a table per kind) + PostgreSQL
 # `core` and `parser` are external repos, pulled as git dependencies.
 [workspace]
 resolver = "2"
-members = ["hymeko_emitter", "hymeko_query", "hymeko_geometry", "hymeko_formats", "hymeko_optimize", "hymeko_dynamics", "hymeko_sources", "hymeko_webxr"]
+members = ["hymeko_emitter", "hymeko_query", "hymeko_geometry", "hymeko_formats", "hymeko_optimize", "hymeko_dynamics", "hymeko_sources", "hymeko_webxr", "hymeko_relational"]
 
 [workspace.dependencies]
 # Pinned to the integrated core commit: WebXR is supplied by this workspace's
 # hymeko_webxr crate while core supplies canonical IR and transport codecs.
-hymeko_core = { git = "ssh://git@192.168.1.228:2222/hymeko/core.git", rev = "b66cb4dd7def4019c197f6a69271721780879d26" }
+hymeko_core = { git = "ssh://git@192.168.1.228:2222/hymeko/core.git", rev = "9f533ca8f9cd39806d8db9a0a68cda7932c81ae2" }
 parser = { git = "ssh://git@192.168.1.228:2222/hymeko/parser.git", rev = "f11628591a8183586492807ecdf43c64e6d31c5f" }
 # The Tensor pillar's geometric algebra — SE(n) rigid motions live there, not here.
 # Same published Tensor revision as the numerics owner consumed by Dynamics.
-hymeko_clifford = { git = "ssh://git@192.168.1.228:2222/hymeko/tensor.git", rev = "14c1d231897b48aac6fadef1fd4189af7260bc22" }
+hymeko_clifford = { git = "ssh://git@192.168.1.228:2222/hymeko/tensor.git", rev = "9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7" }
 serde = "1.0.228"
 log = "0.4.29"
 
-hymeko_graph = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "ed7d0cf720228cf296f81bc7fadadcebd27aa699" }
-hymeko_sbsh = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "ed7d0cf720228cf296f81bc7fadadcebd27aa699" }
+hymeko_graph = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "ea1c588697dd07412bc008a4a41813db8969a83e" }
+hymeko_sbsh = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "ea1c588697dd07412bc008a4a41813db8969a83e" }

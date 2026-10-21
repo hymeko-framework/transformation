@@ -1,0 +1,5 @@
+graph_run { @"meta_pagerank.hymeko" -> meta; }
+graph_file: + <isa> meta.graph_source { path "model.hymeko"; }
+job: + <isa> meta.pagerank_profile { model -> graph_file; }
+ordered_job: + <isa> job { ordering "first_encounter"; }
+parallel_job: + <isa> job { workers 4; ordering "canonical"; }
