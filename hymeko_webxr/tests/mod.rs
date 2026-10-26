@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use hymeko::common::ids::DeclId;
-use hymeko::ir::ir::{Ir, RefAtomR, SignedRefR, ValueR};
+use hymeko::ir::ir::{Ir, SignedRefR, ValueR};
 use hymeko::module_store::module_store::{CompiledProgram, ModuleStore};
 use hymeko::module_store::source_provider::{MemProvider, StdFsProvider};
 use hymeko::resolution::interner::Interner;
@@ -390,9 +390,9 @@ fn runtime_handle_field_rejected() {
 /// Overwrite the first attribute named `attr` with `value` (in a cloned Ir).
 fn inject_attr(ir: &mut Ir, it: &Interner, attr: &str, value: ValueR) {
     let sym = it.get_id(attr).expect("attr interned");
-    for node in ir.decl_nodes.iter_mut() {
-        if node.name == sym {
-            node.anno.value = Some(value);
+    for raw in 0..ir.decl_count() {
+        if ir.decl_nodes[raw].name == sym {
+            ir.decl_annotation_mut(DeclId::new(raw)).unwrap().value = Some(value);
             return;
         }
     }
@@ -451,7 +451,7 @@ fn dangling_reference_is_rejected() {
     // point the last arc's first participant at a non-existent decl (the placement's arc)
     let bogus = DeclId::new(ir.decl_nodes.len() + 500);
     let arc = ir.arcs.last_mut().expect("an arc exists");
-    arc.refs[0] = SignedRefR::Plus(RefAtomR::plain(bogus));
+    arc.refs[0] = SignedRefR::plain(bogus, hymeko::ir::ir::IncidenceSign::Plus);
     let v = validate(&ir, c.it());
     assert!(
         v.iter()

@@ -228,7 +228,7 @@ impl<R: NameResolver> Fields<'_, R> {
     }
     pub(crate) fn value(&self, key: &str) -> Result<&ValueR, String> {
         self.child(key)
-            .and_then(|c| self.ir.decl_node(c)?.anno.value.as_ref())
+            .and_then(|c| self.ir.decl_annotation(c)?.value.as_ref())
             .ok_or_else(|| format!("missing {key}"))
     }
     pub(crate) fn number(&self, key: &str) -> Result<f64, String> {
@@ -260,7 +260,7 @@ impl<R: NameResolver> Fields<'_, R> {
                 .ir
                 .decl_nodes
                 .get(target.raw())
-                .and_then(|d| d.anno.value.as_ref())
+                .and_then(|d| self.ir[d.anno].value.as_ref())
                 .ok_or_else(|| format!("{key} references no value"))?;
         }
         let ValueR::List(values) = value else {

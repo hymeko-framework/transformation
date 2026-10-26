@@ -66,12 +66,12 @@ impl SourceEmitter<'_> {
     /// - `+ target`                   (sign + target)
     /// - `+ target [[xyz],[rpy]]`     (with weight list)
     fn emit_signed_ref(&self, r: &SignedRefR) -> String {
-        let sign = match r {
-            SignedRefR::Plus(_) => '+',
-            SignedRefR::Minus(_) => '-',
-            SignedRefR::Neutral(_) => '~',
+        let sign = match r.sign() {
+            1 => '+',
+            -1 => '-',
+            _ => '~',
         };
-        let atom = r.atom();
+        let atom = self.ir.reference_atom(r).expect("model-local reference");
         let name = self.decl_name(atom.target);
         let mut s = format!("{sign} {name}");
         if let Some(ws) = &atom.weights {
@@ -85,7 +85,7 @@ impl SourceEmitter<'_> {
 
     fn emit_tags(&self, did: DeclId) -> String {
         let (ir, it) = (self.ir, self.it);
-        let tags = &ir.decl_nodes[did.raw()].anno.tags;
+        let tags = &ir.decl_annotation(did).unwrap().tags;
         if tags.is_empty() {
             return String::new();
         }
@@ -105,11 +105,11 @@ impl SourceEmitter<'_> {
         let bases = self
             .ir
             .node_for_decl(did)
-            .map(|(_, node)| node.bases.as_slice())
+            .map(|(_, node)| &self.ir[node.bases])
             .or_else(|| {
                 self.ir
                     .edge_for_decl(did)
-                    .map(|(_, edge)| edge.bases.as_slice())
+                    .map(|(_, edge)| &self.ir[edge.bases])
             })
             .unwrap_or_default();
         if bases.is_empty() {
@@ -152,7 +152,7 @@ impl SourceEmitter<'_> {
 
     fn emit_node(&self, did: DeclId, header: &str, pad: &str, depth: usize, out: &mut String) {
         let ir = self.ir;
-        let inline_value = ir.decl_nodes[did.raw()].anno.value.as_ref();
+        let inline_value = ir.decl_annotation(did).unwrap().value.as_ref();
         let has_children = self.has_child_decls(did);
 
         // Shape the declaration:
@@ -240,8 +240,7 @@ fn format_num(n: f64) -> String {
 pub fn emit_hymeko(ir: &Ir, interner: &Interner, description_name: &str) -> String {
     // A canonical compiled model has a coherent hierarchy. Preserve the public
     // string API's existing precondition (valid IR plus its matching interner).
-    let paths =
-        build_path_index(ir).expect("source emission requires a coherent canonical IR");
+    let paths = build_path_index(ir).expect("source emission requires a coherent canonical IR");
     let emitter = SourceEmitter {
         ir,
         it: interner,

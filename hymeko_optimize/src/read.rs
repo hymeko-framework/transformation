@@ -79,10 +79,10 @@ impl Reader<'_> {
 
     fn bases(&self, decl: DeclId) -> &[SignedRefR] {
         if let Some(node) = self.ir.as_node(decl) {
-            return &self.ir.nodes[node.raw()].bases;
+            return &self.ir[self.ir.nodes[node.raw()].bases];
         }
         if let Some(edge) = self.ir.as_edge(decl) {
-            return &self.ir.edges[edge.raw()].bases;
+            return &self.ir[self.ir.edges[edge.raw()].bases];
         }
         &[]
     }
@@ -96,7 +96,7 @@ impl Reader<'_> {
                 continue;
             }
             for base in self.bases(here) {
-                let target = atom(base).target;
+                let target = base.target();
                 if self.name(target) == name {
                     return true;
                 }
@@ -113,7 +113,7 @@ impl Reader<'_> {
         while child.is_some() && guard <= self.ir.decl_nodes.len() {
             let node = &self.ir.decl_nodes[child.raw()];
             if self.it.resolve(node.name) == field {
-                return node.anno.value.as_ref();
+                return self.ir[node.anno].value.as_ref();
             }
             child = node.next_sibling;
             guard += 1;
@@ -150,7 +150,7 @@ impl Reader<'_> {
             .filter(|arc| arc.in_edge == decl)
             .flat_map(|arc| arc.refs.iter())
             .map(|r| {
-                let a = atom(r);
+                let a = self.ir.reference_atom(r).expect("model-local reference");
                 let weight = a.weights.as_ref().and_then(|w| match w.first() {
                     Some(ValueR::Num(n)) => Some(*n),
                     _ => None,
@@ -366,7 +366,7 @@ impl Reader<'_> {
                     let result = need(&plus, 0, &quantity_of)?;
                     let mut terms = Vec::new();
                     for r in &inc {
-                        if matches!(r.0, SignedRefR::Minus(_)) {
+                        if r.0.sign() == -1 {
                             let q =
                                 *quantity_of.get(&r.1).ok_or_else(|| ReadError::Unresolved {
                                     at: name.clone(),
@@ -429,7 +429,7 @@ impl Reader<'_> {
                 }
                 "minimise" => {
                     for r in &inc {
-                        if matches!(r.0, SignedRefR::Minus(_)) {
+                        if r.0.sign() == -1 {
                             let q =
                                 *quantity_of.get(&r.1).ok_or_else(|| ReadError::Unresolved {
                                     at: name.clone(),
@@ -572,20 +572,12 @@ fn signed(inc: &[(&SignedRefR, DeclId, Option<f64>)], want: Sign) -> Vec<DeclId>
     inc.iter()
         .filter(|(r, _, _)| {
             matches!(
-                (r, want),
-                (SignedRefR::Plus(_), Sign::Plus)
-                    | (SignedRefR::Minus(_), Sign::Minus)
-                    | (SignedRefR::Neutral(_), Sign::Neutral)
+                (r.sign(), want),
+                (1, Sign::Plus) | (-1, Sign::Minus) | (0, Sign::Neutral)
             )
         })
         .map(|(_, d, _)| *d)
         .collect()
-}
-
-fn atom(r: &SignedRefR) -> &hymeko::ir::ir::RefAtomR {
-    match r {
-        SignedRefR::Plus(a) | SignedRefR::Minus(a) | SignedRefR::Neutral(a) => a,
-    }
 }
 
 /// Unused import guard: `SymId` is part of the resolver's signature in `hymeko_core`.

@@ -489,9 +489,15 @@ fn verdict_core_ir_change_not_required() {
         .filter(|line| line.starts_with("hymeko_core ="));
     let canonical = declarations.next().expect("workspace Core declaration");
     assert!(!canonical.contains("path ="));
-    assert!(canonical.contains("rev ="), "Core must use an exact revision");
+    assert!(
+        canonical.contains("rev ="),
+        "Core must use an exact revision"
+    );
     for declaration in declarations {
-        assert_eq!(declaration, canonical, "Core redirects must keep one identity");
+        assert_eq!(
+            declaration, canonical,
+            "Core redirects must keep one identity"
+        );
     }
 
     let (ir, it) = model!();
@@ -657,16 +663,14 @@ fn inherits_named(
 
     let bases_of = |decl: DeclId| -> &[SignedRefR] {
         if let Some(node) = ir.as_node(decl) {
-            return &ir.nodes[node.raw()].bases;
+            return &ir[ir.nodes[node.raw()].bases];
         }
         if let Some(edge) = ir.as_edge(decl) {
-            return &ir.edges[edge.raw()].bases;
+            return &ir[ir.edges[edge.raw()].bases];
         }
         &[]
     };
-    let target = |r: &SignedRefR| match r {
-        SignedRefR::Plus(a) | SignedRefR::Minus(a) | SignedRefR::Neutral(a) => a.target,
-    };
+    let target = SignedRefR::target;
 
     let mut seen = HashSet::new();
     let mut stack = vec![DeclId::new(raw)];

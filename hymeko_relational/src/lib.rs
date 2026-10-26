@@ -171,9 +171,9 @@ fn id(decl: DeclId) -> u64 {
 /// The base references of a declaration, in authored order: a node's or an edge's.
 fn base_refs(ir: &Ir, decl: DeclId) -> &[SignedRefR] {
     if let Some((_, node)) = ir.node_for_decl(decl) {
-        &node.bases
+        &ir[node.bases]
     } else if let Some((_, edge)) = ir.edge_for_decl(decl) {
-        &edge.bases
+        &ir[edge.bases]
     } else {
         &[]
     }
@@ -186,7 +186,12 @@ fn convert<R: NameResolver>(value: &ValueR, resolver: &R) -> Option<Value> {
         ValueR::Num(number) => Value::Number(*number),
         ValueR::Ref(target) if target.is_none() => return None,
         ValueR::Ref(target) => Value::Reference(id(*target)),
-        ValueR::List(items) => Value::List(items.iter().filter_map(|item| convert(item, resolver)).collect()),
+        ValueR::List(items) => Value::List(
+            items
+                .iter()
+                .filter_map(|item| convert(item, resolver))
+                .collect(),
+        ),
     })
 }
 
@@ -235,7 +240,13 @@ pub fn project<R: NameResolver>(ir: &Ir, resolver: &R) -> Result<Projection, Pro
     let engine = QueryEngine::new(ir, resolver);
     let isa = engine.isa_tag();
     let path_of = |decl: DeclId| {
-        paths.path_of(decl).map(|key| key.0.iter().map(|sym| resolver.resolve(*sym)).collect::<Vec<_>>().join("."))
+        paths.path_of(decl).map(|key| {
+            key.0
+                .iter()
+                .map(|sym| resolver.resolve(*sym))
+                .collect::<Vec<_>>()
+                .join(".")
+        })
     };
     let mut projection = Projection::default();
     let mut effective: HashMap<u64, Vec<(String, Value)>> = HashMap::new();
@@ -243,10 +254,13 @@ pub fn project<R: NameResolver>(ir: &Ir, resolver: &R) -> Result<Projection, Pro
 
     for index in 0..ir.decl_nodes.len() {
         let decl = DeclId::new(index);
-        let Some(node) = ir.decl_node(decl) else { continue };
+        let Some(node) = ir.decl_node(decl) else {
+            continue;
+        };
         let parent = (!node.parent.is_none()).then(|| id(node.parent));
-        let is_field = node.anno.value.is_some() && parent.is_some();
-        let is_kind = isa.is_some_and(|tag| bases(ir, decl, BasePolicy::Tagged(tag)).next().is_some());
+        let is_field = ir[node.anno].value.is_some() && parent.is_some();
+        let is_kind =
+            isa.is_some_and(|tag| bases(ir, decl, BasePolicy::Tagged(tag)).next().is_some());
         let name = resolver.resolve(node.name).to_owned();
         let file = ir
             .decl_file
@@ -259,8 +273,18 @@ pub fn project<R: NameResolver>(ir: &Ir, resolver: &R) -> Result<Projection, Pro
             DeclKind::Edge => "edge",
             DeclKind::HyperArc => "arc",
         };
-        if let Some(value) = node.anno.value.as_ref().filter(|_| is_field).and_then(|value| convert(value, resolver)) {
-            projection.fields.push(FieldRow { owner: id(node.parent), key: name.clone(), declaration: id(decl), value });
+        if let Some(value) = ir[node.anno]
+            .value
+            .as_ref()
+            .filter(|_| is_field)
+            .and_then(|value| convert(value, resolver))
+        {
+            projection.fields.push(FieldRow {
+                owner: id(node.parent),
+                key: name.clone(),
+                declaration: id(decl),
+                value,
+            });
         }
         for (ordinal, base) in base_refs(ir, decl).iter().enumerate() {
             if base.target().is_none() {
@@ -270,13 +294,25 @@ pub fn project<R: NameResolver>(ir: &Ir, resolver: &R) -> Result<Projection, Pro
                 declaration: id(decl),
                 ordinal: ordinal as u32,
                 base: id(base.target()),
-                isa: isa.is_some_and(|tag| base.atom().anno.tags.contains(&tag)),
+                isa: isa.is_some_and(|tag| {
+                    ir.reference_atom(base)
+                        .expect("model-local base")
+                        .anno
+                        .tags
+                        .contains(&tag)
+                }),
             });
         }
         if !is_field && node.kind != DeclKind::HyperArc {
             let mut fields = Vec::new();
             for (key, binding) in engine.effective_fields(decl) {
-                let Some(value) = ir.decl_node(binding.declaration).and_then(|field| field.anno.value.as_ref()).and_then(|value| convert(value, resolver)) else { continue };
+                let Some(value) = ir
+                    .decl_node(binding.declaration)
+                    .and_then(|field| ir[field.anno].value.as_ref())
+                    .and_then(|value| convert(value, resolver))
+                else {
+                    continue;
+                };
                 projection.effective_fields.push(EffectiveFieldRow {
                     owner: id(decl),
                     key: key.to_owned(),
@@ -293,12 +329,23 @@ pub fn project<R: NameResolver>(ir: &Ir, resolver: &R) -> Result<Projection, Pro
                 instances.push(decl);
             }
         }
-        projection.declarations.push(DeclarationRow { id: id(decl), path: path_of(decl), name, parent, kind, file, is_kind, is_field });
+        projection.declarations.push(DeclarationRow {
+            id: id(decl),
+            path: path_of(decl),
+            name,
+            parent,
+            kind,
+            file,
+            is_kind,
+            is_field,
+        });
     }
 
     for edge in &ir.edges {
         for (arc_ordinal, arc) in edge.arcs.iter().enumerate() {
-            let Some(record) = ir.arcs.get(arc.raw()) else { continue };
+            let Some(record) = ir.arcs.get(arc.raw()) else {
+                continue;
+            };
             for (position, reference) in record.refs.iter().enumerate() {
                 if reference.target().is_none() {
                     continue;
@@ -327,11 +374,31 @@ pub fn project<R: NameResolver>(ir: &Ir, resolver: &R) -> Result<Projection, Pro
             pending.extend(bases(ir, kind, BasePolicy::All));
         }
     }
-    let mut tables = HashSet::from(["declaration", "field", "effective_field", "base", "arc", "kind_table", "kind_column"].map(String::from));
+    let mut tables = HashSet::from(
+        [
+            "declaration",
+            "field",
+            "effective_field",
+            "base",
+            "arc",
+            "kind_table",
+            "kind_column",
+        ]
+        .map(String::from),
+    );
     for (kind, mut rows) in members {
         rows.sort_unstable();
         let decl = DeclId::new(kind as usize);
-        let name = unique(format!("kind_{}", sql_name(ir.decl_node(decl).map_or("", |node| resolver.resolve(node.name)))), &mut tables);
+        let name = unique(
+            format!(
+                "kind_{}",
+                sql_name(
+                    ir.decl_node(decl)
+                        .map_or("", |node| resolver.resolve(node.name))
+                )
+            ),
+            &mut tables,
+        );
         let mut keys: Vec<String> = Vec::new();
         for row in &rows {
             for (key, _) in effective.get(row).into_iter().flatten() {
@@ -348,7 +415,13 @@ pub fn project<R: NameResolver>(ir: &Ir, resolver: &R) -> Result<Projection, Pro
                 KindRow {
                     declaration: row,
                     path: path_of(DeclId::new(row as usize)),
-                    values: keys.iter().map(|key| held.and_then(|fields| fields.iter().find(|(k, _)| k == key)).map(|(_, value)| value.clone())).collect(),
+                    values: keys
+                        .iter()
+                        .map(|key| {
+                            held.and_then(|fields| fields.iter().find(|(k, _)| k == key))
+                                .map(|(_, value)| value.clone())
+                        })
+                        .collect(),
                 }
             })
             .collect();
@@ -365,7 +438,13 @@ pub fn project<R: NameResolver>(ir: &Ir, resolver: &R) -> Result<Projection, Pro
                     .unwrap_or(ColumnType::Text),
             })
             .collect();
-        projection.kinds.push(KindTable { kind, path: path_of(decl), name, columns, rows });
+        projection.kinds.push(KindTable {
+            kind,
+            path: path_of(decl),
+            name,
+            columns,
+            rows,
+        });
     }
     Ok(projection)
 }

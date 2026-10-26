@@ -1,0 +1,12 @@
+pagerank_schema {}
+graph_source { path ""; }
+pagerank_profile {
+    damping 0.85;
+    tolerance 0.0000000001;
+    max_iterations 200;
+    workers 1;
+    ordering "auto";
+    flow "undirected";
+    weights "unit";
+    weight_component 0;
+}

@@ -26,8 +26,9 @@ hymeko_query = { path = "../hymeko_query", optional = true }
 hymeko_sbsh = { workspace = true, optional = true }
 # SE(n) comes from the Tensor pillar's pinned geometric algebra package.
 hymeko_clifford = { workspace = true, optional = true }
+hymeko_tensor = { workspace = true, optional = true }
 # User-approved NURBS owner; dependency-free on native and WASM.
-hymeko_spline = { git = "ssh://git@192.168.1.228:2222/hymeko/tensor.git", rev = "eb65203c7b8bda2b09a8da46e6129af7989a3053", optional = true }
+hymeko_spline = { git = "ssh://git@192.168.1.228:2222/hymeko/tensor.git", rev = "9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7", optional = true }
 log = { workspace = true, optional = true }
 serde = { version = "1", features = ["derive", "rc"] }
 meshopt = { version = "=0.6.2", optional = true }
@@ -36,7 +37,7 @@ meshopt = { version = "=0.6.2", optional = true }
 # Visualization consumers need only mesh/material data; numerical and IR domain
 # projection modules remain enabled by default for all existing consumers.
 default = ["simulation"]
-simulation = ["dep:hymeko_core", "dep:hymeko_query", "dep:hymeko_sbsh", "dep:hymeko_clifford", "dep:hymeko_spline", "dep:log"]
+simulation = ["dep:hymeko_core", "dep:hymeko_query", "dep:hymeko_sbsh", "dep:hymeko_clifford", "dep:hymeko_tensor", "dep:hymeko_spline", "dep:log"]
 mesh-optimization = ["dep:meshopt"]
 
 [dev-dependencies]

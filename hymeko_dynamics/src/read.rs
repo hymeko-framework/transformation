@@ -23,7 +23,7 @@
 use std::collections::HashSet;
 
 use hymeko::common::ids::DeclId;
-use hymeko::ir::ir::{DeclKind, Ir, RefAtomR, SignedRefR, ValueR};
+use hymeko::ir::ir::{DeclKind, Ir, SignedRefR, ValueR};
 use hymeko::resolution::interner::Interner;
 use hymeko_numerics::{Interconnection, Port, PortHamiltonian};
 
@@ -136,10 +136,10 @@ impl Reader<'_> {
 
     fn bases(&self, decl: DeclId) -> &[SignedRefR] {
         if let Some(node) = self.ir.as_node(decl) {
-            return &self.ir.nodes[node.raw()].bases;
+            return &self.ir[self.ir.nodes[node.raw()].bases];
         }
         if let Some(edge) = self.ir.as_edge(decl) {
-            return &self.ir.edges[edge.raw()].bases;
+            return &self.ir[self.ir.edges[edge.raw()].bases];
         }
         &[]
     }
@@ -152,7 +152,7 @@ impl Reader<'_> {
                 continue;
             }
             for base in self.bases(here) {
-                let target = atom(base).target;
+                let target = base.target();
                 if self.name(target) == name {
                     return true;
                 }
@@ -168,7 +168,7 @@ impl Reader<'_> {
         while child.is_some() && guard <= self.ir.decl_nodes.len() {
             let node = &self.ir.decl_nodes[child.raw()];
             if self.it.resolve(node.name) == field {
-                return node.anno.value.as_ref();
+                return self.ir[node.anno].value.as_ref();
             }
             child = node.next_sibling;
             guard += 1;
@@ -222,7 +222,7 @@ impl Reader<'_> {
             .iter()
             .filter(|arc| arc.in_edge == decl)
             .flat_map(|arc| arc.refs.iter())
-            .map(|r| (r, atom(r).target))
+            .map(|r| (r, r.target()))
             .collect()
     }
 
@@ -295,9 +295,9 @@ impl Reader<'_> {
             }
             let at = self.qualified(decl);
             let inc = self.incidences(decl);
-            let plus: Vec<DeclId> = signed(&inc, |r| matches!(r, SignedRefR::Plus(_)));
-            let minus: Vec<DeclId> = signed(&inc, |r| matches!(r, SignedRefR::Minus(_)));
-            let neutral: Vec<DeclId> = signed(&inc, |r| matches!(r, SignedRefR::Neutral(_)));
+            let plus: Vec<DeclId> = signed(&inc, |r| r.sign() == 1);
+            let minus: Vec<DeclId> = signed(&inc, |r| r.sign() == -1);
+            let neutral: Vec<DeclId> = signed(&inc, |r| r.sign() == 0);
 
             let coordinate = |set: &[DeclId], i: usize| -> Result<usize, ReadError> {
                 let target = *set.get(i).ok_or_else(|| ReadError::Arity {
@@ -446,8 +446,8 @@ impl Reader<'_> {
             }
             let at = self.qualified(decl);
             let inc = self.incidences(decl);
-            let plus: Vec<DeclId> = signed(&inc, |r| matches!(r, SignedRefR::Plus(_)));
-            let neutral: Vec<DeclId> = signed(&inc, |r| matches!(r, SignedRefR::Neutral(_)));
+            let plus: Vec<DeclId> = signed(&inc, |r| r.sign() == 1);
+            let neutral: Vec<DeclId> = signed(&inc, |r| r.sign() == 0);
 
             let target = *plus.first().ok_or_else(|| ReadError::Arity {
                 at: at.clone(),
@@ -538,9 +538,9 @@ impl Reader<'_> {
             }
             let at = self.qualified(decl);
             let inc = self.incidences(decl);
-            let plus: Vec<DeclId> = signed(&inc, |r| matches!(r, SignedRefR::Plus(_)));
-            let neutral: Vec<DeclId> = signed(&inc, |r| matches!(r, SignedRefR::Neutral(_)));
-            let minus: Vec<DeclId> = signed(&inc, |r| matches!(r, SignedRefR::Minus(_)));
+            let plus: Vec<DeclId> = signed(&inc, |r| r.sign() == 1);
+            let neutral: Vec<DeclId> = signed(&inc, |r| r.sign() == 0);
+            let minus: Vec<DeclId> = signed(&inc, |r| r.sign() == -1);
 
             let is_supply = self.inherits(decl, "supply");
             if BRANCHES.iter().any(|k| self.inherits(decl, k)) || is_supply {
@@ -805,12 +805,6 @@ fn signed(inc: &[(&SignedRefR, DeclId)], want: impl Fn(&SignedRefR) -> bool) -> 
         .filter(|(r, _)| want(r))
         .map(|(_, d)| *d)
         .collect()
-}
-
-fn atom(r: &SignedRefR) -> &RefAtomR {
-    match r {
-        SignedRefR::Plus(a) | SignedRefR::Minus(a) | SignedRefR::Neutral(a) => a,
-    }
 }
 
 // Shared strict scalar/vector reads for continuum projections.

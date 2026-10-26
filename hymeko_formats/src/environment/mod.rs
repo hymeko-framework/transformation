@@ -1,9 +1,12 @@
 //! Validated environment projections and source conversion over Core snapshots.
 //! Graph owns path and spanning-basis algorithms; Geometry owns collision and FK.
 //! Campaign policy and command-line execution live in the application binary.
+pub mod locomotion;
 pub mod maze;
 pub mod maze_physics;
 mod physical;
+pub mod team;
+pub mod terrain;
 mod visual;
 
 use hymeko::{

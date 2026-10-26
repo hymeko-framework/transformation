@@ -34,9 +34,9 @@ pub enum BaseError {
 
 fn base_refs(ir: &Ir, decl: DeclId) -> &[SignedRefR] {
     if let Some((_, node)) = ir.node_for_decl(decl) {
-        &node.bases
+        &ir[node.bases]
     } else if let Some((_, edge)) = ir.edge_for_decl(decl) {
-        &edge.bases
+        &ir[edge.bases]
     } else {
         &[]
     }
@@ -53,7 +53,12 @@ pub fn bases(
         .iter()
         .filter(move |base| match policy {
             BasePolicy::All => true,
-            BasePolicy::Tagged(tag) => base.atom().anno.tags.contains(&tag),
+            BasePolicy::Tagged(tag) => ir
+                .reference_atom(base)
+                .expect("model-local base")
+                .anno
+                .tags
+                .contains(&tag),
         })
         .map(SignedRefR::target)
         .filter(|target| !target.is_none())
@@ -201,11 +206,18 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
     /// declaration is a kind.
     pub fn isa_tag(&self) -> Option<SymId> {
         let ir = self.ir();
-        let nodes = ir.nodes.iter().flat_map(|node| node.bases.iter());
-        let edges = ir.edges.iter().flat_map(|edge| edge.bases.iter());
+        let nodes = ir.nodes.iter().flat_map(|node| ir[node.bases].iter());
+        let edges = ir.edges.iter().flat_map(|edge| ir[edge.bases].iter());
         nodes
             .chain(edges)
-            .flat_map(|base| base.atom().anno.tags.iter().copied())
+            .flat_map(|base| {
+                ir.reference_atom(base)
+                    .expect("model-local base")
+                    .anno
+                    .tags
+                    .iter()
+                    .copied()
+            })
             .find(|tag| self.resolver().resolve(*tag) == "isa")
     }
 }

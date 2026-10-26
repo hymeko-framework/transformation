@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**13 package(s), 759 public symbol(s).**
+**13 package(s), 772 public symbol(s).**
 
 ## generated (python)
 
@@ -205,6 +205,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `revision` — `hymeko_dynamics/src/diffusion.rs`
 - `revision` — `hymeko_dynamics/src/scenario/session.rs`
 - `run` — `hymeko_dynamics/src/run.rs`
+- `runtime_is` — `hymeko_dynamics/src/scenario/model.rs`
 - `sample` — `hymeko_dynamics/src/field.rs`
 - `sample` — `hymeko_dynamics/src/fluid/grid.rs`
 - `scale` — `hymeko_dynamics/src/analysis.rs`
@@ -249,6 +250,8 @@ docstring are all excluded for a stated reason rather than by luck.
 ### structs
 
 - `Attribute` — `hymeko_emitter/src/editor_ir.rs`
+- `CompilerIrBuilder` — `hymeko_emitter/src/bridge.rs`
+- `EditorIrBuilder` — `hymeko_emitter/src/bridge.rs`
 - `HyMeKoEditorIR` — `hymeko_emitter/src/editor_ir.rs`
 - `HyperEdge` — `hymeko_emitter/src/editor_ir.rs`
 - `Patch` — `hymeko_emitter/src/editor_ir.rs`
@@ -265,13 +268,13 @@ docstring are all excluded for a stated reason rather than by luck.
 ### functions
 
 - `apply` — `hymeko_emitter/src/editor_ir.rs`
+- `build` — `hymeko_emitter/src/bridge.rs`
 - `emit_hymeko` — `hymeko_emitter/src/emit_hymeko.rs`
 - `emit_lean4` — `hymeko_emitter/src/emit_lean4.rs`
 - `emit_rust_stubs` — `hymeko_emitter/src/emit_rust_stubs.rs`
 - `emit_sysml` — `hymeko_emitter/src/emit_sysml.rs`
-- `from_compiler_ir` — `hymeko_emitter/src/bridge.rs`
+- `new` — `hymeko_emitter/src/bridge.rs`
 - `new` — `hymeko_emitter/src/editor_ir.rs`
-- `to_compiler_ir` — `hymeko_emitter/src/bridge.rs`
 
 ## hymeko_formats (rust)
 
@@ -289,6 +292,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `DotTransform` — `hymeko_formats/src/transforms.rs`
 - `Evaluation` — `hymeko_formats/src/environment/mod.rs`
 - `GazeboWorldTransform` — `hymeko_formats/src/transforms.rs`
+- `GraphExecutionSettings` — `hymeko_formats/src/graph_execution.rs`
 - `Layout` — `hymeko_formats/src/environment/mod.rs`
 - `MazeCell` — `hymeko_formats/src/environment/maze.rs`
 - `MazeGeometry` — `hymeko_formats/src/environment/maze.rs`
@@ -299,6 +303,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `MeshPart` — `hymeko_formats/src/mesh.rs`
 - `MjcfTransform` — `hymeko_formats/src/transforms.rs`
 - `NodeDto` — `hymeko_formats/src/snapshot.rs`
+- `PageRankSource` — `hymeko_formats/src/graph_execution.rs`
 - `Point` — `hymeko_formats/src/environment/mod.rs`
 - `Projection` — `hymeko_formats/src/environment/mod.rs`
 - `RelDto` — `hymeko_formats/src/snapshot.rs`
@@ -317,6 +322,7 @@ docstring are all excluded for a stated reason rather than by luck.
 ### enums
 
 - `CodegenError` — `hymeko_formats/src/codegen.rs`
+- `GraphExecutionError` — `hymeko_formats/src/graph_execution.rs`
 - `OutputFormat` — `hymeko_formats/src/codegen.rs`
 - `Profile` — `hymeko_formats/src/environment/maze.rs`
 
@@ -353,7 +359,9 @@ docstring are all excluded for a stated reason rather than by luck.
 - `generate_urdf_from_model` — `hymeko_formats/src/urdf.rs`
 - `geometry` — `hymeko_formats/src/environment/maze/search.rs`
 - `glb` — `hymeko_formats/src/mesh.rs`
+- `graph` — `hymeko_formats/src/graph_execution.rs`
 - `layout` — `hymeko_formats/src/environment/mod.rs`
+- `load` — `hymeko_formats/src/graph_execution.rs`
 - `max_loops` — `hymeko_formats/src/environment/maze.rs`
 - `metadata` — `hymeko_formats/src/robot_projection.rs`
 - `mjcf` — `hymeko_formats/src/robot_projection.rs`
@@ -362,9 +370,12 @@ docstring are all excluded for a stated reason rather than by luck.
 - `new` — `hymeko_formats/src/environment/maze.rs`
 - `new` — `hymeko_formats/src/environment/maze/search.rs`
 - `new` — `hymeko_formats/src/robot_projection.rs`
+- `node_path` — `hymeko_formats/src/graph_execution.rs`
 - `parse` — `hymeko_formats/src/environment/maze.rs`
 - `passages` — `hymeko_formats/src/environment/maze.rs`
+- `prepare` — `hymeko_formats/src/graph_execution.rs`
 - `priority_pairs` — `hymeko_formats/src/environment/maze.rs`
+- `profile` — `hymeko_formats/src/graph_execution.rs`
 - `project` — `hymeko_formats/src/environment/mod.rs`
 - `project` — `hymeko_formats/src/metaheuristic/catalog.rs`
 - `prompt_semantics` — `hymeko_formats/src/metaheuristic/mod.rs`
@@ -373,6 +384,8 @@ docstring are all excluded for a stated reason rather than by luck.
 - `register_defaults` — `hymeko_formats/src/lib.rs`
 - `route_cell_indices` — `hymeko_formats/src/environment/maze.rs`
 - `route_points_m` — `hymeko_formats/src/environment/maze.rs`
+- `run` — `hymeko_formats/src/graph_execution.rs`
+- `settings` — `hymeko_formats/src/graph_execution.rs`
 - `snapshot` — `hymeko_formats/src/snapshot.rs`
 - `snapshot_json` — `hymeko_formats/src/snapshot.rs`
 - `source` — `hymeko_formats/src/environment/mod.rs`

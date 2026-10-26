@@ -93,10 +93,8 @@ pub fn has_tag(it: &Interner, tags: &[SymId], name: &str) -> bool {
     tags.contains(&tid)
 }
 
-pub fn weight0(r: &SignedRefR) -> f64 {
-    let atom = match r {
-        SignedRefR::Plus(a) | SignedRefR::Minus(a) | SignedRefR::Neutral(a) => a,
-    };
+pub fn weight0(ir: &Ir, r: &SignedRefR) -> f64 {
+    let atom = ir.reference_atom(r).unwrap();
 
     // 1) Ha weights: Option<Vec<ValueR>>
     #[allow(unreachable_patterns)]

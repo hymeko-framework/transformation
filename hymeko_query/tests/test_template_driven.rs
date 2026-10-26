@@ -1,6 +1,5 @@
-//! End-to-end registry dispatch for template-backed formats and native MJCF.
-//! Template formats still delegate to Query's template interpreter. MJCF uses
-//! the sole articulated emitter; no second flat-body template is registered.
+//! End-to-end registry dispatch for template-backed diagrams and native robot formats.
+//! URDF, SDF and MJCF share their model emitters with TransformEngine.
 
 #[cfg(test)]
 mod test_template_driven {
@@ -39,9 +38,9 @@ mod test_template_driven {
     // ---- presence / surface ------------------------------------------------
 
     #[test]
-    fn registry_declares_template_backends_and_native_mjcf() {
+    fn registry_declares_template_backends_and_native_robot_formats() {
         let reg = hymeko_formats::default_registry();
-        for name in ["urdf", "sdf", "dot", "gazebo", "mermaid"] {
+        for name in ["dot", "gazebo", "mermaid"] {
             let t = reg.get(name).expect(name);
             assert_eq!(
                 t.template_dir(),
@@ -49,7 +48,9 @@ mod test_template_driven {
                 "{name}.template_dir() should equal its name — that's the subdirectory lookup"
             );
         }
-        assert_eq!(reg.get("mjcf").unwrap().template_dir(), None);
+        for name in ["urdf", "sdf", "mjcf"] {
+            assert_eq!(reg.get(name).unwrap().template_dir(), None);
+        }
     }
 
     #[test]
@@ -69,14 +70,14 @@ mod test_template_driven {
     // ---- per-format renders -----------------------------------------------
 
     #[test]
-    fn urdf_template_renders_robot_header() {
+    fn urdf_dispatch_renders_robot_header() {
         let out = render("urdf", MOVEO, "moveo");
         assert!(out.contains("<robot name=\"moveo\""));
         assert!(out.contains("</robot>"));
     }
 
     #[test]
-    fn urdf_template_renders_each_link() {
+    fn urdf_dispatch_renders_each_link() {
         let out = render("urdf", MOVEO, "moveo");
         for link in ["base_link", "link_0", "link_1", "tool"] {
             assert!(
@@ -87,7 +88,7 @@ mod test_template_driven {
     }
 
     #[test]
-    fn sdf_template_wraps_model() {
+    fn sdf_dispatch_wraps_model() {
         let out = render("sdf", MOVEO, "moveo");
         assert!(out.contains("<sdf version=\"1.7\">") || out.contains("<sdf version=\"1.8\">"));
         assert!(out.contains("<model name=\"moveo\""));

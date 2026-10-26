@@ -9,7 +9,7 @@
 //!
 //! Four kinds of oracle:
 //! 1. **Writer-list proof** (runtime corroboration of the grep finding):
-//!    `bridge::to_compiler_ir` is the sole production *writer*; the four M2T
+//!    `bridge::CompilerIrBuilder::build` is the sole production *writer*; the four M2T
 //!    emitters take `&Ir` and leave every arena length unchanged.
 //! 2. **Accessor equivalence** on a well-formed IR: the total/checked accessors
 //!    (`kind_of`, `parent_of`, `node_for_decl`, `edge_for_decl`) agree with the
@@ -33,7 +33,7 @@ use hymeko::module_store::source_provider::{MemProvider, StdFsProvider};
 use hymeko::resolution::interner::Interner;
 use parser::ast::AstStr;
 
-use hymeko_emitter::bridge::{from_compiler_ir, to_compiler_ir};
+use hymeko_emitter::bridge::{CompilerIrBuilder, EditorIrBuilder, IrBuilder};
 use hymeko_emitter::editor_ir::{HyMeKoEditorIR, HyperEdge, IRDelta, Position, Sign, Vertex};
 use hymeko_emitter::{emit_hymeko, emit_lean4, emit_rust_stubs, emit_sysml};
 
@@ -112,9 +112,11 @@ fn arena_lengths(ir: &Ir) -> (usize, usize, usize, usize) {
 #[test]
 fn bridge_writes_and_the_four_emitters_only_read() {
     let mut interner = Interner::new();
-    let ir = to_compiler_ir(&tiny_editor(), &mut interner);
+    let ir = CompilerIrBuilder::new(&tiny_editor(), &mut interner)
+        .build()
+        .expect("canonical editor construction");
 
-    // `to_compiler_ir` is a writer: it populated the arenas.
+    // `CompilerIrBuilder::build` is a writer: it populated the arenas.
     let before = arena_lengths(&ir);
     assert!(
         before.0 >= 3,
@@ -190,7 +192,9 @@ fn accessor_equivalence_holds_for_every_decl_on_a_real_ir() {
 #[test]
 fn node_for_decl_rejects_a_corrupted_backlink_where_raw_would_mislead() {
     let mut interner = Interner::new();
-    let mut ir = to_compiler_ir(&tiny_editor(), &mut interner);
+    let mut ir = CompilerIrBuilder::new(&tiny_editor(), &mut interner)
+        .build()
+        .expect("canonical editor construction");
 
     // Find the first Node decl.
     let node_did = ir
@@ -226,7 +230,9 @@ fn bridge_built_ir_has_flat_parent_hierarchy() {
     // so every decl has parent == NONE. Locking this so the migration (and a
     // future containment-carrying editor IR) has a tripwire.
     let mut interner = Interner::new();
-    let ir = to_compiler_ir(&tiny_editor(), &mut interner);
+    let ir = CompilerIrBuilder::new(&tiny_editor(), &mut interner)
+        .build()
+        .expect("canonical editor construction");
     for (did, _) in ir.decls() {
         assert_eq!(ir.parent_of(did), None, "bridge output is flat @ {did:?}");
     }
@@ -234,11 +240,13 @@ fn bridge_built_ir_has_flat_parent_hierarchy() {
 
 #[test]
 fn bridge_makes_exactly_one_arc_per_edge() {
-    // `to_compiler_ir` emits one ArcRec per hyperedge (the editor's "one atomic
+    // `CompilerIrBuilder::build` emits one ArcRec per hyperedge (the editor's "one atomic
     // hyperedge per named edge" model). Characterized so a migration that
     // changes arc cardinality is caught.
     let mut interner = Interner::new();
-    let ir = to_compiler_ir(&tiny_editor(), &mut interner);
+    let ir = CompilerIrBuilder::new(&tiny_editor(), &mut interner)
+        .build()
+        .expect("canonical editor construction");
     assert_eq!(ir.edges.len(), 1);
     assert_eq!(ir.edges[0].arcs.len(), 1, "exactly one arc for the edge");
     assert_eq!(ir.arcs.len(), 1);
@@ -382,8 +390,10 @@ fn editor_layout_metadata_survives_roundtrip() {
     });
 
     let mut interner = Interner::new();
-    let arena = to_compiler_ir(&editor, &mut interner);
-    let back = from_compiler_ir(&arena, &interner);
+    let arena = CompilerIrBuilder::new(&editor, &mut interner)
+        .build()
+        .expect("canonical editor construction");
+    let back = EditorIrBuilder::new(&arena, &interner).build();
 
     let va = back
         .vertices

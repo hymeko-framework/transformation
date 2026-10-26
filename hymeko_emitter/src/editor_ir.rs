@@ -65,7 +65,7 @@ pub struct HyperEdge {
     /// Per-arc endpoints: which vertex, with what sign discipline.
     ///
     /// We store the sign alongside the key (unlike the spec) so the
-    /// bridge to `SignedRefR::{Plus,Minus,Neutral}` is lossless.
+    /// bridge to `SignedRefR::sign_kind()` is lossless.
     pub incident: Vec<(VertexKey, Sign)>,
     pub weight: f64,
     pub patch_id: Option<PatchKey>,
