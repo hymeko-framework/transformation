@@ -10,13 +10,16 @@ pub struct RgbaImage {
 }
 
 impl RgbaImage {
-    /// Accepts at most 2048x2048 tightly packed RGBA8 texels; leaves input unchanged.
+    /// Maximum decoded axis for bounded LDR material images (64 MiB RGBA8).
+    pub const MAX_DIMENSION: u32 = 4096;
+
+    /// Accepts at most 4096x4096 tightly packed RGBA8 texels; leaves input unchanged.
     pub fn validate(&self) -> Result<(), String> {
-        if !(1..=2048).contains(&self.width)
-            || !(1..=2048).contains(&self.height)
+        if !(1..=Self::MAX_DIMENSION).contains(&self.width)
+            || !(1..=Self::MAX_DIMENSION).contains(&self.height)
             || self.pixels.len() != self.width as usize * self.height as usize * 4
         {
-            return Err("texture must contain 1..2048 by 1..2048 RGBA8 texels".into());
+            return Err("texture must contain 1..4096 by 1..4096 RGBA8 texels".into());
         }
         Ok(())
     }
@@ -171,7 +174,7 @@ mod tests {
             pixels: vec![255; 4],
         };
         assert!(rgba.validate().is_ok());
-        rgba.width = 2049;
+        rgba.width = 4097;
         assert!(rgba.validate().is_err());
         rgba.width = 1;
         rgba.pixels.pop();
@@ -183,6 +186,31 @@ mod tests {
         material.roughness = 0.;
         material.normal_scale = 4.1;
         assert!(material.validate().is_err());
+    }
+
+    #[test]
+    fn rgba_accepts_four_k_and_keeps_axis_and_payload_bounds() {
+        for (width, height) in [(4096, 1), (1, 4096), (4096, 4096)] {
+            let mut image = RgbaImage {
+                width,
+                height,
+                pixels: vec![127; width as usize * height as usize * 4],
+            };
+            assert!(image.validate().is_ok());
+            image.pixels.pop();
+            assert!(image.validate().is_err());
+        }
+        for (width, height) in [(4097, 1), (1, 4097), (0, 1), (u32::MAX, u32::MAX)] {
+            assert!(
+                RgbaImage {
+                    width,
+                    height,
+                    pixels: vec![]
+                }
+                .validate()
+                .is_err()
+            );
+        }
     }
 
     #[test]
@@ -207,14 +235,31 @@ mod tests {
         let text = serde_json::to_string(&coated).unwrap();
         let back: PbrMaterial = serde_json::from_str(&text).unwrap();
         assert_eq!(
-            (back.clearcoat, back.clearcoat_roughness, back.sheen_color, back.sheen_roughness),
+            (
+                back.clearcoat,
+                back.clearcoat_roughness,
+                back.sheen_color,
+                back.sheen_roughness
+            ),
             (1.0, 0.1, [0.5, 0.4, 0.3], 0.6)
         );
         for broken in [
-            PbrMaterial { clearcoat: 1.5, ..coated.clone() },
-            PbrMaterial { clearcoat_roughness: f32::NAN, ..coated.clone() },
-            PbrMaterial { sheen_color: [0.5, -0.1, 0.3], ..coated.clone() },
-            PbrMaterial { sheen_roughness: 2.0, ..coated },
+            PbrMaterial {
+                clearcoat: 1.5,
+                ..coated.clone()
+            },
+            PbrMaterial {
+                clearcoat_roughness: f32::NAN,
+                ..coated.clone()
+            },
+            PbrMaterial {
+                sheen_color: [0.5, -0.1, 0.3],
+                ..coated.clone()
+            },
+            PbrMaterial {
+                sheen_roughness: 2.0,
+                ..coated
+            },
         ] {
             assert!(broken.validate().is_err());
         }
