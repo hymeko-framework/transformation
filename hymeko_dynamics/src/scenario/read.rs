@@ -25,23 +25,23 @@ impl ScenarioModel {
     }
 }
 
-struct Projection<'a> {
-    reader: Reader<'a>,
+pub(super) struct Projection<'a> {
+    pub(super) reader: Reader<'a>,
 }
 impl Projection<'_> {
-    fn error(&self, id: DeclId, text: &str) -> Refusal {
+    pub(super) fn error(&self, id: DeclId, text: &str) -> Refusal {
         Refusal::new(
             RefusalCode::InvalidModel,
             format!("{}: {text}", self.reader.qualified(id)),
         )
     }
-    fn identity(&self, id: DeclId) -> Identity {
+    pub(super) fn identity(&self, id: DeclId) -> Identity {
         Identity {
             id: id.raw(),
             name: self.reader.qualified(id),
         }
     }
-    fn children(&self, id: DeclId) -> Result<BTreeMap<String, DeclId>, Refusal> {
+    pub(super) fn children(&self, id: DeclId) -> Result<BTreeMap<String, DeclId>, Refusal> {
         let mut children = BTreeMap::new();
         let mut child = self.reader.ir.decl_nodes[id.raw()].first_child;
         while child.is_some() {
@@ -61,7 +61,7 @@ impl Projection<'_> {
         }
         Ok(children)
     }
-    fn fields(&self, id: DeclId, allowed: &[&str]) -> Result<(), Refusal> {
+    pub(super) fn fields(&self, id: DeclId, allowed: &[&str]) -> Result<(), Refusal> {
         for name in self.children(id)?.keys() {
             if !allowed.contains(&name.as_str()) {
                 return Err(self.error(id, &format!("unknown field {name}")));
@@ -86,7 +86,7 @@ impl Projection<'_> {
         result.sort_by_key(|d| d.raw());
         Ok(result)
     }
-    fn text(&self, id: DeclId, name: &str) -> Result<String, Refusal> {
+    pub(super) fn text(&self, id: DeclId, name: &str) -> Result<String, Refusal> {
         match self.reader.field(id, name) {
             Some(ValueR::Str(s)) if self.reader.it.resolve(*s).len() <= 256 => {
                 Ok(self.reader.it.resolve(*s).into())
