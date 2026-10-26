@@ -1,15 +1,22 @@
-//! Inverse kinematics of a serial standard-DH chain by damped least squares.
+//! Inverse kinematics of a serial chain by damped least squares.
 //!
-//! The geometric Jacobian comes straight from the chain [`standard_dh_chain`] already evaluates:
-//! joint `j` turns (or slides) along the z axis of frame `j - 1`, through that frame's origin. So a
-//! target on frame `k` depends on joints `1..=k` only, and every iteration costs one forward pass
-//! and one small (3x3 or 6x6) symmetric solve. Damping keeps the step bounded near singularities
-//! (an aligned wrist, a stretched arm); a step cap and the joint limits bound it further. The solver
-//! never extrapolates beyond the limits and reports what it could not reach instead of failing.
+//! The geometric Jacobian comes straight from one forward pass: a revolute joint turns about its
+//! world axis through a point on it, a prismatic one slides along it. [`SerialChain`] supplies that
+//! pass. A standard-DH chain ([`solve_standard_dh`]) reads joint `j`'s axis as the z axis of frame
+//! `j - 1` from [`standard_dh_chain`], so a target on frame `k` depends on joints `1..=k` only; an
+//! origin/axis [`KinematicModel`] path ([`ModelChain`]) reads it off [`forward_kinematics`]. Every
+//! iteration costs one forward pass and one small (3x3 or 6x6) symmetric solve. Damping keeps the
+//! step bounded near singularities (an aligned wrist, a stretched arm); a step cap and the joint
+//! limits bound it further. The solver never extrapolates beyond the limits and reports what it
+//! could not reach instead of failing.
 use super::dh::{DhChainError, standard_dh_chain};
-use super::joints::{JointEncoding, JointType};
-use crate::{collide::cross, contact::replay::dense::solve_in_place};
+use super::joints::{JointEncoding, JointInfo, JointType};
+use super::kinematic::KinematicModel;
+use crate::forward::{JointValues, forward_kinematics};
+use crate::collide::cross;
+use hymeko_tensor::linalg::dense::damped_least_squares;
 use hymeko_clifford::Se3;
+use std::collections::HashMap;
 
 /// Where frame `frame` (1-based: the child of joint `frame`) should be.
 #[derive(Debug, Clone, Copy)]
@@ -65,6 +72,164 @@ pub enum IkError {
     Coordinates { joints: usize, coordinates: usize },
     /// The target pose or a setting is not finite or not positive where it must be.
     Target,
+    /// Model chain: joint `index` of the request is absent, immovable, repeated, or not on the
+    /// end link's path from the root, in root-to-end order.
+    Path { index: usize },
+    /// Model chain: forward kinematics could not pose the model or the end link.
+    Model,
+}
+
+/// One forward evaluation of a serial chain in base coordinates: for each coordinate, a point on
+/// its joint axis and the axis' unit direction, and the pose of the frame the target constrains.
+#[derive(Debug, Clone, Default)]
+pub struct ChainFrames {
+    pub origins: Vec<[f64; 3]>,
+    pub axes: Vec<[f64; 3]>,
+    pub kinds: Vec<JointType>,
+    pub end_position: [f64; 3],
+    /// Row-major rotation of the constrained frame.
+    pub end_rotation: [f64; 9],
+}
+
+/// A serial chain the damped-least-squares solver drives. `frames` lists the coordinates the
+/// constrained frame depends on, first to last; the solver leaves the remaining ones at their
+/// (clamped) start values.
+pub trait SerialChain {
+    fn coordinates(&self) -> usize;
+    fn frames(&self, q: &[f64], out: &mut ChainFrames) -> Result<(), IkError>;
+}
+
+/// The prefix `1..=frame` of a standard-DH chain.
+struct DhPrefix<'a> {
+    joints: &'a [(JointEncoding, JointType)],
+    frame: usize,
+}
+
+impl SerialChain for DhPrefix<'_> {
+    fn coordinates(&self) -> usize {
+        self.joints.len()
+    }
+    fn frames(&self, q: &[f64], out: &mut ChainFrames) -> Result<(), IkError> {
+        let poses = standard_dh_chain(self.joints, q).map_err(IkError::Chain)?;
+        out.origins.clear();
+        out.axes.clear();
+        out.kinds.clear();
+        for j in 0..self.frame {
+            let frame = matrix(&poses[j]);
+            out.origins.push(poses[j].translation);
+            out.axes.push([frame[2], frame[5], frame[8]]);
+            out.kinds.push(self.joints[j].1);
+        }
+        out.end_position = poses[self.frame].translation;
+        out.end_rotation = matrix(&poses[self.frame]);
+        Ok(())
+    }
+}
+
+/// A root-to-`end` path of an origin/axis [`KinematicModel`], driven by the named movable joints.
+/// Joints off the path, and any not named, stay at zero.
+pub struct ModelChain<'m> {
+    model: &'m KinematicModel,
+    joints: Vec<&'m JointInfo>,
+    end: String,
+}
+
+impl<'m> ModelChain<'m> {
+    /// `joints` must be exactly the movable joints on `end`'s path from the root, in that order.
+    pub fn new(model: &'m KinematicModel, joints: &[&str], end: &str) -> Result<Self, IkError> {
+        Self::from_link(model, None, joints, end)
+    }
+
+    /// A limb below `base` (a floating-base robot's leg from its pelvis): `joints` must be exactly
+    /// the movable joints on `end`'s path from `base`, in that order. Coordinates stay in the
+    /// model root's frame with every joint outside the chain at zero, so a target given relative
+    /// to `base` is composed with `base`'s zero-coordinate pose first.
+    pub fn below(model: &'m KinematicModel, base: &str, joints: &[&str], end: &str) -> Result<Self, IkError> {
+        if !model.links.iter().any(|l| l.name == base) {
+            return Err(IkError::Model);
+        }
+        Self::from_link(model, Some(base), joints, end)
+    }
+
+    /// The movable joints on `end`'s path from `base` (the root when `None`), in root-to-end order.
+    pub fn path_names(model: &'m KinematicModel, base: Option<&str>, end: &str) -> Vec<&'m str> {
+        let by_child: HashMap<&str, &JointInfo> = model.joints.iter().map(|j| (j.child_link.as_str(), j)).collect();
+        let mut names = Vec::new();
+        let mut link = end;
+        while let Some(joint) = by_child.get(link) {
+            if Some(link) == base || names.len() > model.joints.len() {
+                break;
+            }
+            if joint.joint_type != JointType::Fixed {
+                names.push(joint.name.as_str());
+            }
+            link = joint.parent_link.as_str();
+        }
+        names.reverse();
+        names
+    }
+
+    fn from_link(model: &'m KinematicModel, base: Option<&str>, joints: &[&str], end: &str) -> Result<Self, IkError> {
+        let by_child: HashMap<&str, &JointInfo> = model.joints.iter().map(|j| (j.child_link.as_str(), j)).collect();
+        let mut path = Vec::new();
+        let mut link = end;
+        while let Some(joint) = by_child.get(link) {
+            if Some(link) == base {
+                break;
+            }
+            if path.len() > model.joints.len() {
+                return Err(IkError::Path { index: 0 });
+            }
+            if joint.joint_type != JointType::Fixed {
+                path.push(*joint);
+            }
+            link = joint.parent_link.as_str();
+        }
+        path.reverse();
+        if !model.links.iter().any(|l| l.name == end) {
+            return Err(IkError::Model);
+        }
+        for (index, name) in joints.iter().enumerate() {
+            if path.get(index).is_none_or(|j| j.name != *name) {
+                return Err(IkError::Path { index });
+            }
+        }
+        if path.len() != joints.len() {
+            return Err(IkError::Path { index: joints.len() });
+        }
+        Ok(Self { model, joints: path, end: end.to_owned() })
+    }
+}
+
+impl SerialChain for ModelChain<'_> {
+    fn coordinates(&self) -> usize {
+        self.joints.len()
+    }
+    fn frames(&self, q: &[f64], out: &mut ChainFrames) -> Result<(), IkError> {
+        let values: JointValues = self.joints.iter().zip(q).map(|(j, v)| (j.name.clone(), *v)).collect();
+        let poses = forward_kinematics(self.model, &values).map_err(|_| IkError::Model)?;
+        out.origins.clear();
+        out.axes.clear();
+        out.kinds.clear();
+        for joint in &self.joints {
+            // The child frame sits on the joint axis, and turning about the axis leaves it fixed.
+            let child = poses.get(&joint.child_link).ok_or(IkError::Model)?;
+            let r = child.rotation_matrix();
+            let a = joint.axis.unwrap_or([1., 0., 0.]);
+            let length = norm(&a);
+            if !(length > 0.) {
+                return Err(IkError::Model);
+            }
+            let axis = std::array::from_fn(|i| (r[i * 3] * a[0] + r[i * 3 + 1] * a[1] + r[i * 3 + 2] * a[2]) / length);
+            out.origins.push(std::array::from_fn(|i| child.translation[i]));
+            out.axes.push(axis);
+            out.kinds.push(joint.joint_type);
+        }
+        let end = poses.get(&self.end).ok_or(IkError::Model)?;
+        out.end_position = std::array::from_fn(|i| end.translation[i]);
+        out.end_rotation = std::array::from_fn(|i| end.rotation_matrix()[i]);
+        Ok(())
+    }
 }
 
 impl std::fmt::Display for IkError {
@@ -75,6 +240,8 @@ impl std::fmt::Display for IkError {
             Self::Limits { index } => write!(f, "IK limits of joint {index} are invalid"),
             Self::Coordinates { joints, coordinates } => write!(f, "IK chain has {joints} joints but {coordinates} coordinates"),
             Self::Target => write!(f, "IK target and settings must be finite (tolerances, steps and weights positive)"),
+            Self::Path { index } => write!(f, "IK joint {index} is not the next movable joint on the end link's path"),
+            Self::Model => write!(f, "IK forward kinematics could not pose the model or its end link"),
         }
     }
 }
@@ -98,21 +265,39 @@ pub fn solve_standard_dh(
     if target.frame == 0 || target.frame > n {
         return Err(IkError::Frame { frame: target.frame, joints: n });
     }
+    let orientation = target.orientation.then(|| matrix(&target.pose));
+    solve_serial(&DhPrefix { joints, frame: target.frame }, limits, start, &target.pose.translation, orientation.as_ref(), options)
+}
+
+/// Move the chain's coordinates from `start` so its constrained frame reaches `position` (and,
+/// given, the row-major `rotation`), keeping every coordinate within `limits`. The contracts of
+/// [`solve_standard_dh`] apply; it is this solver on a DH prefix.
+pub fn solve_serial<C: SerialChain + ?Sized>(
+    chain: &C,
+    limits: &[[f64; 2]],
+    start: &[f64],
+    position: &[f64; 3],
+    rotation: Option<&[f64; 9]>,
+    options: &IkOptions,
+) -> Result<IkSolution, IkError> {
+    let n = chain.coordinates();
+    if start.len() != n || limits.len() != n {
+        return Err(IkError::Coordinates { joints: n, coordinates: start.len().min(limits.len()) });
+    }
     if let Some(index) = (0..n).find(|&i| limits[i].iter().any(|v| v.is_nan()) || limits[i][0] > limits[i][1] || !start[i].is_finite()) {
         return Err(IkError::Limits { index });
     }
-    let rotation = matrix(&target.pose);
     let positive = [options.orientation_weight, options.damping, options.max_step, options.tolerance[0], options.tolerance[1]];
-    if !target.pose.translation.iter().chain(&rotation).chain(&positive).all(|v| v.is_finite()) || positive.iter().any(|v| *v <= 0.) {
+    if !position.iter().chain(rotation.into_iter().flatten()).chain(&positive).all(|v| v.is_finite()) || positive.iter().any(|v| *v <= 0.) {
         return Err(IkError::Target);
     }
-    let k = target.frame;
-    let rows = if target.orientation { 6 } else { 3 };
+    let rows = if rotation.is_some() { 6 } else { 3 };
     let mut q: Vec<f64> = start.iter().zip(limits).map(|(q, [lo, hi])| q.clamp(*lo, *hi)).collect();
+    let mut frames = ChainFrames::default();
     let mut iterations = 0;
     loop {
-        let poses = standard_dh_chain(joints, &q).map_err(IkError::Chain)?;
-        let (position, orientation) = error(&poses[k], &target.pose.translation, &rotation, target.orientation);
+        chain.frames(&q, &mut frames)?;
+        let (position, orientation) = error(&frames.end_position, &frames.end_rotation, position, rotation);
         let (dp, dr) = (norm(&position), norm(&orientation));
         let converged = dp <= options.tolerance[0] && dr <= options.tolerance[1];
         if converged || iterations == options.iterations {
@@ -122,13 +307,12 @@ pub fn solve_standard_dh(
         // Weighted task error and Jacobian rows: position in metres, orientation scaled to metres.
         let w = options.orientation_weight;
         let e: Vec<f64> = position.iter().copied().chain(orientation.iter().map(|v| v * w)).take(rows).collect();
-        let end = poses[k].translation;
-        let columns: Vec<[f64; 6]> = (0..k)
+        let end = frames.end_position;
+        let columns: Vec<[f64; 6]> = (0..frames.axes.len())
             .map(|j| {
-                let frame = matrix(&poses[j]);
-                let z = [frame[2], frame[5], frame[8]];
-                let origin = poses[j].translation;
-                match joints[j].1 {
+                let z = frames.axes[j];
+                let origin = frames.origins[j];
+                match frames.kinds[j] {
                     JointType::Revolute | JointType::Continuous => {
                         let lever = [end[0] - origin[0], end[1] - origin[1], end[2] - origin[2]];
                         let linear = cross(z, lever);
@@ -139,19 +323,13 @@ pub fn solve_standard_dh(
                 }
             })
             .collect();
-        // (J J^T + lambda^2 I) y = e, then dq = J^T y.
-        let mut a = vec![0.; rows * rows];
-        for r in 0..rows {
-            for c in 0..rows {
-                a[r * rows + c] = columns.iter().map(|col| col[r] * col[c]).sum::<f64>();
-            }
-            a[r * rows + r] += options.damping * options.damping;
-        }
-        let mut y = e;
-        if solve_in_place(&mut a, &mut y, rows).is_none() {
+        // dq = J^T (J J^T + lambda^2 I)^-1 e, the Tensor pillar's damped least squares on the
+        // row-major Jacobian (same operation order as the former inline solve).
+        let jacobian: Vec<f64> = (0..rows).flat_map(|r| columns.iter().map(move |col| col[r])).collect();
+        let mut step = vec![0.; columns.len()];
+        if damped_least_squares(&jacobian, rows, columns.len(), &e, options.damping, &mut step).is_none() {
             return Ok(IkSolution { coordinates: q, position_error_m: dp, orientation_error_rad: dr, iterations, converged: false });
         }
-        let mut step: Vec<f64> = columns.iter().map(|col| (0..rows).map(|r| col[r] * y[r]).sum()).collect();
         let size = norm(&step);
         if size > options.max_step {
             step.iter_mut().for_each(|s| *s *= options.max_step / size);
@@ -169,12 +347,11 @@ fn matrix(pose: &Se3) -> [f64; 9] {
 }
 
 /// Position error and the rotation vector taking the frame's orientation to the target's.
-fn error(frame: &Se3, position: &[f64; 3], rotation: &[f64; 9], orientation: bool) -> ([f64; 3], [f64; 3]) {
-    let p = std::array::from_fn(|i| position[i] - frame.translation[i]);
-    if !orientation {
+fn error(at: &[f64; 3], current: &[f64; 9], position: &[f64; 3], rotation: Option<&[f64; 9]>) -> ([f64; 3], [f64; 3]) {
+    let p = std::array::from_fn(|i| position[i] - at[i]);
+    let Some(rotation) = rotation else {
         return (p, [0.; 3]);
-    }
-    let current = matrix(frame);
+    };
     // R = target * current^T, row-major.
     let r: [f64; 9] = std::array::from_fn(|i| {
         let (row, col) = (i / 3, i % 3);

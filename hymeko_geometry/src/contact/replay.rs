@@ -11,7 +11,9 @@ mod active_set;
 #[cfg(test)]
 mod active_set_tests;
 mod admm;
-pub(crate) mod dense;
+// Dense f64 elimination is the Tensor pillar's (`hymeko_tensor::linalg::dense`, moved there
+// 2026-10-21 without changing an operation); the replay code keeps calling it `dense`.
+pub(crate) use hymeko_tensor::linalg::dense;
 #[cfg(test)]
 mod diagnostics;
 mod local;

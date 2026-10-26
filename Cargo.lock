@@ -529,7 +529,7 @@ dependencies = [
  "blake3",
  "ciborium",
  "crossbeam-queue",
- "hymeko_tensor",
+ "hymeko_tensor 0.1.0 (git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7)",
  "parser",
  "rayon",
  "rustc-hash",
@@ -590,6 +590,7 @@ dependencies = [
  "hymeko_sbsh",
  "hymeko_sources",
  "hymeko_spline",
+ "hymeko_tensor 0.1.0 (git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=d9a8a79f7152fdede8791c0bea5918eba0c3fab9)",
  "log",
  "meshopt",
  "parser",
@@ -667,6 +668,11 @@ source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=9317ecf773d55a0
 name = "hymeko_tensor"
 version = "0.1.0"
 source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7#9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7"
+
+[[package]]
+name = "hymeko_tensor"
+version = "0.1.0"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=d9a8a79f7152fdede8791c0bea5918eba0c3fab9#d9a8a79f7152fdede8791c0bea5918eba0c3fab9"
 
 [[package]]
 name = "hymeko_webxr"
