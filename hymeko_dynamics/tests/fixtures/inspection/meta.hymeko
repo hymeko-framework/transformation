@@ -1,0 +1,7 @@
+inspection_vocabulary {}
+inspection_types {
+    inspection_task {}
+    inspection_station {}
+    inspection_criteria {}
+    inspection_observation {}
+}

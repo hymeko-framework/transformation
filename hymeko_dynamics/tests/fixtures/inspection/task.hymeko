@@ -1,0 +1,97 @@
+inspection_example {
+    @"meta.hymeko";
+    using inspection_types as k;
+    const CYCLES = 4;
+    const VISITS = (3 * CYCLES);
+}
+// Source-to-consumer conformance fixture; these poses are not a checked UR path.
+normal_limits: + <isa> k.inspection_criteria {
+    position_m 0.01;
+    orientation_rad 0.08726646259971647;
+    speed_m_s 0.02;
+    dwell_s 0.5;
+}
+points {
+    a: + <isa> k.inspection_station {
+        position_m [0.1, 0, 0]; quaternion_xyzw [0, 0, 0, 1]; criteria -> normal_limits;
+    }
+    b: + <isa> k.inspection_station {
+        position_m [0, 0.1, 0]; quaternion_xyzw [0, 0, 0, 1]; criteria -> normal_limits;
+    }
+    c: + <isa> k.inspection_station {
+        position_m [0, 0, 0.1]; quaternion_xyzw [0, 0, 0, 1]; criteria -> normal_limits;
+    }
+}
+home_pose: + <isa> k.inspection_station {
+    position_m [0, 0, 0]; quaternion_xyzw [0, 0, 0, 1]; criteria -> normal_limits;
+}
+process {
+    runtime "hymeko-scenario"; timing "untimed"; policy "sourceOrder";
+    resetCause -> causes.operator;
+    causes {
+        completed { label "observed station qualification"; }
+        home { label "observed home qualification"; }
+        missing { label "observation expired"; }
+        operator { label "explicit progress resume"; }
+    }
+    elements {
+        completed { initial 0; capacity (VISITS + 1); }
+        blocked { initial 0; capacity 1; }
+    }
+    transitions {
+        advance {
+            cause -> process.causes.completed;
+            guards {
+                active { target -> process.elements.blocked; op "eq"; value 0; }
+                remaining { target -> process.elements.completed; op "le"; value (VISITS - 1); }
+            }
+            effects { visit { target -> process.elements.completed; op "add"; value 1; } }
+        }
+        finish {
+            cause -> process.causes.home;
+            guards {
+                active { target -> process.elements.blocked; op "eq"; value 0; }
+                all_visits { target -> process.elements.completed; op "eq"; value (VISITS); }
+            }
+            effects { returned { target -> process.elements.completed; op "add"; value 1; } }
+        }
+    }
+    interventions {
+        block {
+            cause -> process.causes.missing;
+            guards { active { target -> process.elements.blocked; op "eq"; value 0; } }
+            effects { block { target -> process.elements.blocked; op "set"; value 1; } }
+        }
+        resume {
+            cause -> process.causes.operator;
+            guards { blocked { target -> process.elements.blocked; op "eq"; value 1; } }
+            effects { resume { target -> process.elements.blocked; op "set"; value 0; } }
+        }
+    }
+    observers {
+        visits { mode "count"; targets []; cause -> process.causes.completed; }
+        returned { mode "count"; targets []; cause -> process.causes.home; }
+    }
+    invariants {
+        bounded_progress { targets [process.elements.completed]; minimum 0; maximum (VISITS + 1); violation "halt"; }
+    }
+}
+inspection: + <isa> k.inspection_task {
+    workflow -> process;
+    output -> observed;
+    completed -> process.elements.completed; blocked -> process.elements.blocked;
+    advance -> process.transitions.advance; finish -> process.transitions.finish;
+    block -> process.interventions.block; resume -> process.interventions.resume;
+    source "gazebo-ur5"; frame "world";
+    cycles (CYCLES); stations [points.a, points.b, points.c]; home -> home_pose;
+    max_gap_s 0.2; expiry_s 0.5;
+}
+// Scalar/reference output projection; sample-present/fresh/valid flags qualify zeros.
+observed: + <isa> k.inspection_observation {
+    phase "missing"; target -> points.a; evaluated_target -> home_pose;
+    target_path ""; evaluated_target_path "";
+    completed_visits 0; required_visits 0; fresh 0; returned_home 0;
+    target_valid 0; evidence_valid 0; qualified 0;
+    position_error_m 0; orientation_error_rad 0; speed_valid 0; speed_m_s 0; dwell_s 0;
+    sample_present 0; sequence_high 0; sequence_low 0; acquired_seconds 0; acquired_nanoseconds 0;
+}
