@@ -1,6 +1,21 @@
 //! Validated indexed surfaces. Visual LODs never replace physical colliders.
 use serde::{Deserialize, Serialize};
 
+/// Native, constrained quad-surface preparation; independent of a renderer.
+pub mod regularize;
+/// Seam-aware smoothing of the existing indexed normal field.
+pub mod normals;
+/// Bounded fairing of shared-position vertices with protected landmarks.
+pub mod fair;
+/// Attribute-preserving triangulation between existing surface boundaries.
+pub mod bridge;
+/// Smooth Catmull--Clark limit samples on a quad control cage.
+pub mod subdivision;
+/// Bounded, transverse union of a closed surface with a convex addition.
+pub mod solid;
+mod topology;
+mod pairing;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MeshLod {
     pub indices: Vec<u32>,

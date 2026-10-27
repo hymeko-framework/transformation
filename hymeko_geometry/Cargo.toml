@@ -31,6 +31,7 @@ hymeko_tensor = { workspace = true, optional = true }
 hymeko_spline = { git = "ssh://git@192.168.1.228:2222/hymeko/tensor.git", rev = "9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7", optional = true }
 log = { workspace = true, optional = true }
 serde = { version = "1", features = ["derive", "rc"] }
+serde_json = "1"
 meshopt = { version = "=0.6.2", optional = true }
 
 [features]
@@ -39,9 +40,11 @@ meshopt = { version = "=0.6.2", optional = true }
 default = ["simulation"]
 simulation = ["dep:hymeko_core", "dep:hymeko_query", "dep:hymeko_sbsh", "dep:hymeko_clifford", "dep:hymeko_tensor", "dep:hymeko_spline", "dep:log"]
 mesh-optimization = ["dep:meshopt"]
+# Canonical authoring-source projection, without pulling simulation engines.
+authoring = ["dep:hymeko_core", "dep:hymeko_query"]
 
 [dev-dependencies]
 parser = { workspace = true }
 hymeko_sources = { path = "../hymeko_sources" }
-# Checks what the material serializes; already locked for hymeko_formats.
-serde_json = "1"
+# Optional offline PNG export example; never enters the library's runtime graph.
+image = { version = "0.25", default-features = false, features = ["png"] }

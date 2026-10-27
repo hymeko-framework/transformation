@@ -312,3 +312,104 @@ with at most 32 material groups. The UR5 export has 20 parts and 95,694 triangle
 COLLADA matrix interpretation follows the Khronos 1.5.1 errata (XML rows, column
 vectors): https://www.khronos.org/files/collada_1_5_1_release_notes.pdf .
 URDF visual-origin semantics: https://docs.ros.org/en/kilted/Tutorials/Intermediate/URDF/Building-a-Visual-Robot-Model-with-URDF-from-Scratch.html .
+
+### Native mesh preparation (2026-10-21)
+
+`hymeko_geometry::mesh::regularize::SurfaceRegularizer` produces real quad
+faces and corner UVs from a triangular source. Quality-ranked local pairing,
+conforming face/edge refinement and bounded tangential relaxation preserve
+protected seams and boundaries. Projection walks connected source faces and
+backs off before folding a quad. The reported source distance is sampled at
+vertices; it is not a Hausdorff bound. This is a local quality-based method,
+not QuadriFlow or a global cross-field optimizer.
+
+`mesh::normals::NormalSmoothing` smooths normals across coincident UV records
+within compatible crease cones without changing geometry or UVs. Texture
+rasterization and anatomical authoring remain the consumer's responsibilities.
+
+```powershell
+cargo build --locked --offline -p hymeko_geometry --no-default-features --features mesh-optimization --release --example surface_prepare
+cargo test --locked --offline -p hymeko_geometry --no-default-features --test mesh_regularization
+```
+
+The `surface_prepare quads|normals INPUT.json OUTPUT.json` authoring example
+accepts a `TriangleMesh`, `RegularizeOptions` and optional `control_lod` (0..3).
+Control reduction uses the existing optional mesh-optimization feature. There
+is no Blender invocation or new runtime dependency. The output contains either
+a `QuadSurface` with its triangulated GPU representation, or the updated mesh.
+
+### Bounded surface boundary joining
+
+`hymeko_geometry::mesh::bridge::BoundaryBridge::indices` triangulates a gap between
+two existing ordered boundaries, including concave rims. It follows source winding,
+retains positions/attributes, caps edge length and work, and excludes triangles
+already present in the source. Rings together are bounded to2048 vertices. The
+`surface_prepare bridge INPUT.json OUTPUT.json` adapter exposes the same operation;
+no geometry algorithm lives in the character consumer. Focused tests cover unequal,
+reversed and concave rings plus invalid inputs. This is not a general solid boolean.
+
+### Closed surface union with a convex addition
+
+`hymeko_geometry::mesh::solid::SurfaceUnion::with_convex` performs a bounded,
+transactional union of two closed, positively oriented surfaces; the addition
+must be convex. It constructs canonical edge/face intersections, partitions
+source faces, reuses the boundary triangulator and retains exterior regions.
+`UnionSurface` carries the resulting `TriangleMesh`, source face IDs and
+`VertexOrigin` barycentric weights for application-owned attributes. Original
+records remain exact; new normal/UV/tangent records are interpolated. LOD0 is
+rebuilt. Output checks use the actual float32 geometric aliases.
+
+This is a targeted authoring operation, not a complete CSG kernel. Inputs must
+already be free of self-intersections; combinatorial validation does not prove
+that precondition. Coplanar, tangential and numerically ambiguous contacts are
+rejected, as are multiple isolated contours within one source triangle. Relative
+contact tolerance, intersection storage, face counts and work are bounded.
+The existing `surface_prepare union INPUT.json OUTPUT.json` adapter accepts
+`mesh`, `addition` and optional `union_options`; it adds no dependency or renderer
+logic. Build with `--no-default-features --features authoring,mesh-optimization`.
+Focused tests: `cargo test --locked --offline -p hymeko_geometry
+--no-default-features --lib mesh::solid::tests`.
+
+# Quad control-surface limit samples
+
+`hymeko_geometry::mesh::subdivision::SubdivisionSurface` evaluates Catmull–Clark
+limits at control-vertex parameter locations on an oriented manifold quad cage.
+Regular vertices follow the bicubic B-spline limit; extraordinary vertices retain
+their valence, boundary curves use the cubic rule with single-face corners fixed.
+The borrowed cage is bounded; disconnected fans and inconsistent winding fail.
+`QuadSurface::source_vertices` retains original-to-control correspondence, including
+UV aliases. `SurfaceFairing::fit_targets` reuses displacement, support and orientation
+guards for a supplied field without running fairing iterations. Seam targets must
+agree, and failures leave the input unchanged. This is an additive local API.
+
+The existing `surface_prepare limit INPUT.json OUTPUT.json` adapter combines these
+owners; build with `--no-default-features --features authoring,mesh-optimization`.
+It returns the quad control cage, limit positions and fitted original triangle mesh.
+
+`SubdivisionSurface::limit_positions_with_fixed_boundary` holds boundary CVs exact
+for clipped fitting patches. Several oriented open fans may meet at a pinned
+corner; malformed winding and a closed fan meeting a boundary remain errors.
+Interior CVs retain the same limit rule. The original `limit_positions` stays
+strictly manifold. `surface_prepare limit` exposes this through the optional
+`fixed_patch_boundary` field; `surface_prepare fair` accepts optional `targets`
+and delegates to the existing bounded, transactional `SurfaceFairing::fit_targets`.
+It is fixed-density authoring, not an arbitrary-(u,v) evaluator or GPU tessellator.
+No new dependency. Reference: https://opensubdiv.org/docs/subdivision_surfaces.html.
+Focused checks: `cargo test --locked --offline -p hymeko_geometry --no-default-features
+--lib mesh::subdivision` and `--test mesh_regularization`.
+## Optional skin optical profile
+
+`PbrMaterial::skin: Option<SkinProfile>` opts a material into the consumer's skin
+shading. `SkinProfile` validates RGB Gaussian diffusion sigma in world metres,
+strength, Beckmann slope scale, IOR, specular scale and skin normal strength. The Gaussian profile is an
+artistic visible-surface approximation, not measured tissue coefficients. When
+present, the existing AO texture's alpha carries the explicit skin mask; its red
+channel retains AO and green multiplies skin specular (white is neutral).
+`roughness` scales the squared mapped perceptual roughness, with neutral default1;
+`normal_scale` defaults to1 and is bounded to0..4. Old serialized materials default to `None`. Renderer resources,
+BRDF evaluation and screen-space filtering remain in Kawamirai.
+The current artist-authored human diffusion default is sigma4.5/2/1mm (RGB),
+strength0.9. Explicitly authored profiles retain their supplied values. This is
+visible-surface diffusion, not measured tissue data or backside transmission.
+Focused checks: `cargo test --locked --offline -p hymeko_geometry
+--no-default-features --lib material::tests`.
