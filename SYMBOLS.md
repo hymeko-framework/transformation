@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**13 package(s), 891 public symbol(s).**
+**13 package(s), 901 public symbol(s).**
 
 ## generated (python)
 
@@ -525,6 +525,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `ModelChain` — `hymeko_geometry/src/kinematics/ik.rs`
 - `NormalSmoothing` — `hymeko_geometry/src/mesh/normals.rs`
 - `Outcome` — `hymeko_geometry/src/contact/replay.rs`
+- `PatchSample` — `hymeko_geometry/src/mesh/spline.rs`
 - `PbrMaterial` — `hymeko_geometry/src/material.rs`
 - `PhysicalProperty` — `hymeko_geometry/src/material/library.rs`
 - `PipelineResult` — `hymeko_geometry/src/pipeline.rs`
@@ -534,11 +535,13 @@ docstring are all excluded for a stated reason rather than by luck.
 - `RadianceImage` — `hymeko_geometry/src/material.rs`
 - `RecipeProject` — `hymeko_geometry/src/pipeline/source.rs`
 - `RegularizeOptions` — `hymeko_geometry/src/mesh/regularize.rs`
+- `ReliefProfile` — `hymeko_geometry/src/material.rs`
 - `Replay` — `hymeko_geometry/src/contact/replay.rs`
 - `RgbaImage` — `hymeko_geometry/src/material.rs`
 - `Settings` — `hymeko_geometry/src/contact/replay.rs`
 - `SkinProfile` — `hymeko_geometry/src/material.rs`
 - `SphericalGravity` — `hymeko_geometry/src/force_field.rs`
+- `SplineSurface` — `hymeko_geometry/src/mesh/spline.rs`
 - `StageReport` — `hymeko_geometry/src/pipeline.rs`
 - `StereoPair` — `hymeko_geometry/src/kinematics/cameras.rs`
 - `SubdivisionSurface` — `hymeko_geometry/src/mesh/subdivision.rs`
@@ -615,6 +618,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `body_joint_hyperedges` — `hymeko_geometry/src/kinematics/tp.rs`
 - `bounding_radius` — `hymeko_geometry/src/collide.rs`
 - `bounds` — `hymeko_geometry/src/mesh.rs`
+- `bounds` — `hymeko_geometry/src/mesh/spline.rs`
 - `builtin` — `hymeko_geometry/src/material/library.rs`
 - `by_extension` — `hymeko_geometry/src/transforms/mod.rs`
 - `colliders_of` — `hymeko_geometry/src/collide.rs`
@@ -650,6 +654,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `from_parameters` — `hymeko_geometry/src/force_field.rs`
 - `get` — `hymeko_geometry/src/forward.rs`
 - `get` — `hymeko_geometry/src/transforms/mod.rs`
+- `grid_size` — `hymeko_geometry/src/mesh/spline.rs`
 - `ground_constraints` — `hymeko_geometry/src/contact.rs`
 - `ground_contacts` — `hymeko_geometry/src/contact.rs`
 - `hints` — `hymeko_geometry/src/mesh/topology.rs`
@@ -659,6 +664,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `impulses` — `hymeko_geometry/src/engine.rs`
 - `inbound_joint` — `hymeko_geometry/src/articulated.rs`
 - `indices` — `hymeko_geometry/src/mesh/bridge.rs`
+- `indices` — `hymeko_geometry/src/mesh/spline.rs`
 - `info` — `hymeko_geometry/src/transforms/mod.rs`
 - `intersects` — `hymeko_geometry/src/collide.rs`
 - `intersects_at` — `hymeko_geometry/src/collide.rs`
@@ -682,6 +688,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `limit_positions` — `hymeko_geometry/src/mesh/subdivision.rs`
 - `limit_positions_with_fixed_boundary` — `hymeko_geometry/src/mesh/subdivision.rs`
 - `links` — `hymeko_geometry/src/articulated.rs`
+- `mesh` — `hymeko_geometry/src/mesh/spline.rs`
 - `message` — `hymeko_geometry/src/two_bone.rs`
 - `model` — `hymeko_geometry/src/engine.rs`
 - `movable` — `hymeko_geometry/src/articulated.rs`
@@ -723,6 +730,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `register` — `hymeko_geometry/src/transforms/mod.rs`
 - `render` — `hymeko_geometry/src/transforms/mod.rs`
 - `render_from_templates` — `hymeko_geometry/src/transforms/mod.rs`
+- `render_mesh` — `hymeko_geometry/src/mesh/spline.rs`
 - `replay` — `hymeko_geometry/src/contact.rs`
 - `reset` — `hymeko_geometry/src/vehicle.rs`
 - `residual` — `hymeko_geometry/src/contact/replay.rs`
@@ -732,6 +740,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `run` — `hymeko_geometry/examples/surface_prepare/pipeline.rs`
 - `run` — `hymeko_geometry/src/pipeline.rs`
 - `sample` — `hymeko_geometry/src/material/procedural.rs`
+- `sample` — `hymeko_geometry/src/mesh/spline.rs`
 - `sample` — `hymeko_geometry/src/track.rs`
 - `samples` — `hymeko_geometry/src/track.rs`
 - `scratch` — `hymeko_geometry/src/articulated.rs`
@@ -764,6 +773,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `validate` — `hymeko_geometry/src/material/procedural.rs`
 - `validate` — `hymeko_geometry/src/mesh.rs`
 - `validate` — `hymeko_geometry/src/mesh/fair.rs`
+- `validate` — `hymeko_geometry/src/mesh/spline.rs`
 - `validate` — `hymeko_geometry/src/pipeline.rs`
 - `validate` — `hymeko_geometry/src/transforms/transform_engine.rs`
 - `warning` — `hymeko_geometry/src/transforms/mod.rs`

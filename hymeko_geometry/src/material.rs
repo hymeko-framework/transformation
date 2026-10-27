@@ -90,6 +90,10 @@ pub struct SkinProfile {
     pub specular: f32,
     /// Multiplier on the existing tangent normal map, only inside the skin mask.
     pub normal_scale: f32,
+    /// RGB attenuation lengths in metres for light-space skin transmission.
+    /// Authored approximation, separate from the visible-surface diffusion radius.
+    pub transmission_distance: [f32; 3],
+    pub transmission_strength: f32,
 }
 impl Default for SkinProfile {
     fn default() -> Self {
@@ -100,6 +104,8 @@ impl Default for SkinProfile {
             ior: 1.4,
             specular: 0.6,
             normal_scale: 1.,
+            transmission_distance: [0.003, 0.0012, 0.00065],
+            transmission_strength: 0.55,
         }
     }
 }
@@ -119,6 +125,9 @@ impl SkinProfile {
             || !(0.0..=1.0).contains(&self.specular)
             || !self.normal_scale.is_finite()
             || !(0.0..=4.0).contains(&self.normal_scale)
+            || self.transmission_distance.iter().any(|v| !v.is_finite() || !(0.00005..=0.02).contains(v))
+            || !self.transmission_strength.is_finite()
+            || !(0.0..=1.0).contains(&self.transmission_strength)
         {
             return Err("invalid bounded skin optical profile".into());
         }
@@ -127,6 +136,25 @@ impl SkinProfile {
 }
 
 /// Opaque metallic/roughness workflow. Slots: base colour, metal/rough, normal, AO, emission.
+/// Signed height is packed into the normal texture's alpha: byte128 is zero,
+/// 255 is +height_m and 1 is -height_m. Existing normal RGB remains unchanged.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReliefProfile {
+    pub height_m: f32,
+    pub tile_m: f32,
+    pub steps: u32,
+}
+impl ReliefProfile {
+    pub fn validate(&self) -> Result<(), String> {
+        if !self.height_m.is_finite() || !(0.0..=0.02).contains(&self.height_m)
+            || !self.tile_m.is_finite() || !(0.001..=100.).contains(&self.tile_m)
+            || self.height_m > self.tile_m * 0.1 || !(8..=64).contains(&self.steps)
+        { return Err("relief requires bounded metre height/tile scale and 8..64 steps".into()); }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PbrMaterial {
@@ -152,6 +180,8 @@ pub struct PbrMaterial {
     /// Opt-in skin shading; opaque compatibility is unchanged when absent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skin: Option<SkinProfile>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub relief: Option<ReliefProfile>,
 }
 
 fn is_zero(value: &f32) -> bool {
@@ -177,6 +207,7 @@ impl Default for PbrMaterial {
             sheen_roughness: 0.0,
             textures: Default::default(),
             skin: None,
+            relief: None,
         }
     }
 }
@@ -186,6 +217,10 @@ impl PbrMaterial {
     pub fn validate(&self) -> Result<(), String> {
         if let Some(skin) = &self.skin {
             skin.validate()?;
+        }
+        if let Some(relief) = &self.relief {
+            relief.validate()?;
+            if self.textures[2].is_none() { return Err("relief requires a normal/height map".into()); }
         }
         let factors = [
             self.metallic,
@@ -219,6 +254,15 @@ impl PbrMaterial {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn relief_profile_rejects_invalid_scale_and_missing_height_data() {
+        let profile=ReliefProfile {height_m:0.005,tile_m:0.5,steps:24};
+        assert!(profile.validate().is_ok());
+        for bad in [ReliefProfile {height_m:f32::NAN,..profile},ReliefProfile {tile_m:0.,..profile},ReliefProfile {steps:65,..profile},ReliefProfile {tile_m:0.01,..profile}] {
+            assert!(bad.validate().is_err());
+        }
+        assert!(PbrMaterial {relief:Some(profile),..Default::default()}.validate().is_err());
+    }
     #[test]
     fn skin_profile_is_opt_in_bounded_and_round_trips() {
         let old: PbrMaterial = serde_json::from_str("{}").unwrap();
@@ -269,6 +313,9 @@ mod tests {
                 normal_scale: 4.01,
                 ..profile
             },
+            SkinProfile { transmission_distance: [0.; 3], ..profile },
+            SkinProfile { transmission_distance: [f32::NAN; 3], ..profile },
+            SkinProfile { transmission_strength: 1.01, ..profile },
         ] {
             assert!(
                 PbrMaterial {

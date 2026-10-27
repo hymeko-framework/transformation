@@ -413,3 +413,21 @@ strength0.9. Explicitly authored profiles retain their supplied values. This is
 visible-surface diffusion, not measured tissue data or backside transmission.
 Focused checks: `cargo test --locked --offline -p hymeko_geometry
 --no-default-features --lib material::tests`.
+
+### Regular control charts and height-aware materials (2026-10-27)
+
+`mesh::spline::SplineSurface` owns a bounded regular bicubic control chart and its
+triangle view. `sample` returns position/normal/tangent; `render_mesh` supplies
+16/8/4/2sampling LODs with sampled error and conservative bounds. `CUBIC_BASIS`
+is the common coefficient source for the native and WGSL evaluators. This is a
+regular surface chart, not arbitrary-knot/rational NURBS or extraordinary patches.
+The existing Tensor `NurbsCurve` remains the generic curve owner; consumer tests
+independently compare the regular chart against that published numerical kernel.
+
+`ReliefProfile` carries bounded metre height/tile scale and traversal steps.
+Procedural baking preserves normal RGB and packs signed height into alpha, with
+`BakedSurface::height_scale_m` retaining its physical interpretation. Material
+library results attach the profile. `SkinProfile` adds authored RGB transmission
+lengths and strength; renderer-side shadow depth supplies the light-path estimate.
+Shader execution, temporal history, screen-space lighting and GPU sampling remain
+in Kawamirai. These asset/view APIs add no physics stepping or collision changes.

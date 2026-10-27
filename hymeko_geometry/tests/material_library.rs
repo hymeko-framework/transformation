@@ -122,6 +122,8 @@ fn height_gradient_matches_normal_direction_scale_and_wrap() {
     for y in 0..size {
         for x in 0..size {
             let i = y * size + x;
+            let decoded_height=(baked.normal.pixels[4*i+3] as f32-128.)/127.*baked.height_scale_m;
+            assert!((decoded_height-baked.height_m[i]).abs()<=baked.height_scale_m/254.+1e-8);
             let h = |x: usize, y: usize| baked.height_m[(y % size) * size + x % size];
             let dx = (h(x + 1, y) - h(x + size - 1, y)) * size as f32 / (2. * tile);
             let dy = (h(x, y + 1) - h(x, y + size - 1)) * size as f32 / (2. * tile);

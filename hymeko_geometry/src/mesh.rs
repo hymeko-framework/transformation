@@ -11,6 +11,8 @@ pub mod fair;
 pub mod bridge;
 /// Smooth Catmull--Clark limit samples on a quad control cage.
 pub mod subdivision;
+/// Regular bicubic control charts and their sampled triangle views.
+pub mod spline;
 /// Bounded, transverse union of a closed surface with a convex addition.
 pub mod solid;
 mod topology;
