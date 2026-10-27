@@ -2,6 +2,11 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+/// Shared authored surface assets and optional nonvisual property metadata.
+pub mod library;
+/// Deterministic, periodic CPU baking into the existing texture contract.
+pub mod procedural;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RgbaImage {
     pub width: u32,
@@ -70,6 +75,57 @@ pub struct TextureMap {
     pub mipmapped: bool,
 }
 
+/// Optional skin optics. Radii are RGB Gaussian standard deviations in world metres,
+/// an artistic visible-surface diffusion profile, not measured tissue coefficients.
+/// With this profile present, AO channels are R=occlusion, G=specular multiplier,
+/// A=explicit skin mask. White G preserves the legacy uniform specular value.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct SkinProfile {
+    pub radius: [f32; 3],
+    pub strength: f32,
+    /// Scale on Beckmann RMS slope: scale * (MR.g * material roughness)^2.
+    pub roughness: f32,
+    pub ior: f32,
+    pub specular: f32,
+    /// Multiplier on the existing tangent normal map, only inside the skin mask.
+    pub normal_scale: f32,
+}
+impl Default for SkinProfile {
+    fn default() -> Self {
+        Self {
+            radius: [0.0045, 0.002, 0.001],
+            strength: 0.9,
+            roughness: 1.0,
+            ior: 1.4,
+            specular: 0.6,
+            normal_scale: 1.,
+        }
+    }
+}
+impl SkinProfile {
+    pub fn validate(&self) -> Result<(), String> {
+        if self
+            .radius
+            .iter()
+            .any(|r| !r.is_finite() || !(0.00001..=0.02).contains(r))
+            || !self.strength.is_finite()
+            || !(0.0..=1.0).contains(&self.strength)
+            || !self.roughness.is_finite()
+            || !(0.1..=1.0).contains(&self.roughness)
+            || !self.ior.is_finite()
+            || !(1.0..=2.0).contains(&self.ior)
+            || !self.specular.is_finite()
+            || !(0.0..=1.0).contains(&self.specular)
+            || !self.normal_scale.is_finite()
+            || !(0.0..=4.0).contains(&self.normal_scale)
+        {
+            return Err("invalid bounded skin optical profile".into());
+        }
+        Ok(())
+    }
+}
+
 /// Opaque metallic/roughness workflow. Slots: base colour, metal/rough, normal, AO, emission.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -93,6 +149,9 @@ pub struct PbrMaterial {
     #[serde(skip_serializing_if = "is_zero")]
     pub sheen_roughness: f32,
     pub textures: [Option<TextureMap>; 5],
+    /// Opt-in skin shading; opaque compatibility is unchanged when absent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skin: Option<SkinProfile>,
 }
 
 fn is_zero(value: &f32) -> bool {
@@ -117,6 +176,7 @@ impl Default for PbrMaterial {
             sheen_color: [0.0; 3],
             sheen_roughness: 0.0,
             textures: Default::default(),
+            skin: None,
         }
     }
 }
@@ -124,6 +184,9 @@ impl Default for PbrMaterial {
 impl PbrMaterial {
     /// Rejects invalid factors/images without modifying the material or shared images.
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(skin) = &self.skin {
+            skin.validate()?;
+        }
         let factors = [
             self.metallic,
             self.roughness,
@@ -156,6 +219,67 @@ impl PbrMaterial {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn skin_profile_is_opt_in_bounded_and_round_trips() {
+        let old: PbrMaterial = serde_json::from_str("{}").unwrap();
+        assert!(old.skin.is_none());
+        assert!(!serde_json::to_string(&old).unwrap().contains("\"skin\""));
+        let profile = SkinProfile::default();
+        assert_eq!(
+            serde_json::from_str::<SkinProfile>("{}")
+                .unwrap()
+                .normal_scale,
+            1.
+        );
+        assert!(profile.validate().is_ok());
+        assert_eq!(
+            serde_json::from_str::<SkinProfile>(&serde_json::to_string(&profile).unwrap()).unwrap(),
+            profile
+        );
+        for bad in [
+            SkinProfile {
+                radius: [f32::NAN, 0.001, 0.001],
+                ..profile
+            },
+            SkinProfile {
+                radius: [0.1; 3],
+                ..profile
+            },
+            SkinProfile {
+                strength: 1.1,
+                ..profile
+            },
+            SkinProfile {
+                ior: 0.9,
+                ..profile
+            },
+            SkinProfile {
+                roughness: 0.,
+                ..profile
+            },
+            SkinProfile {
+                specular: f32::INFINITY,
+                ..profile
+            },
+            SkinProfile {
+                normal_scale: f32::NAN,
+                ..profile
+            },
+            SkinProfile {
+                normal_scale: 4.01,
+                ..profile
+            },
+        ] {
+            assert!(
+                PbrMaterial {
+                    skin: Some(bad),
+                    ..Default::default()
+                }
+                .validate()
+                .is_err()
+            );
+        }
+    }
     #[test]
     fn bounds_and_nonfinite_values_are_rejected_without_clamping() {
         let mut hdr = RadianceImage {
