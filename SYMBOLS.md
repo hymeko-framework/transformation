@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**13 package(s), 903 public symbol(s).**
+**13 package(s), 932 public symbol(s).**
 
 ## generated (python)
 
@@ -44,6 +44,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Connection` — `hymeko_dynamics/src/power.rs`
 - `Controls` — `hymeko_dynamics/src/fluid.rs`
 - `Coordinate` — `hymeko_dynamics/src/system.rs`
+- `Criteria` — `hymeko_dynamics/src/scenario/inspection/model.rs`
 - `Declared` — `hymeko_dynamics/src/system.rs`
 - `DiffusionSystem` — `hymeko_dynamics/src/diffusion.rs`
 - `Drive` — `hymeko_dynamics/src/system.rs`
@@ -53,12 +54,16 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Equation` — `hymeko_dynamics/src/power.rs`
 - `Event` — `hymeko_dynamics/src/scenario/model.rs`
 - `EventLog` — `hymeko_dynamics/src/scenario/model.rs`
+- `Evidence` — `hymeko_dynamics/src/scenario/inspection/model.rs`
 - `Fluid` — `hymeko_dynamics/src/fluid.rs`
 - `Graph` — `hymeko_dynamics/src/kirchhoff.rs`
 - `Guard` — `hymeko_dynamics/src/scenario/model.rs`
 - `GuardEvidence` — `hymeko_dynamics/src/scenario/model.rs`
 - `Hierarchy` — `hymeko_dynamics/src/hierarchy.rs`
 - `Identity` — `hymeko_dynamics/src/scenario/model.rs`
+- `InspectionModel` — `hymeko_dynamics/src/scenario/inspection/model.rs`
+- `InspectionSession` — `hymeko_dynamics/src/scenario/inspection/run.rs`
+- `InspectionSnapshot` — `hymeko_dynamics/src/scenario/inspection/model.rs`
 - `Invariant` — `hymeko_dynamics/src/scenario/model.rs`
 - `InvariantStatus` — `hymeko_dynamics/src/scenario/model.rs`
 - `Laws` — `hymeko_dynamics/src/kirchhoff.rs`
@@ -75,6 +80,8 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Particle` — `hymeko_dynamics/src/softbody.rs`
 - `Port` — `hymeko_dynamics/src/power.rs`
 - `PortSource` — `hymeko_dynamics/src/system.rs`
+- `Pose` — `hymeko_dynamics/src/scenario/inspection/model.rs`
+- `PoseObservation` — `hymeko_dynamics/src/scenario/inspection/model.rs`
 - `PowerGraph` — `hymeko_dynamics/src/power.rs`
 - `PublicPort` — `hymeko_dynamics/src/hierarchy.rs`
 - `Refusal` — `hymeko_dynamics/src/scenario/model.rs`
@@ -86,6 +93,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `SoftBody` — `hymeko_dynamics/src/softbody.rs`
 - `Spring` — `hymeko_dynamics/src/softbody.rs`
 - `State` — `hymeko_dynamics/src/scenario/model.rs`
+- `Station` — `hymeko_dynamics/src/scenario/inspection/model.rs`
 - `Subsystem` — `hymeko_dynamics/src/hierarchy.rs`
 - `Sweep` — `hymeko_dynamics/src/system.rs`
 - `System` — `hymeko_dynamics/src/system.rs`
@@ -101,6 +109,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Comparison` — `hymeko_dynamics/src/scenario/model.rs`
 - `EffectKind` — `hymeko_dynamics/src/scenario/model.rs`
 - `EventAction` — `hymeko_dynamics/src/scenario/model.rs`
+- `InspectionPhase` — `hymeko_dynamics/src/scenario/inspection/model.rs`
 - `Integrator` — `hymeko_dynamics/src/run.rs`
 - `ObserverKind` — `hymeko_dynamics/src/scenario/model.rs`
 - `ReadError` — `hymeko_dynamics/src/read.rs`
@@ -158,6 +167,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `input_at` — `hymeko_dynamics/src/system.rs`
 - `interconnection_graph` — `hymeko_dynamics/src/kirchhoff.rs`
 - `intervene` — `hymeko_dynamics/src/scenario/session.rs`
+- `invalidate` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `is_electric` — `hymeko_dynamics/src/field.rs`
 - `is_linear` — `hymeko_dynamics/src/system.rs`
 - `is_outlet` — `hymeko_dynamics/src/fluid/grid.rs`
@@ -168,10 +178,12 @@ docstring are all excluded for a stated reason rather than by luck.
 - `kirchhoff_residual` — `hymeko_dynamics/src/system.rs`
 - `layered` — `hymeko_dynamics/src/layout.rs`
 - `liquid` — `hymeko_dynamics/src/power/continuum.rs`
+- `log_bytes` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `log_bytes` — `hymeko_dynamics/src/scenario/session.rs`
 - `markers` — `hymeko_dynamics/src/fluid.rs`
 - `mechanical` — `hymeko_dynamics/src/power/mechanical.rs`
 - `mechanism` — `hymeko_dynamics/src/power/mechanical.rs`
+- `model` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `model` — `hymeko_dynamics/src/scenario/session.rs`
 - `modes` — `hymeko_dynamics/src/analysis.rs`
 - `mul` — `hymeko_dynamics/src/analysis.rs`
@@ -179,10 +191,13 @@ docstring are all excluded for a stated reason rather than by luck.
 - `needs_rate` — `hymeko_dynamics/src/system.rs`
 - `new` — `hymeko_dynamics/src/analysis.rs`
 - `new` — `hymeko_dynamics/src/fluid/grid.rs`
+- `new` — `hymeko_dynamics/src/scenario/inspection/read.rs`
 - `normalised_matrix` — `hymeko_dynamics/src/system.rs`
 - `observable_of` — `hymeko_dynamics/src/system.rs`
 - `observation` — `hymeko_dynamics/src/fluid.rs`
+- `observe` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `observe_at` — `hymeko_dynamics/src/system.rs`
+- `open` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `open` — `hymeko_dynamics/src/scenario/session.rs`
 - `parameter_of` — `hymeko_dynamics/src/system.rs`
 - `particles` — `hymeko_dynamics/src/softbody.rs`
@@ -199,9 +214,12 @@ docstring are all excluded for a stated reason rather than by luck.
 - `project_file` — `hymeko_dynamics/src/sources.rs`
 - `project_sources` — `hymeko_dynamics/src/sources.rs`
 - `quantity` — `hymeko_dynamics/src/diffusion.rs`
+- `read` — `hymeko_dynamics/src/scenario/inspection/read.rs`
 - `region_of` — `hymeko_dynamics/src/system.rs`
+- `required_visits` — `hymeko_dynamics/src/scenario/inspection/model.rs`
 - `reset` — `hymeko_dynamics/src/scenario/session.rs`
 - `response` — `hymeko_dynamics/src/analysis.rs`
+- `resume` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `revision` — `hymeko_dynamics/src/diffusion.rs`
 - `revision` — `hymeko_dynamics/src/scenario/session.rs`
 - `run` — `hymeko_dynamics/src/run.rs`
@@ -210,7 +228,9 @@ docstring are all excluded for a stated reason rather than by luck.
 - `sample` — `hymeko_dynamics/src/fluid/grid.rs`
 - `scale` — `hymeko_dynamics/src/analysis.rs`
 - `scene` — `hymeko_dynamics/src/web.rs`
+- `set_log_budget` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `set_log_budget` — `hymeko_dynamics/src/scenario/session.rs`
+- `snapshot` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `snapshot` — `hymeko_dynamics/src/scenario/session/history.rs`
 - `spacing` — `hymeko_dynamics/src/fluid.rs`
 - `span` — `hymeko_dynamics/src/field.rs`
@@ -227,17 +247,22 @@ docstring are all excluded for a stated reason rather than by luck.
 - `sub` — `hymeko_dynamics/src/analysis.rs`
 - `subsystem_balance` — `hymeko_dynamics/src/hierarchy.rs`
 - `system` — `hymeko_dynamics/src/power.rs`
+- `target` — `hymeko_dynamics/src/scenario/inspection/run.rs`
+- `target_at` — `hymeko_dynamics/src/scenario/inspection/model.rs`
+- `tick` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `time` — `hymeko_dynamics/src/diffusion.rs`
 - `time` — `hymeko_dynamics/src/softbody.rs`
 - `to_cbor` — `hymeko_dynamics/src/scenario/wire.rs`
 - `to_json` — `hymeko_dynamics/src/scenario/wire.rs`
 - `transfer` — `hymeko_dynamics/src/fluid/grid.rs`
 - `transient` — `hymeko_dynamics/src/web.rs`
+- `transitions` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `tree` — `hymeko_dynamics/src/diffusion.rs`
 - `tree` — `hymeko_dynamics/src/fluid.rs`
 - `triangles` — `hymeko_dynamics/src/softbody.rs`
 - `validate` — `hymeko_dynamics/src/fluid.rs`
 - `value_of` — `hymeko_dynamics/src/system.rs`
+- `value_updates` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `velocity` — `hymeko_dynamics/src/softbody.rs`
 - `volume` — `hymeko_dynamics/src/field.rs`
 
@@ -622,6 +647,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `bounds` — `hymeko_geometry/src/mesh/spline.rs`
 - `builtin` — `hymeko_geometry/src/material/library.rs`
 - `by_extension` — `hymeko_geometry/src/transforms/mod.rs`
+- `collapse_parallel_axis_offsets` — `hymeko_geometry/src/kinematics/dh.rs`
 - `colliders_of` — `hymeko_geometry/src/collide.rs`
 - `compile` — `hymeko_geometry/src/pipeline/source.rs`
 - `complementarity_residual` — `hymeko_geometry/src/contact.rs`
@@ -891,6 +917,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `FieldBinding` — `hymeko_query/src/fields.rs`
 - `MatchContext` — `hymeko_query/src/rewrite/match_context.rs`
 - `NamedQuery` — `hymeko_query/src/predicate.rs`
+- `ParseError` — `hymeko_query/src/predicate_expr.rs`
 - `QueryCheck` — `hymeko_query/src/checks.rs`
 - `QueryConfig` — `hymeko_query/src/engine.rs`
 - `QueryEngine` — `hymeko_query/src/engine.rs`
@@ -938,6 +965,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `effective_value` — `hymeko_query/src/fields.rs`
 - `emit_split_rewrite` — `hymeko_query/src/rewrite/regen.rs`
 - `execute_transform` — `hymeko_query/src/rewrite/template.rs`
+- `fold` — `hymeko_query/src/predicate.rs`
 - `from_dir` — `hymeko_query/src/rewrite/template.rs`
 - `get_field` — `hymeko_query/src/rewrite/match_context.rs`
 - `has_arc_ref` — `hymeko_query/src/predicate_expr.rs`
@@ -967,6 +995,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `or` — `hymeko_query/src/predicate.rs`
 - `own_child` — `hymeko_query/src/fields.rs`
 - `own_child_where` — `hymeko_query/src/fields.rs`
+- `parse` — `hymeko_query/src/predicate_expr.rs`
 - `parse_template` — `hymeko_query/src/rewrite/template.rs`
 - `positive_bindings` — `hymeko_query/src/rewrite/match_context.rs`
 - `propose_split` — `hymeko_query/src/rewrite/split.rs`
