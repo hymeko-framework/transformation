@@ -8,7 +8,8 @@
 //! iteration costs one forward pass and one small (3x3 or 6x6) symmetric solve. Damping keeps the
 //! step bounded near singularities (an aligned wrist, a stretched arm); a step cap and the joint
 //! limits bound it further. The solver never extrapolates beyond the limits and reports what it
-//! could not reach instead of failing.
+//! could not reach instead of failing. A target may be a region ([`Envelope`]): each iteration
+//! then steers toward the region's pose nearest to the frame, and a frame inside it is reached.
 use super::dh::{DhChainError, standard_dh_chain};
 use super::joints::{JointEncoding, JointInfo, JointType};
 use super::kinematic::KinematicModel;
@@ -17,14 +18,80 @@ use crate::collide::cross;
 use hymeko_tensor::linalg::dense::damped_least_squares;
 use hymeko_clifford::Se3;
 use std::collections::HashMap;
+use std::f64::consts::{FRAC_PI_2, PI};
 
 /// Where frame `frame` (1-based: the child of joint `frame`) should be.
 #[derive(Debug, Clone, Copy)]
 pub struct IkTarget {
     pub frame: usize,
     pub pose: Se3,
-    /// Also match the frame's orientation; otherwise only its origin.
+    /// Also match the frame's orientation; otherwise only its origin, and the envelope's rotations
+    /// do not apply.
     pub orientation: bool,
+    /// How far from `pose` the frame may stay; [`Envelope::POINT`] asks for `pose` itself.
+    pub envelope: Envelope,
+}
+
+/// A target region (a task-space region): `[lower, upper]` bounds per degree of freedom on the
+/// constrained frame's displacement from the target pose. Translations x, y, z are in metres along
+/// the target's own axes; rotations roll, pitch, yaw are in radians, the frame's rotation relative
+/// to the target as fixed-axis x-y-z angles (`Rz(yaw) Ry(pitch) Rx(roll)`), within `[-pi, pi]`,
+/// `[-pi/2, pi/2]` and `[-pi, pi]`. A free spin about the tool axis is `yaw [-pi, pi]`.
+///
+/// The solver aims at the region's pose nearest to the frame, each displacement clamped into its
+/// bounds, so it moves only as far as the region's near edge and a frame already inside stays put.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Envelope {
+    pub bounds: [[f64; 2]; 6],
+}
+
+impl Envelope {
+    /// The target pose itself.
+    pub const POINT: Self = Self { bounds: [[0.; 2]; 6] };
+
+    /// Every bound finite and ordered, the rotations within their ranges; the solver refuses
+    /// ([`IkError::Target`]) an envelope that is not.
+    pub fn is_valid(&self) -> bool {
+        let span = [f64::INFINITY, f64::INFINITY, f64::INFINITY, PI, FRAC_PI_2, PI];
+        self.bounds.iter().zip(span).all(|([lo, hi], limit)| lo.is_finite() && hi.is_finite() && lo <= hi && -limit <= *lo && *hi <= limit)
+    }
+
+    /// The pose within the envelope about `target` (position, row-major rotation) nearest to the
+    /// frame at `at` and `current`; with `orientation` false only its position is bounded.
+    pub fn nearest(&self, position: &[f64; 3], rotation: &[f64; 9], at: &[f64; 3], current: &[f64; 9], orientation: bool) -> ([f64; 3], [f64; 9]) {
+        let clamp = |v: f64, [lo, hi]: [f64; 2]| v.clamp(lo, hi);
+        // Displacements in the target's axes: R^T (at - position) and R^T current.
+        let offset: [f64; 3] = std::array::from_fn(|i| at[i] - position[i]);
+        let local: [f64; 3] = std::array::from_fn(|i| clamp((0..3).map(|m| rotation[m * 3 + i] * offset[m]).sum(), self.bounds[i]));
+        let near = std::array::from_fn(|i| position[i] + (0..3).map(|m| rotation[i * 3 + m] * local[m]).sum::<f64>());
+        if !orientation {
+            return (near, *current);
+        }
+        let d: [f64; 9] = std::array::from_fn(|i| {
+            let (row, col) = (i / 3, i % 3);
+            (0..3).map(|m| rotation[m * 3 + row] * current[m * 3 + col]).sum()
+        });
+        let roll = clamp(d[7].atan2(d[8]), self.bounds[3]);
+        let pitch = clamp((-d[6]).atan2(d[7].hypot(d[8])), self.bounds[4]);
+        let yaw = clamp(d[3].atan2(d[0]), self.bounds[5]);
+        let ((sr, cr), (sp, cp), (sy, cy)) = (roll.sin_cos(), pitch.sin_cos(), yaw.sin_cos());
+        let bounded = [
+            cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr,
+            sy * cp, sy * sp * sr + cy * cr, sy * sp * cr - cy * sr,
+            -sp, cp * sr, cp * cr,
+        ];
+        let turned = std::array::from_fn(|i| {
+            let (row, col) = (i / 3, i % 3);
+            (0..3).map(|m| rotation[row * 3 + m] * bounded[m * 3 + col]).sum()
+        });
+        (near, turned)
+    }
+}
+
+impl Default for Envelope {
+    fn default() -> Self {
+        Self::POINT
+    }
 }
 
 /// Solver settings; [`IkOptions::ARM`] (the [`Default`]) suits arm-sized chains in metres and
@@ -50,7 +117,7 @@ impl Default for IkOptions {
     }
 }
 
-/// The coordinates reached and how far from the target they leave the frame.
+/// The coordinates reached and how far from the target (its envelope) they leave the frame.
 #[derive(Debug, Clone, PartialEq)]
 pub struct IkSolution {
     pub coordinates: Vec<f64>,
@@ -70,7 +137,8 @@ pub enum IkError {
     /// Limits must pair `lower <= upper` for every joint, starts must be finite.
     Limits { index: usize },
     Coordinates { joints: usize, coordinates: usize },
-    /// The target pose or a setting is not finite or not positive where it must be.
+    /// The target pose or a setting is not finite or not positive where it must be, or the
+    /// envelope's bounds are not ordered within their ranges.
     Target,
     /// Model chain: joint `index` of the request is absent, immovable, repeated, or not on the
     /// end link's path from the root, in root-to-end order.
@@ -265,8 +333,13 @@ pub fn solve_standard_dh(
     if target.frame == 0 || target.frame > n {
         return Err(IkError::Frame { frame: target.frame, joints: n });
     }
-    let orientation = target.orientation.then(|| matrix(&target.pose));
-    solve_serial(&DhPrefix { joints, frame: target.frame }, limits, start, &target.pose.translation, orientation.as_ref(), options)
+    let frame = matrix(&target.pose);
+    let goal = Goal {
+        position: target.pose.translation,
+        rotation: target.orientation.then_some(frame),
+        envelope: (target.envelope != Envelope::POINT).then_some((target.envelope, frame)),
+    };
+    solve(&DhPrefix { joints, frame: target.frame }, limits, start, &goal, options)
 }
 
 /// Move the chain's coordinates from `start` so its constrained frame reaches `position` (and,
@@ -280,6 +353,40 @@ pub fn solve_serial<C: SerialChain + ?Sized>(
     rotation: Option<&[f64; 9]>,
     options: &IkOptions,
 ) -> Result<IkSolution, IkError> {
+    solve(chain, limits, start, &Goal { position: *position, rotation: rotation.copied(), envelope: None }, options)
+}
+
+/// A target pose, or with an envelope (and the target's rotation it is laid along) a region.
+struct Goal {
+    position: [f64; 3],
+    rotation: Option<[f64; 9]>,
+    envelope: Option<(Envelope, [f64; 9])>,
+}
+
+impl Goal {
+    /// Position error and rotation vector from the frame to the target, or to the region's pose
+    /// nearest to the frame.
+    fn error(&self, at: &[f64; 3], current: &[f64; 9]) -> ([f64; 3], [f64; 3]) {
+        let Some((envelope, rotation)) = &self.envelope else {
+            return error(at, current, &self.position, self.rotation.as_ref());
+        };
+        let (position, nearest) = envelope.nearest(&self.position, rotation, at, current, self.rotation.is_some());
+        error(at, current, &position, self.rotation.is_some().then_some(&nearest))
+    }
+
+    fn valid(&self) -> bool {
+        let region = self.envelope.as_ref().is_none_or(|(envelope, rotation)| envelope.is_valid() && rotation.iter().all(|v| v.is_finite()));
+        region && self.position.iter().chain(self.rotation.iter().flatten()).all(|v| v.is_finite())
+    }
+}
+
+fn solve<C: SerialChain + ?Sized>(
+    chain: &C,
+    limits: &[[f64; 2]],
+    start: &[f64],
+    goal: &Goal,
+    options: &IkOptions,
+) -> Result<IkSolution, IkError> {
     let n = chain.coordinates();
     if start.len() != n || limits.len() != n {
         return Err(IkError::Coordinates { joints: n, coordinates: start.len().min(limits.len()) });
@@ -288,16 +395,16 @@ pub fn solve_serial<C: SerialChain + ?Sized>(
         return Err(IkError::Limits { index });
     }
     let positive = [options.orientation_weight, options.damping, options.max_step, options.tolerance[0], options.tolerance[1]];
-    if !position.iter().chain(rotation.into_iter().flatten()).chain(&positive).all(|v| v.is_finite()) || positive.iter().any(|v| *v <= 0.) {
+    if !goal.valid() || !positive.iter().all(|v| v.is_finite()) || positive.iter().any(|v| *v <= 0.) {
         return Err(IkError::Target);
     }
-    let rows = if rotation.is_some() { 6 } else { 3 };
+    let rows = if goal.rotation.is_some() { 6 } else { 3 };
     let mut q: Vec<f64> = start.iter().zip(limits).map(|(q, [lo, hi])| q.clamp(*lo, *hi)).collect();
     let mut frames = ChainFrames::default();
     let mut iterations = 0;
     loop {
         chain.frames(&q, &mut frames)?;
-        let (position, orientation) = error(&frames.end_position, &frames.end_rotation, position, rotation);
+        let (position, orientation) = goal.error(&frames.end_position, &frames.end_rotation);
         let (dp, dr) = (norm(&position), norm(&orientation));
         let converged = dp <= options.tolerance[0] && dr <= options.tolerance[1];
         if converged || iterations == options.iterations {

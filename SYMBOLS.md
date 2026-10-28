@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**13 package(s), 942 public symbol(s).**
+**13 package(s), 945 public symbol(s).**
 
 ## generated (python)
 
@@ -525,6 +525,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Diagnostic` — `hymeko_geometry/src/transforms/mod.rs`
 - `DriveCommand` — `hymeko_geometry/src/vehicle.rs`
 - `Engine` — `hymeko_geometry/src/engine.rs`
+- `Envelope` — `hymeko_geometry/src/kinematics/ik.rs`
 - `EyeProfile` — `hymeko_geometry/src/material.rs`
 - `FaceOrigin` — `hymeko_geometry/src/mesh/solid.rs`
 - `FairOptions` — `hymeko_geometry/src/mesh/fair.rs`
@@ -706,6 +707,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `is_empty` — `hymeko_geometry/src/forward.rs`
 - `is_empty` — `hymeko_geometry/src/kinematics/playout.rs`
 - `is_error` — `hymeko_geometry/src/transforms/mod.rs`
+- `is_valid` — `hymeko_geometry/src/kinematics/ik.rs`
 - `iter` — `hymeko_geometry/src/forward.rs`
 - `joint_motion` — `hymeko_geometry/src/forward.rs`
 - `joint_motion_se3` — `hymeko_geometry/src/forward.rs`
@@ -726,6 +728,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `message` — `hymeko_geometry/src/two_bone.rs`
 - `model` — `hymeko_geometry/src/engine.rs`
 - `movable` — `hymeko_geometry/src/articulated.rs`
+- `nearest` — `hymeko_geometry/src/kinematics/ik.rs`
 - `new` — `hymeko_geometry/src/articulated.rs`
 - `new` — `hymeko_geometry/src/collide.rs`
 - `new` — `hymeko_geometry/src/contact.rs`
