@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**13 package(s), 932 public symbol(s).**
+**13 package(s), 942 public symbol(s).**
 
 ## generated (python)
 
@@ -541,6 +541,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `IkTarget` — `hymeko_geometry/src/kinematics/ik.rs`
 - `JointInfo` — `hymeko_geometry/src/kinematics/joints.rs`
 - `JointLimits` — `hymeko_geometry/src/kinematics/joints.rs`
+- `JointPlayout` — `hymeko_geometry/src/kinematics/playout.rs`
 - `JointTopology` — `hymeko_geometry/src/kinematics/joints.rs`
 - `KinematicModel` — `hymeko_geometry/src/kinematics/kinematic.rs`
 - `LinearDrive` — `hymeko_geometry/src/kinematics/actuation.rs`
@@ -620,6 +621,8 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Method` — `hymeko_geometry/src/contact/replay.rs`
 - `ModelKind` — `hymeko_geometry/src/transforms/model_view.rs`
 - `ModelView` — `hymeko_geometry/src/transforms/model_view.rs`
+- `Playout` — `hymeko_geometry/src/kinematics/playout.rs`
+- `PlayoutError` — `hymeko_geometry/src/kinematics/playout.rs`
 - `SurfacePattern` — `hymeko_geometry/src/material/procedural.rs`
 - `TextureWrap` — `hymeko_geometry/src/material.rs`
 - `TwoBoneError` — `hymeko_geometry/src/two_bone.rs`
@@ -647,6 +650,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `bounds` — `hymeko_geometry/src/mesh/spline.rs`
 - `builtin` — `hymeko_geometry/src/material/library.rs`
 - `by_extension` — `hymeko_geometry/src/transforms/mod.rs`
+- `clear` — `hymeko_geometry/src/kinematics/playout.rs`
 - `collapse_parallel_axis_offsets` — `hymeko_geometry/src/kinematics/dh.rs`
 - `colliders_of` — `hymeko_geometry/src/collide.rs`
 - `compile` — `hymeko_geometry/src/pipeline/source.rs`
@@ -655,6 +659,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `constraint_force` — `hymeko_geometry/src/articulated.rs`
 - `contact_problem` — `hymeko_geometry/src/engine.rs`
 - `contacts` — `hymeko_geometry/src/engine.rs`
+- `controller_time` — `hymeko_geometry/src/kinematics/playout.rs`
 - `delassus` — `hymeko_geometry/src/contact.rs`
 - `dynamics` — `hymeko_geometry/src/engine.rs`
 - `emit_all` — `hymeko_geometry/src/transforms/mod.rs`
@@ -699,6 +704,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `inverse_dynamics` — `hymeko_geometry/src/articulated.rs`
 - `is_complete` — `hymeko_geometry/src/kinematics/gazebo_plugins.rs`
 - `is_empty` — `hymeko_geometry/src/forward.rs`
+- `is_empty` — `hymeko_geometry/src/kinematics/playout.rs`
 - `is_error` — `hymeko_geometry/src/transforms/mod.rs`
 - `iter` — `hymeko_geometry/src/forward.rs`
 - `joint_motion` — `hymeko_geometry/src/forward.rs`
@@ -710,6 +716,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `kinematics_parent` — `hymeko_geometry/src/articulated.rs`
 - `kinetic_energy_by_link` — `hymeko_geometry/src/articulated.rs`
 - `len` — `hymeko_geometry/src/forward.rs`
+- `len` — `hymeko_geometry/src/kinematics/playout.rs`
 - `length` — `hymeko_geometry/src/track.rs`
 - `lengths` — `hymeko_geometry/src/two_bone.rs`
 - `limit_positions` — `hymeko_geometry/src/mesh/subdivision.rs`
@@ -726,6 +733,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `new` — `hymeko_geometry/src/engine.rs`
 - `new` — `hymeko_geometry/src/forward.rs`
 - `new` — `hymeko_geometry/src/kinematics/ik.rs`
+- `new` — `hymeko_geometry/src/kinematics/playout.rs`
 - `new` — `hymeko_geometry/src/mesh/pairing.rs`
 - `new` — `hymeko_geometry/src/mesh/regularize.rs`
 - `new` — `hymeko_geometry/src/mesh/subdivision.rs`
@@ -752,6 +760,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `project` — `hymeko_geometry/src/mesh/topology.rs`
 - `project` — `hymeko_geometry/src/pipeline/source.rs`
 - `project` — `hymeko_geometry/src/track.rs`
+- `push` — `hymeko_geometry/src/kinematics/playout.rs`
 - `reach` — `hymeko_geometry/src/articulated.rs`
 - `reach` — `hymeko_geometry/src/two_bone.rs`
 - `regime_counts` — `hymeko_geometry/src/engine.rs`
@@ -767,6 +776,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `root` — `hymeko_geometry/src/forward.rs`
 - `run` — `hymeko_geometry/examples/surface_prepare/pipeline.rs`
 - `run` — `hymeko_geometry/src/pipeline.rs`
+- `sample` — `hymeko_geometry/src/kinematics/playout.rs`
 - `sample` — `hymeko_geometry/src/material/procedural.rs`
 - `sample` — `hymeko_geometry/src/mesh/spline.rs`
 - `sample` — `hymeko_geometry/src/track.rs`

@@ -5,5 +5,6 @@ pub mod gazebo_plugins;
 pub mod ik;
 pub mod joints;
 pub mod kinematic;
+pub mod playout;
 pub mod tp;
 pub mod visual;
