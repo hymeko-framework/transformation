@@ -198,7 +198,7 @@ fn distance(a: [f64; 3], b: [f64; 3]) -> f64 {
 }
 
 #[test]
-fn collapse_returns_chains_without_offsets_in_parallel_runs_as_they_were() {
+fn collapse_returns_nominal_chains_and_authored_parallel_offsets_as_they_were() {
     let nominal = ur5e(&NOMINAL);
     let mut collapsed = nominal.clone();
     collapse_parallel_axis_offsets(&mut collapsed);
@@ -208,11 +208,13 @@ fn collapse_returns_chains_without_offsets_in_parallel_runs_as_they_were() {
             close(&axis(after, i), &axis(before, i));
         }
     }
+    // Exactly parallel axes with an authored offset: the author placed the common normal.
     let planar = [
-        dh(0.3, 0., 1., 0., JointType::Revolute),
-        dh(-0.2, 0., 0.5, 0., JointType::Revolute),
+        dh(0.3, 0.1, 1., 0., JointType::Revolute),
+        dh(-0.2, 0.25, 0.5, 0., JointType::Revolute),
+        dh(0., 0., 0.2, 0., JointType::Revolute),
     ];
-    let poses = standard_dh_chain(&planar, &[0.1, 0.4]).unwrap();
+    let poses = standard_dh_chain(&planar, &[0.1, 0.4, -0.3]).unwrap();
     let mut collapsed = poses.clone();
     collapse_parallel_axis_offsets(&mut collapsed);
     for (before, after) in poses.iter().zip(&collapsed) {

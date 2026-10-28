@@ -79,29 +79,30 @@ pub fn standard_dh_chain(
     Ok(poses)
 }
 
-/// Consecutive joint axes at least this close to parallel (about 1.1°) form a parallel run in
-/// [`collapse_parallel_axis_offsets`]: a calibration tilts them by milliradians, a designed
-/// skew by far more.
+/// Consecutive joint axes at least this close to parallel (about 1.1°), but not exactly
+/// parallel, are collapsed by [`collapse_parallel_axis_offsets`]: a calibration tilts them
+/// by milliradians, a designed skew by far more.
 pub const PARALLEL_AXES_COS: f64 = 0.9998;
 
 /// Where the joints of a [`standard_dh_chain`] result physically are, when consecutive joint
-/// axes are nearly parallel.
+/// axes are nearly but not exactly parallel.
 ///
 /// Standard DH puts frame `k` where the common normal of joint axes `k` and `k + 1` meets
-/// axis `k + 1`. For two nearly parallel axes that point lies arbitrarily far away: a
-/// controller's calibrated DH (Universal Robots' among them) carries metre-scale `d` offsets
-/// on its parallel shoulder, elbow and wrist axes, and `theta` offsets, that cancel along
-/// the chain. The chain stays exact on every axis line and at its end, but its intermediate
+/// axis `k + 1`. For exactly parallel axes that normal is free and the author's `d` places
+/// it. For two nearly parallel axes it is forced arbitrarily far away: a controller's
+/// calibrated DH (Universal Robots' among them) carries metre-scale `d` offsets on its
+/// parallel shoulder, elbow and wrist axes, and `theta` offsets, that cancel along the
+/// chain. The chain stays exact on every axis line and at its end, but its intermediate
 /// frames lie far from the joints they belong to.
 ///
 /// Every joint frame `k` in `1..poses.len() - 1` (the end frame is never moved) whose z
-/// axis is within [`PARALLEL_AXES_COS`] of frame `k - 1`'s slides along its own z axis onto
-/// the plane through the already placed frame `k - 1` origin normal to that frame's z axis.
-/// It then turns about its z axis so that x points along the link from that origin again,
-/// with the sign of the DH `a` it was built with. Axis lines, z axes and every frame outside a
-/// parallel run are unchanged. A chain whose `d` offsets inside each parallel run are zero,
-/// such as nominal UR DH, comes back as it was. The `d` offsets of a parallel run collect at
-/// its last frame.
+/// axis is within [`PARALLEL_AXES_COS`] of frame `k - 1`'s, and not parallel to it to 1e-12,
+/// slides along its own z axis onto the plane through the already placed frame `k - 1`
+/// origin normal to that frame's z axis. It then turns about its z axis so that x points
+/// along the link from that origin again, with the sign of the DH `a` it was built with.
+/// Axis lines, z axes and every other frame are unchanged, so a nominal chain (exactly
+/// parallel axes, the author's `d`) comes back as it was. The cancelling `d` offsets of a
+/// collapsed run collect at its last frame.
 ///
 /// Kinematics (FK, IK, Jacobians) keep the chain as evaluated; this is where its joints are.
 pub fn collapse_parallel_axis_offsets(poses: &mut [Se3]) {
@@ -121,7 +122,7 @@ pub fn collapse_parallel_axis_offsets(poses: &mut [Se3]) {
         let (previous, pose) = (poses[k - 1], poses[k]);
         let (axis, z) = (previous.rotate(&Z), pose.rotate(&Z));
         let cos = dot(axis, z);
-        if cos.abs() < PARALLEL_AXES_COS {
+        if cos.abs() < PARALLEL_AXES_COS || 1. - cos.abs() <= 1e-12 {
             continue;
         }
         let base = previous.translation;
