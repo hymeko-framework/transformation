@@ -431,3 +431,13 @@ library results attach the profile. `SkinProfile` adds authored RGB transmission
 lengths and strength; renderer-side shadow depth supplies the light-path estimate.
 Shader execution, temporal history, screen-space lighting and GPU sampling remain
 in Kawamirai. These asset/view APIs add no physics stepping or collision changes.
+
+### Ocular material projection (2026-10-28)
+
+`EyeProfile` carries bounded corneal IOR,roughness,virtual iris depth and bind-space
+radius. `PbrMaterial.eye_iris` optionally carries two registered iris tiles.
+`ocular_atlas` packs immutable base/iris images with filter guards for consumers
+that retain a fixed texture-binding budget. Matching clamped samplers and bounded
+packed dimensions are validated. Existing materials omit these fields unchanged.
+Eye identity/pose and WGSL light transport remain the renderer's responsibility;
+this data API introduces no rendering backend or physics integration dependency.

@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**13 package(s), 901 public symbol(s).**
+**13 package(s), 903 public symbol(s).**
 
 ## generated (python)
 
@@ -500,6 +500,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Diagnostic` — `hymeko_geometry/src/transforms/mod.rs`
 - `DriveCommand` — `hymeko_geometry/src/vehicle.rs`
 - `Engine` — `hymeko_geometry/src/engine.rs`
+- `EyeProfile` — `hymeko_geometry/src/material.rs`
 - `FaceOrigin` — `hymeko_geometry/src/mesh/solid.rs`
 - `FairOptions` — `hymeko_geometry/src/mesh/fair.rs`
 - `FairReport` — `hymeko_geometry/src/mesh/fair.rs`
@@ -706,6 +707,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `new` — `hymeko_geometry/src/transforms/mod.rs`
 - `new` — `hymeko_geometry/src/two_bone.rs`
 - `new` — `hymeko_geometry/src/vehicle.rs`
+- `ocular_atlas` — `hymeko_geometry/src/material.rs`
 - `of` — `hymeko_geometry/src/collide.rs`
 - `offset` — `hymeko_geometry/src/track.rs`
 - `optimize` — `hymeko_geometry/src/mesh.rs`

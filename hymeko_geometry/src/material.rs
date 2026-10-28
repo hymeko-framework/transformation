@@ -135,6 +135,31 @@ impl SkinProfile {
     }
 }
 
+/// Thin ocular coating above a virtual iris plane. Distances are in metres.
+/// Renderer-owned facial bindings select ocular vertices; other surfaces retain PBR.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct EyeProfile {
+    pub ior: f32,
+    pub roughness: f32,
+    pub iris_depth: f32,
+    /// Radius in authored skin bind coordinates, in metres.
+    pub iris_radius: f32,
+}
+impl Default for EyeProfile {
+    fn default() -> Self { Self { ior: 1.376, roughness: 0.055, iris_depth: 0.002, iris_radius:0.00648 } }
+}
+impl EyeProfile {
+    pub fn validate(&self) -> Result<(), String> {
+        if !self.ior.is_finite() || !(1.0..=1.6).contains(&self.ior)
+            || !self.roughness.is_finite() || !(0.025..=0.35).contains(&self.roughness)
+            || !self.iris_depth.is_finite() || !(0.0..=0.006).contains(&self.iris_depth)
+            || !self.iris_radius.is_finite() || !(0.003..=0.009).contains(&self.iris_radius)
+        { return Err("eye coating requires bounded IOR, roughness and 0..6mm iris depth".into()); }
+        Ok(())
+    }
+}
+
 /// Opaque metallic/roughness workflow. Slots: base colour, metal/rough, normal, AO, emission.
 /// Signed height is packed into the normal texture's alpha: byte128 is zero,
 /// 255 is +height_m and 1 is -height_m. Existing normal RGB remains unchanged.
@@ -181,6 +206,11 @@ pub struct PbrMaterial {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skin: Option<SkinProfile>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub eye: Option<EyeProfile>,
+    /// Optional two-square iris atlas (left eye, right eye), sampled as sRGB.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eye_iris: Option<TextureMap>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub relief: Option<ReliefProfile>,
 }
 
@@ -207,6 +237,8 @@ impl Default for PbrMaterial {
             sheen_roughness: 0.0,
             textures: Default::default(),
             skin: None,
+            eye: None,
+            eye_iris: None,
             relief: None,
         }
     }
@@ -217,6 +249,21 @@ impl PbrMaterial {
     pub fn validate(&self) -> Result<(), String> {
         if let Some(skin) = &self.skin {
             skin.validate()?;
+        }
+        if let Some(eye) = &self.eye { eye.validate()?; }
+        if let Some(map)=&self.eye_iris {
+            map.image.validate()?;
+            if self.eye.is_none() || map.image.width!=map.image.height*2 {
+                return Err("iris atlas requires an eye profile and two square tiles".into());
+            }
+            let base=self.textures[0].as_ref().ok_or("iris atlas requires a clamped base-colour texture")?;
+            if base.wrap.iter().chain(map.wrap.iter()).any(|w|!matches!(w,TextureWrap::Clamp))
+                || base.mag_linear!=map.mag_linear || base.min_linear!=map.min_linear
+                || base.mip_linear!=map.mip_linear || base.mipmapped!=map.mipmapped
+                || base.image.width<map.image.width
+                || base.image.height as u64+map.image.height as u64+32>8192 {
+                return Err("ocular packing requires clamped wide-enough base colour and height <=8192".into());
+            }
         }
         if let Some(relief) = &self.relief {
             relief.validate()?;
@@ -249,11 +296,63 @@ impl PbrMaterial {
         }
         Ok(())
     }
+
+    /// Pack the iris below base colour with filter guards; original images remain immutable.
+    /// The renderer remaps only albedo UVs, retaining the standard material texture budget.
+    pub fn ocular_atlas(&self) -> Result<Option<RgbaImage>,String> {
+        self.validate()?;
+        let Some(iris)=&self.eye_iris else {return Ok(None)};
+        let base=&self.textures[0].as_ref().unwrap().image;
+        let width=base.width as usize;let height=base.height as usize+iris.image.height as usize+32;
+        let mut pixels=Vec::with_capacity(width*height*4);
+        for y in 0..height {
+            if y<base.height as usize+8 {
+                let row=y.min(base.height as usize-1)*width*4;
+                pixels.extend_from_slice(&base.pixels[row..row+width*4]);
+            } else {
+                let row=y.saturating_sub(base.height as usize+16).min(iris.image.height as usize-1)*iris.image.width as usize*4;
+                for x in 0..width {
+                    let at=row+x.min(iris.image.width as usize-1)*4;
+                    pixels.extend_from_slice(&iris.image.pixels[at..at+4]);
+                }
+            }
+        }
+        Ok(Some(RgbaImage {width:width as u32,height:height as u32,pixels}))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ocular_atlas_preserves_base_and_pads_registered_tiles() {
+        let map = |width,height,pixels| TextureMap {image:Arc::new(RgbaImage {width,height,pixels}),
+            wrap:[TextureWrap::Clamp;2],mag_linear:true,min_linear:true,mip_linear:true,mipmapped:true};
+        let original=[20,40,60,255].repeat(8);
+        let mut material=PbrMaterial {eye:Some(EyeProfile::default()),..Default::default()};
+        material.textures[0]=Some(map(4,2,original.clone()));
+        material.eye_iris=Some(map(4,2,[100,0,0,255,100,0,0,255,0,0,100,255,0,0,100,255].repeat(2)));
+        let packed=material.ocular_atlas().unwrap().unwrap();
+        assert_eq!((packed.width,packed.height),(4,36));
+        assert_eq!(&packed.pixels[..32],&original);
+        assert_eq!(&packed.pixels[18*16..20*16],&material.eye_iris.as_ref().unwrap().image.pixels);
+        assert_eq!(material.textures[0].as_ref().unwrap().image.pixels,original);
+        assert!(PbrMaterial {eye:None,..material.clone()}.validate().is_err());
+        material.eye_iris.as_mut().unwrap().wrap=[TextureWrap::Repeat;2];
+        assert!(material.validate().is_err());
+    }
+    #[test]
+    fn ocular_profile_is_optional_bounded_and_round_trips() {
+        assert!(serde_json::from_str::<PbrMaterial>("{}").unwrap().eye.is_none());
+        let profile=EyeProfile::default();
+        assert_eq!(serde_json::from_str::<EyeProfile>("{}").unwrap(),profile);
+        assert_eq!(serde_json::from_str::<EyeProfile>(&serde_json::to_string(&profile).unwrap()).unwrap(),profile);
+        for bad in [EyeProfile {ior:f32::NAN,..profile},EyeProfile {ior:0.9,..profile},
+            EyeProfile {roughness:0.,..profile},EyeProfile {iris_depth:0.007,..profile}] {
+            assert!(PbrMaterial {eye:Some(bad),..Default::default()}.validate().is_err());
+        }
+        assert!(PbrMaterial {eye:Some(EyeProfile {iris_depth:0.,..profile}),..Default::default()}.validate().is_ok());
+    }
     #[test]
     fn relief_profile_rejects_invalid_scale_and_missing_height_data() {
         let profile=ReliefProfile {height_m:0.005,tile_m:0.5,steps:24};
