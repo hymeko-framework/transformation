@@ -74,6 +74,9 @@ impl SurfaceMaterial {
             let baked =
                 recipe.bake(size, self.tile_m, appearance.roughness, appearance.metallic)?;
             appearance.textures = baked.textures();
+            appearance.relief = (recipe.height_m > 0.).then_some(super::ReliefProfile {
+                height_m: baked.height_scale_m, tile_m: self.tile_m, steps: 24,
+            });
             // The MR map contains absolute factors, not factors to multiply twice.
             appearance.roughness = 1.;
             appearance.metallic = 1.;

@@ -40,6 +40,8 @@ pub struct BakedSurface {
     pub normal: Arc<RgbaImage>,
     /// Row-major metre heights, matching the texel centres of all three maps.
     pub height_m: Vec<f32>,
+    /// Metre amplitude represented by a signed unit in normal-map alpha.
+    pub height_scale_m: f32,
 }
 
 impl BakedSurface {
@@ -133,6 +135,7 @@ impl SurfaceRecipe {
                 heights.push(sample.height_m);
             }
         }
+        let height_scale_m=heights.iter().map(|h|h.abs()).fold(self.height_m,f32::max);
         let mut normal = Vec::with_capacity(count * 4);
         let n = size as usize;
         for y in 0..n {
@@ -147,7 +150,8 @@ impl SurfaceRecipe {
                 normal.extend(
                     [-dx / length, -dy / length, 1. / length].map(|v| unorm(v * 0.5 + 0.5)),
                 );
-                normal.push(255);
+                let signed = heights[y*n+x] / height_scale_m.max(1e-12);
+                normal.push(if height_scale_m==0. {255} else {(128. + 127.*signed.clamp(-1.,1.)).round() as u8});
             }
         }
         let image = |pixels| {
@@ -162,6 +166,7 @@ impl SurfaceRecipe {
             metal_rough: image(mr),
             normal: image(normal),
             height_m: heights,
+            height_scale_m,
         })
     }
 

@@ -41,7 +41,11 @@ meshopt = { version = "=0.6.2", optional = true }
 default = ["simulation"]
 simulation = ["dep:hymeko_core", "dep:hymeko_query", "dep:hymeko_sbsh", "dep:hymeko_clifford", "dep:hymeko_tensor", "dep:hymeko_spline", "dep:log"]
 mesh-optimization = ["dep:meshopt"]
+# Canonical authoring-source projection, without pulling simulation engines.
+authoring = ["dep:hymeko_core", "dep:hymeko_query"]
 
 [dev-dependencies]
 parser = { workspace = true }
 hymeko_sources = { path = "../hymeko_sources" }
+# Optional offline PNG export example; never enters the library's runtime graph.
+image = { version = "0.25", default-features = false, features = ["png"] }

@@ -40,6 +40,8 @@ pub mod engine;
 pub mod forward;
 pub mod mesh;
 pub mod material;
+/// HyMeKo-authored, bounded geometry processing recipes and surface execution.
+pub mod pipeline;
 /// Analytic two-bone limb IK, dependency-free (no `simulation` feature needed).
 pub mod two_bone;
 #[cfg(feature = "simulation")]
