@@ -11,6 +11,8 @@ use hymeko::ir::ir::{Ir, ValueR};
 use hymeko_query::traits::NameResolver;
 use hymeko_query::{Predicate, QueryEngine};
 
+pub mod scope;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GeometryShape {
     Box,

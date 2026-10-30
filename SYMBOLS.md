@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**13 package(s), 903 public symbol(s).**
+**13 package(s), 926 public symbol(s).**
 
 ## generated (python)
 
@@ -506,6 +506,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `FairReport` — `hymeko_geometry/src/mesh/fair.rs`
 - `FkPlan` — `hymeko_geometry/src/forward.rs`
 - `ForceField` — `hymeko_geometry/src/force_field.rs`
+- `FrameAttachment` — `hymeko_geometry/src/kinematics/assembly/attachments.rs`
 - `GazeboPluginInfo` — `hymeko_geometry/src/kinematics/gazebo_plugins.rs`
 - `GeometryInfo` — `hymeko_geometry/src/kinematics/kinematic.rs`
 - `GeometryRecipe` — `hymeko_geometry/src/pipeline.rs`
@@ -517,6 +518,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `JointInfo` — `hymeko_geometry/src/kinematics/joints.rs`
 - `JointLimits` — `hymeko_geometry/src/kinematics/joints.rs`
 - `JointTopology` — `hymeko_geometry/src/kinematics/joints.rs`
+- `KinematicAssembly` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `KinematicModel` — `hymeko_geometry/src/kinematics/kinematic.rs`
 - `LinearDrive` — `hymeko_geometry/src/kinematics/actuation.rs`
 - `LinkInfo` — `hymeko_geometry/src/kinematics/kinematic.rs`
@@ -575,6 +577,7 @@ docstring are all excluded for a stated reason rather than by luck.
 
 ### enums
 
+- `AssemblyError` — `hymeko_geometry/src/kinematics/assembly/error.rs`
 - `BoundaryMode` — `hymeko_geometry/src/mesh/fair.rs`
 - `Convex` — `hymeko_geometry/src/collide.rs`
 - `DhChainError` — `hymeko_geometry/src/kinematics/dh.rs`
@@ -595,6 +598,8 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Method` — `hymeko_geometry/src/contact/replay.rs`
 - `ModelKind` — `hymeko_geometry/src/transforms/model_view.rs`
 - `ModelView` — `hymeko_geometry/src/transforms/model_view.rs`
+- `ScopedModelError` — `hymeko_geometry/src/kinematics/kinematic/scope.rs`
+- `StateError` — `hymeko_geometry/src/kinematics/assembly/error.rs`
 - `SurfacePattern` — `hymeko_geometry/src/material/procedural.rs`
 - `TextureWrap` — `hymeko_geometry/src/material.rs`
 - `TwoBoneError` — `hymeko_geometry/src/two_bone.rs`
@@ -607,9 +612,12 @@ docstring are all excluded for a stated reason rather than by luck.
 - `advance` — `hymeko_geometry/src/engine.rs`
 - `apply` — `hymeko_geometry/src/mesh/fair.rs`
 - `apply` — `hymeko_geometry/src/mesh/normals.rs`
+- `apply_values` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `apply_weighted` — `hymeko_geometry/src/mesh/fair.rs`
 - `armature` — `hymeko_geometry/src/articulated.rs`
 - `as_kinematic` — `hymeko_geometry/src/transforms/model_view.rs`
+- `attachment_pose` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
+- `attachments` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `available` — `hymeko_geometry/src/transforms/mod.rs`
 - `bake` — `hymeko_geometry/src/material/library.rs`
 - `bake` — `hymeko_geometry/src/material/procedural.rs`
@@ -622,6 +630,8 @@ docstring are all excluded for a stated reason rather than by luck.
 - `bounds` — `hymeko_geometry/src/mesh/spline.rs`
 - `builtin` — `hymeko_geometry/src/material/library.rs`
 - `by_extension` — `hymeko_geometry/src/transforms/mod.rs`
+- `collider_placements` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
+- `colliders` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `colliders_of` — `hymeko_geometry/src/collide.rs`
 - `compile` — `hymeko_geometry/src/pipeline/source.rs`
 - `complementarity_residual` — `hymeko_geometry/src/contact.rs`
@@ -629,6 +639,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `constraint_force` — `hymeko_geometry/src/articulated.rs`
 - `contact_problem` — `hymeko_geometry/src/engine.rs`
 - `contacts` — `hymeko_geometry/src/engine.rs`
+- `coordinates` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `delassus` — `hymeko_geometry/src/contact.rs`
 - `dynamics` — `hymeko_geometry/src/engine.rs`
 - `emit_all` — `hymeko_geometry/src/transforms/mod.rs`
@@ -653,6 +664,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `from_ir` — `hymeko_geometry/src/track.rs`
 - `from_json` — `hymeko_geometry/src/material/library.rs`
 - `from_parameters` — `hymeko_geometry/src/force_field.rs`
+- `from_scope` — `hymeko_geometry/src/kinematics/kinematic/scope.rs`
 - `get` — `hymeko_geometry/src/forward.rs`
 - `get` — `hymeko_geometry/src/transforms/mod.rs`
 - `grid_size` — `hymeko_geometry/src/mesh/spline.rs`
@@ -675,6 +687,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `is_empty` — `hymeko_geometry/src/forward.rs`
 - `is_error` — `hymeko_geometry/src/transforms/mod.rs`
 - `iter` — `hymeko_geometry/src/forward.rs`
+- `joint_index` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `joint_motion` — `hymeko_geometry/src/forward.rs`
 - `joint_motion_se3` — `hymeko_geometry/src/forward.rs`
 - `joint_origin` — `hymeko_geometry/src/forward.rs`
@@ -688,10 +701,12 @@ docstring are all excluded for a stated reason rather than by luck.
 - `lengths` — `hymeko_geometry/src/two_bone.rs`
 - `limit_positions` — `hymeko_geometry/src/mesh/subdivision.rs`
 - `limit_positions_with_fixed_boundary` — `hymeko_geometry/src/mesh/subdivision.rs`
+- `link_pose` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `links` — `hymeko_geometry/src/articulated.rs`
 - `mesh` — `hymeko_geometry/src/mesh/spline.rs`
 - `message` — `hymeko_geometry/src/two_bone.rs`
 - `model` — `hymeko_geometry/src/engine.rs`
+- `model` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `movable` — `hymeko_geometry/src/articulated.rs`
 - `new` — `hymeko_geometry/src/articulated.rs`
 - `new` — `hymeko_geometry/src/collide.rs`
@@ -728,6 +743,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `project` — `hymeko_geometry/src/track.rs`
 - `reach` — `hymeko_geometry/src/articulated.rs`
 - `reach` — `hymeko_geometry/src/two_bone.rs`
+- `read` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `regime_counts` — `hymeko_geometry/src/engine.rs`
 - `register` — `hymeko_geometry/src/transforms/mod.rs`
 - `render` — `hymeko_geometry/src/transforms/mod.rs`
@@ -745,9 +761,11 @@ docstring are all excluded for a stated reason rather than by luck.
 - `sample` — `hymeko_geometry/src/mesh/spline.rs`
 - `sample` — `hymeko_geometry/src/track.rs`
 - `samples` — `hymeko_geometry/src/track.rs`
+- `scope` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `scratch` — `hymeko_geometry/src/articulated.rs`
 - `sdf_str` — `hymeko_geometry/src/kinematics/joints.rs`
 - `set_armature` — `hymeko_geometry/src/articulated.rs`
+- `set_state` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `slot` — `hymeko_geometry/src/forward.rs`
 - `slots` — `hymeko_geometry/src/articulated.rs`
 - `solve` — `hymeko_geometry/src/contact.rs`
@@ -778,6 +796,8 @@ docstring are all excluded for a stated reason rather than by luck.
 - `validate` — `hymeko_geometry/src/mesh/spline.rs`
 - `validate` — `hymeko_geometry/src/pipeline.rs`
 - `validate` — `hymeko_geometry/src/transforms/transform_engine.rs`
+- `visual_poses` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
+- `visuals` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `warning` — `hymeko_geometry/src/transforms/mod.rs`
 - `with_convex` — `hymeko_geometry/src/mesh/solid.rs`
 - `with_name` — `hymeko_geometry/src/transforms/mod.rs`
@@ -910,6 +930,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `FieldValue` — `hymeko_query/src/rewrite/match_context.rs`
 - `MatchExpectation` — `hymeko_query/src/checks.rs`
 - `Predicate` — `hymeko_query/src/predicate.rs`
+- `ScopeError` — `hymeko_query/src/engine/scope.rs`
 - `ScopeMode` — `hymeko_query/src/rewrite/template.rs`
 - `TransformSpecError` — `hymeko_query/src/rewrite/template.rs`
 - `ValuePredicate` — `hymeko_query/src/predicate.rs`
@@ -981,6 +1002,8 @@ docstring are all excluded for a stated reason rather than by luck.
 - `render` — `hymeko_query/src/rewrite/template.rs`
 - `resolve_field_decl` — `hymeko_query/src/rewrite/match_context.rs`
 - `resolver` — `hymeko_query/src/engine.rs`
+- `scope_root` — `hymeko_query/src/engine/scope.rs`
+- `scoped` — `hymeko_query/src/engine/scope.rs`
 - `tagged` — `hymeko_query/src/predicate.rs`
 - `to_template_string` — `hymeko_query/src/rewrite/match_context.rs`
 

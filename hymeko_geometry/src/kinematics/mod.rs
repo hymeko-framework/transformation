@@ -1,4 +1,5 @@
 pub mod actuation;
+pub mod assembly;
 pub mod cameras;
 pub mod dh;
 pub mod gazebo_plugins;

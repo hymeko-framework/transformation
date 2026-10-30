@@ -2,6 +2,50 @@
 
 The HyMeKo IR→output (transformation) layer — a standalone cargo workspace.
 
+## Retained mechanism bindings
+
+`hymeko_geometry::kinematics::assembly::KinematicAssembly` binds one authored group
+by canonical `DeclId`. It reuses the existing `KinematicModel`, `FkPlan`, `VisualSet`
+and collision projection. A robot arm, hinged door and linear slider use the same
+API; local names may repeat across groups. Namespace ancestry selects membership;
+signed joint incidences define topology. Outside parent frames are allowed as
+anchors, while references to another group's body are refused.
+
+Bind once with `KinematicAssembly::read(&query, group_id)`. Supply observations
+through `set_state(coordinates, root_se3)` or `apply_values(updates)`, then borrow
+`visual_poses()`, `collider_placements()` and `attachment_pose(frame_id)`. All derive
+from the same accepted link frames. A failed sample leaves the previous accepted
+state intact; repeated checkpoint coordinates retain root placement. Position
+limits do not clamp measured observations. The host admits the source/model basis
+and recreates bindings after structural changes; numeric updates do not edit IR.
+
+Optional joint `coordinate -> leaf` fields bind scalar radians/metres; use
+`joint_index(DeclId)` for producer vector bindings. Unbound coordinates start at
+zero, including fixed joints. A group's `attachment_kind` names an explicit edge
+kind such as `kinematics.elements.frame_attachment`; instances bind `(+ body,
+- frame)` with local `origin` in metres and `rpy_deg`. These are oriented tool or
+sensor reference frames, distinct from force application points and physical
+attachment constraints. Visual and physical geometry remain separate projections.
+
+`QueryEngine::scoped(root)` is the underlying borrowed, root-inclusive selection.
+Predicates retain their full IR context, so shared imported vocabulary and axes
+remain resolvable. The legacy global model extractor keeps its behavior; use
+`KinematicModel::from_scope` for isolated mechanisms.
+
+The [three-mechanism fixture](hymeko_geometry/tests/fixtures/assembly/room.hymeko)
+tests common placement, numeric updates, visual/collider offsets, attached tool
+frames, canonical identity isolation and refused inputs:
+
+```powershell
+cargo test --offline --locked -p hymeko_geometry --test assembly
+cargo test --offline --locked -p hymeko_query --lib engine::scope::tests::
+```
+
+This is the geometry provider contract. XR renderer composition and the existing
+UR-specific DH/controller adapter have not been migrated to this facade.
+
+## Packages
+
 - **`hymeko_emitter/`** — editor IR (slotmap, `IRDelta`) + M2T emitters (`.hymeko`, SysML v2, Rust stubs, Lean 4)
 - **`hymeko_query/`** — pattern-matching query engine over the hypergraph IR
 - **`hymeko_formats/`** — built-in format emitters (URDF / SDF / MJCF / DOT / Mermaid / Gazebo world) — a query plugin
