@@ -230,6 +230,26 @@ fn exact_integer(value: f64) -> bool {
 }
 
 impl PoseSample {
+    /// Encode the same validated numeric layout read by `read`. Optional quality is a pair.
+    pub fn to_values(&self) -> Result<Vec<f64>, PoseSampleError> {
+        if self.epoch > EXACT_INTEGER as u64 || self.sequence > EXACT_INTEGER as u64 {
+            return Err(PoseSampleError::Identity);
+        }
+        let mut values = vec![self.epoch as f64, self.sequence as f64, f64::from(self.valid)];
+        values.extend(self.position_m);
+        values.extend(self.orientation_wxyz);
+        match (self.confidence, self.observed_ms) {
+            (None, None) => {},
+            (Some(confidence), Some(time)) if time <= EXACT_INTEGER as u64 => values.extend([confidence, time as f64]),
+            _ => return Err(PoseSampleError::Quality),
+        }
+        Self::from_values(&values)?;
+        Ok(values)
+    }
+    /// Encode an IR numeric list through the same validated layout.
+    pub fn to_value(&self) -> Result<ValueR, PoseSampleError> {
+        Ok(ValueR::List(self.to_values()?.into_iter().map(ValueR::Num).collect()))
+    }
     /// Read a sample from its numbers.
     pub fn from_values(v: &[f64]) -> Result<Self, PoseSampleError> {
         if !matches!(v.len(), 10 | 12) {
@@ -277,6 +297,23 @@ impl PoseSample {
             *out = *n;
         }
         Self::from_values(&numbers[..items.len()])
+    }
+}
+
+#[cfg(test)]
+mod sample_encoding {
+    use super::*;
+    #[test]
+    fn writer_round_trips_both_layouts_and_rejects_lossy_identity_and_partial_quality() {
+        let mut sample = PoseSample::from_values(&[1.,2.,1.,0.2,0.,0.,1.,0.,0.,0.]).unwrap();
+        assert_eq!(PoseSample::read(&sample.to_value().unwrap()).unwrap(), sample);
+        assert_eq!(PoseSample::from_values(&sample.to_values().unwrap()).unwrap(), sample);
+        sample.confidence = Some(0.75);
+        assert_eq!(sample.to_value(), Err(PoseSampleError::Quality));
+        sample.observed_ms = Some(1790000000000);
+        assert_eq!(PoseSample::read(&sample.to_value().unwrap()).unwrap(), sample);
+        sample.sequence = 9_007_199_254_740_993;
+        assert_eq!(sample.to_value(), Err(PoseSampleError::Identity));
     }
 }
 

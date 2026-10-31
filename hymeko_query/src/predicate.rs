@@ -11,6 +11,8 @@ pub enum ValuePredicate {
     NumLte(f64),
     /// Exact string match.
     StrEq(String),
+    /// Case- and accent-insensitive substring match ([`fold`] on both sides).
+    StrContains(String),
     /// Match any value (used for existence checks).
     Any,
 }
@@ -24,13 +26,14 @@ impl ValuePredicate {
             Self::NumGte(t) => v >= *t,
             Self::NumLte(t) => v <= *t,
             Self::Any => true,
-            Self::StrEq(_) => false,
+            Self::StrEq(_) | Self::StrContains(_) => false,
         }
     }
 
     pub fn matches_str(&self, s: &str) -> bool {
         match self {
             Self::StrEq(t) => s == t,
+            Self::StrContains(t) => fold(s).contains(&fold(t)),
             Self::Any => true,
             _ => false,
         }
@@ -69,6 +72,14 @@ pub enum Predicate {
     Named(String),
     /// Match by resolved name prefix.
     NamePrefix(String),
+    /// Case- and accent-insensitive substring of the resolved name ([`fold`]).
+    NameContains(String),
+    /// The declaration's first declared base is named `name` (the base it is "a kind of").
+    FirstBase(String),
+    /// The declaration is named `name` or transitively inherits a base so named, at any
+    /// depth. Unlike [`Self::InheritsFrom`] it includes the declaration itself and has no
+    /// depth bound; cycles are visited once.
+    IsA(String),
     /// Match element that transitively inherits from `base_name`.
     InheritsFrom(String),
     /// Match inheritance of this exact declaration in the borrowed IR document.
@@ -76,10 +87,15 @@ pub enum Predicate {
     InheritsFromId(hymeko::common::ids::DeclId),
     /// Match element whose annotation contains `tag_name`.
     HasTag(String),
+    /// Match element with a base reference tagged `tag_name`, e.g. `isa` on a vocabulary kind
+    /// (`project: + <isa> element {}`), which tells a kind declaration from an instance.
+    BaseTagged(String),
     /// Match element that has at least one child matching `inner`.
     HasChild(Box<Predicate>),
     /// Match element whose parent matches `inner`.
     HasParent(Box<Predicate>),
+    /// Match element with any ancestor (parent, grandparent, ...) matching `inner`.
+    Within(Box<Predicate>),
     /// Match element with a value satisfying the predicate.
     HasValue(ValuePredicate),
     /// Match element with a child named `name` whose value satisfies `pred`.
@@ -87,6 +103,8 @@ pub enum Predicate {
     /// Match a named effective child value (local override, otherwise inherited).
     /// `ChildValue` deliberately retains its direct-child semantics.
     EffectiveChildValue(String, ValuePredicate),
+    /// Some effective field (own or inherited) has a value satisfying the predicate.
+    AnyFieldValue(ValuePredicate),
 
     // --- Edge-specific predicates (arc ref matching) ---
     /// Edge has a Plus-signed ref whose target matches `inner`.
@@ -157,6 +175,36 @@ impl Predicate {
     pub fn not(self) -> Self {
         Self::Not(Box::new(self))
     }
+}
+
+/// Lower-case `text` and strip the diacritics of Latin-script letters (Hungarian,
+/// German, the other Central/Western European alphabets), so a search for `oktatas`
+/// finds `Oktatás`. Other characters are only lower-cased; no Unicode normalisation
+/// tables are involved.
+pub fn fold(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars().flat_map(char::to_lowercase) {
+        match c {
+            'á' | 'à' | 'â' | 'ä' | 'ã' | 'å' | 'ā' | 'ă' | 'ą' => out.push('a'),
+            'é' | 'è' | 'ê' | 'ë' | 'ē' | 'ę' | 'ě' | 'ė' => out.push('e'),
+            'í' | 'ì' | 'î' | 'ï' | 'ī' | 'į' => out.push('i'),
+            'ó' | 'ò' | 'ô' | 'ö' | 'õ' | 'ő' | 'ø' | 'ō' => out.push('o'),
+            'ú' | 'ù' | 'û' | 'ü' | 'ű' | 'ū' | 'ů' | 'ų' => out.push('u'),
+            'ý' | 'ÿ' => out.push('y'),
+            'ç' | 'ć' | 'č' => out.push('c'),
+            'ď' | 'đ' => out.push('d'),
+            'ğ' => out.push('g'),
+            'ł' | 'ľ' | 'ĺ' => out.push('l'),
+            'ñ' | 'ń' | 'ň' => out.push('n'),
+            'ř' | 'ŕ' => out.push('r'),
+            'ś' | 'š' | 'ş' | 'ș' => out.push('s'),
+            'ť' | 'ţ' | 'ț' => out.push('t'),
+            'ź' | 'ż' | 'ž' => out.push('z'),
+            'ß' => out.push_str("ss"),
+            other => out.push(other),
+        }
+    }
+    out
 }
 
 /// A labeled query: associates a human-readable name with a predicate.

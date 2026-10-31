@@ -663,7 +663,7 @@ dependencies = [
 [[package]]
 name = "hymeko_spline"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7#9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=514f7e8385a3bf7665494b94c2ae5acc4d5114a0#514f7e8385a3bf7665494b94c2ae5acc4d5114a0"
 
 [[package]]
 name = "hymeko_tensor"
