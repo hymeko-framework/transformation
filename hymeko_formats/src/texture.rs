@@ -5,15 +5,15 @@ use std::{collections::HashMap, io::Cursor, sync::Arc};
 fn bounded_reader(
     bytes: &[u8],
     format: image::ImageFormat,
-    max_height: u32,
+    max_size: [u32; 2],
 ) -> Result<image::ImageReader<Cursor<&[u8]>>, String> {
     if bytes.len() > 32 * 1024 * 1024 {
         return Err("image exceeds 32 MiB".into());
     }
     let mut reader = image::ImageReader::with_format(Cursor::new(bytes), format);
     let mut limits = image::Limits::default();
-    limits.max_image_width = Some(2048);
-    limits.max_image_height = Some(max_height);
+    limits.max_image_width = Some(max_size[0]);
+    limits.max_image_height = Some(max_size[1]);
     limits.max_alloc = Some(128 * 1024 * 1024);
     reader.limits(limits);
     Ok(reader)
@@ -21,7 +21,7 @@ fn bounded_reader(
 
 /// Decode a bounded Radiance HDR into linear radiance; never clamps away highlights.
 pub fn radiance(bytes: &[u8]) -> Result<RadianceImage, String> {
-    let image = bounded_reader(bytes, image::ImageFormat::Hdr, 1024)?
+    let image = bounded_reader(bytes, image::ImageFormat::Hdr, [2048, 1024])?
         .decode()
         .map_err(|e| e.to_string())?
         .into_rgba32f();
@@ -42,6 +42,8 @@ pub(crate) struct MaterialImport {
 }
 
 impl MaterialImport {
+    // 256 MiB in aggregate, enough for three independent 4K PBR maps.
+    const MAX_TEXELS: usize = 64 * 1024 * 1024;
     pub(crate) fn read(
         &mut self,
         material: gltf::Material<'_>,
@@ -133,14 +135,14 @@ impl MaterialImport {
                 .get(view.offset()..end)
                 .ok_or("image buffer outside GLB")?;
             // Check dimensions before decoding so the cumulative budget also precedes allocation.
-            let dimensions = bounded_reader(bytes, format, 2048)?
+            let dimensions = bounded_reader(bytes, format, [RgbaImage::MAX_DIMENSION; 2])?
                 .into_dimensions()
                 .map_err(|e| e.to_string())?;
             let texels = (dimensions.0 as u64) * (dimensions.1 as u64);
-            if texels > (16_777_216 - self.texels) as u64 {
+            if texels > (Self::MAX_TEXELS - self.texels) as u64 {
                 return Err("GLB exceeds decoded texture budget".into());
             }
-            let image = bounded_reader(bytes, format, 2048)?
+            let image = bounded_reader(bytes, format, [RgbaImage::MAX_DIMENSION; 2])?
                 .decode()
                 .map_err(|e| e.to_string())?
                 .into_rgba8();
@@ -206,6 +208,50 @@ mod tests {
         )
     }
     #[test]
+    fn four_k_images_and_cumulative_texture_budget_are_bounded() {
+        for width in [4096, 4097] {
+            let mut bytes = Vec::new();
+            image::codecs::png::PngEncoder::new(&mut bytes)
+                .write_image(
+                    &vec![127; width as usize * 4],
+                    width,
+                    1,
+                    image::ExtendedColorType::Rgba8,
+                )
+                .unwrap();
+            let decoded = bounded_reader(
+                &bytes,
+                image::ImageFormat::Png,
+                [RgbaImage::MAX_DIMENSION; 2],
+            )
+            .unwrap()
+            .decode();
+            assert_eq!(decoded.is_ok(), width == 4096);
+        }
+        let (document, bytes) = fixture();
+        let mut exact = MaterialImport {
+            texels: MaterialImport::MAX_TEXELS - 1,
+            ..Default::default()
+        };
+        exact
+            .read(document.materials().next().unwrap(), &bytes)
+            .unwrap();
+        assert_eq!(exact.texels, MaterialImport::MAX_TEXELS);
+        let mut full = MaterialImport {
+            texels: MaterialImport::MAX_TEXELS,
+            ..Default::default()
+        };
+        let error = full
+            .read(document.materials().next().unwrap(), &bytes)
+            .unwrap_err();
+        assert!(error.contains("decoded texture budget"));
+        assert!(
+            full.images.is_empty(),
+            "reject before retaining another decoded image"
+        );
+    }
+
+    #[test]
     fn channels_factors_samplers_and_shared_image_identity_survive_import() {
         let (document, bytes) = fixture();
         let mut importer = MaterialImport::default();
@@ -266,7 +312,12 @@ mod tests {
             .map(|m| importer.read(m, &[]).unwrap())
             .collect();
         let lobes = |m: &PbrMaterial| {
-            (m.clearcoat, m.clearcoat_roughness, m.sheen_color, m.sheen_roughness)
+            (
+                m.clearcoat,
+                m.clearcoat_roughness,
+                m.sheen_color,
+                m.sheen_roughness,
+            )
         };
         assert_eq!(lobes(&read[0]), (0.8, 0.15, [0.6, 0.5, 0.4], 0.7));
         assert_eq!(lobes(&read[1]), (0.0, 0.0, [0.0; 3], 0.0));
