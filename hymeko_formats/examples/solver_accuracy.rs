@@ -21,13 +21,13 @@
 use std::time::Instant;
 
 use hymeko_clifford::Se3;
-use hymeko_geometry::articulated::AbaPlan;
-use hymeko_geometry::collide::{Placement, colliders_of, place};
-use hymeko_geometry::contact::{
+use kawakern::articulated::AbaPlan;
+use hymeko_mechanism::collide::{Placement, colliders_of, place};
+use kawakern::contact::{
     ConstraintSolver, ContactParameters, ground_constraints, ground_contacts,
 };
-use hymeko_geometry::forward::FkPlan;
-use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
+use hymeko_mechanism::forward::FkPlan;
+use hymeko_mechanism::kinematics::kinematic::extract_kinematic_model;
 use hymeko_query::QueryEngine;
 
 const GRAVITY: [f64; 3] = [0.0, 0.0, -9.80665];

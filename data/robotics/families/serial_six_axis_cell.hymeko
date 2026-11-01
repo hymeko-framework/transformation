@@ -1,0 +1,120 @@
+// The pick-and-place task of the generated cell, fixed in Cartesian space so that geometry
+// candidates of the serial_six_axis family are compared on the same task. The robot module
+// serial_six_axis_robot.hymeko is the candidate the family generator emits.
+// Station TCP poses are the reference cell's (traceability_simulation.hymeko) forward
+// kinematics at its declared joint targets, through the same 70 mm TCP offset. The joint
+// targets below are that cell's coordinates; for a candidate they are replaced by the IK
+// solution for the same stations (a checked value update), so the stations never move.
+serial_six_axis_cell_description {
+    @"../../paper/meta_simulation_case.hymeko";
+    @"../../paper/traceability_verification.hymeko";
+    @"serial_six_axis_robot.hymeko";
+    using simulation_types as sim;
+    using robot as arm;
+    using verification_cell as trace;
+}
+
+design_types {
+    station {}
+    objective {}
+}
+
+cup_color [0.12,0.3,0.7,1];
+vacuum_cup: meta_kinematics.kinematics.elements.link {
+    mass 0.05;
+    origin [0,0,0.015];
+    link_geometry: meta_kinematics.kinematics.geometry.cylinder { dimension [0.025,0.03]; }
+    color -> cup_color;
+    inertia_com { xx 0.00001156250; yy 0.00001156250; zz 0.000015625; xy 0; xz 0; yz 0; }
+}
+@cup_mount: meta_kinematics.kinematics.fixed_joint {
+    (+ arm.tool_flange [[0,0,0.02],[0,0,0]], - vacuum_cup);
+}
+
+controls: sim.control_profile {
+    timestep_s 0.0005; sample_hz 100; episode_s 10;
+    actuator_kp 800; actuator_kd 50; actuator_limit 60;
+    joint_damping 0.8; joint_armature 0.02;
+    exercise_rad 0; exercise_hz 0;
+    reset_noise_rad 0; encoder_noise_rad 0; gyro_noise_rad_s 0; accel_noise_m_s2 0;
+    floor_z 0; floor_friction 0.8; imu_id 0; seed 42;
+    joint_encoders 1; imu 1; contact_forces 1;
+}
+scene: sim.scene_profile {
+    payload_mass_kg 0.03;
+    payload_half_size [0.02,0.02,0.02];
+    table_half_size [0.25,0.3,0.025];
+    payload_friction 0.8;
+    tcp_offset [0,0,0.07]; grasp_offset [0,0,0.05];
+    grasp_distance_m 0.01; retained_distance_m 0.01; required_lift_m 0.04;
+    stop_at_s 2; stop_speed_m_s 0.005; stop_joint_speed_rad_s 0.05; stop_dwell_s 0.05;
+    station_window_s 0.1;
+}
+
+// Tool axes are the flange rotation, row-major; the tool points down at every station.
+pick_station: design_types.station {
+    tcp [0.608087733863, -0.123265486124, 0.443103049111];
+    tool_axes [-0.980066577841, 0.198669330795, 0, 0.198669330795, 0.980066577841, 0, 0, 0, -1];
+}
+lift_station: design_types.station {
+    tcp [0.565182350704, -0.11456813438, 0.563217000413];
+    tool_axes [-0.980066577841, 0.198669330795, 0, 0.198669330795, 0.980066577841, 0, 0, 0, -1];
+}
+place_station: design_types.station {
+    tcp [0.608087733863, 0.123265486124, 0.443103049111];
+    tool_axes [-0.980066577841, -0.198669330795, 0, -0.198669330795, 0.980066577841, 0, 0, 0, -1];
+}
+retreat_station: design_types.station {
+    tcp [0.565182350704, 0.11456813438, 0.563217000413];
+    tool_axes [-0.980066577841, -0.198669330795, 0, -0.198669330795, 0.980066577841, 0, 0, 0, -1];
+}
+
+home: sim.joint_target { q [-0.2,0.7,0.8,0,1.641592653589793,0]; station -> lift_station; }
+pick: sim.joint_target { q [-0.2,0.9,0.8,0,1.441592653589793,0]; station -> pick_station; }
+lift: sim.joint_target { q [-0.2,0.7,0.8,0,1.641592653589793,0]; station -> lift_station; }
+place: sim.joint_target { q [0.2,0.9,0.8,0,1.441592653589793,0]; station -> place_station; }
+retreat: sim.joint_target { q [0.2,0.7,0.8,0,1.641592653589793,0]; station -> retreat_station; }
+
+experiment: sim.case_definition {
+    robot_model -> arm; trace_scope -> trace;
+    tool -> arm.tool_flange; gripper -> vacuum_cup;
+    control -> controls; environment -> scene;
+    joints [arm.j1,arm.j2,arm.j3,arm.j4,arm.j5,arm.j6];
+    initial -> home; targets [pick,lift,place,retreat];
+}
+
+// What "better geometry" means for this fixed controller, declared before any search. The
+// requirements below decide feasibility; the objective only ranks. Lower is better for every
+// term; each is divided by its scale before weighting.
+design_objective: design_types.objective {
+    energy_weight 1; energy_scale_j 20;
+    effort_weight 0.5; effort_scale 1;
+    mass_weight 0.5; mass_scale_kg 20;
+    size_weight 0.25; size_scale_m 1;
+    path_weight 0.25; path_scale_m 0.005;
+}
+
+@position_evidence: sim.observes {
+    (+ trace.T_accuracy, - experiment);
+    metric "station_error_m"; comparison "max"; bound 0.0005;
+}
+@cycle_evidence: sim.observes {
+    (+ trace.T_cycle, - experiment);
+    metric "cycle_time_s"; comparison "max"; bound 4;
+}
+@repeat_evidence: sim.observes {
+    (+ trace.T_repeat, - experiment);
+    metric "repeatability_m"; comparison "max"; bound 0.0001;
+}
+@stop_evidence: sim.observes {
+    (+ trace.T_stop, - experiment);
+    metric "stop_latency_s"; comparison "max"; bound 0.2;
+}
+@grip_evidence: sim.observes {
+    (+ trace.T_grip, - experiment);
+    metric "ideal_grip_retained"; comparison "min"; bound 1;
+}
+@diagnostic_evidence: sim.observes {
+    (+ trace.T_diagnostics, - experiment);
+    metric "diagnostics_complete"; comparison "min"; bound 1;
+}

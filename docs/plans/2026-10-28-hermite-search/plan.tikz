@@ -1,0 +1,8 @@
+\begin{tikzpicture}[every node/.style={draw,rounded corners,align=center,text width=11cm},node distance=17mm]
+\node (a) {Hashed public source: reproduce and verify the 883-qubit control};
+\node (b) [below of=a] {Jet proposals: exact values, deferred phase and scratch cleanup};
+\node (c) [below of=b] {Global resource screen; deterministic / Nagare proposal ordering};
+\node (d) [below of=c] {Bounded full builds; official verification; Core/P-graph selection};
+\node (e) [below of=d] {Measured incumbent, limitations, reproducible receipts and archive};
+\draw[->] (a)--(b); \draw[->] (b)--(c); \draw[->] (c)--(d); \draw[->] (d)--(e);
+\end{tikzpicture}

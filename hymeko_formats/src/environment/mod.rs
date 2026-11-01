@@ -7,6 +7,8 @@ pub mod maze_physics;
 mod physical;
 pub mod team;
 pub mod terrain;
+/// Closed roads read from IR into kawakern's `track`.
+pub mod track;
 mod visual;
 
 use hymeko::{
@@ -346,7 +348,7 @@ impl CompiledWorld {
 
     pub fn world_sdf(&self) -> Result<String> {
         let registry = crate::default_registry();
-        let config = hymeko_geometry::transforms::TransformConfig::default()
+        let config = crate::plugin::TransformConfig::default()
             .with_name("adversarial_grid")
             .with_option("world_name", "adversarial_grid");
         registry

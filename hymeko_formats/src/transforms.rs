@@ -1,15 +1,15 @@
 //! Built-in DomainTransform implementations. Registry dispatch uses each
-//! transform's declared backend. MJCF has one articulated typed-model emitter;
-//! the other registered templates retain their Query-based rendering.
+//! transform's declared backend. URDF, SDF and MJCF use their typed-model
+//! emitters; diagram and other registered templates retain Query-based rendering.
 
 use std::fmt::Write;
 
 use std::collections::{HashMap, HashSet};
 
-use hymeko_geometry::kinematics::actuation::{Attachment, DriveLaw};
-use hymeko_geometry::kinematics::joints::{JointInfo, JointType};
-use hymeko_geometry::kinematics::kinematic::{GeometryShape, KinematicModel, LinkInfo};
-use hymeko_geometry::transforms::{
+use hymeko_mechanism::kinematics::actuation::{Attachment, DriveLaw};
+use hymeko_mechanism::kinematics::joints::{JointInfo, JointType};
+use hymeko_mechanism::kinematics::kinematic::{GeometryShape, KinematicModel, LinkInfo};
+use crate::plugin::{
     Diagnostic, DomainTransform, ModelKind, ModelView, TransformConfig,
 };
 
@@ -19,51 +19,48 @@ use crate::xml_util::xml_escape;
 // Transform implementations
 // ═══════════════════════════════════════════════════════════════════════════
 
+/// Shared registry metadata and emission contract. Public structs remain ordinary
+/// declarations so rustdoc and the symbol index retain their visible identities.
+macro_rules! registered_transform {
+    ($ty:ident, $name:literal, $extension:literal,
+     $model:ident, $config:ident => $emit:expr, $template:expr) => {
+        impl DomainTransform for $ty {
+            fn name(&self) -> &'static str {
+                $name
+            }
+            fn extension(&self) -> &'static str {
+                $extension
+            }
+            fn accepts(&self) -> ModelKind {
+                ModelKind::Kinematic
+            }
+            fn emit(&self, $model: &ModelView, $config: &TransformConfig) -> Option<String> {
+                $emit
+            }
+            fn template_dir(&self) -> Option<&'static str> {
+                $template
+            }
+        }
+    };
+}
+
 // ─── URDF ─────────────────────────────────────────────────────────────────
 
 pub struct UrdfTransform;
 
-impl DomainTransform for UrdfTransform {
-    fn name(&self) -> &'static str {
-        "urdf"
-    }
-    fn extension(&self) -> &'static str {
-        "urdf"
-    }
-    fn accepts(&self) -> ModelKind {
-        ModelKind::Kinematic
-    }
-    fn emit(&self, model: &ModelView, config: &TransformConfig) -> Option<String> {
-        let km = model.as_kinematic()?;
-        Some(emit_urdf_stub(km, &config.robot_name))
-    }
-    fn template_dir(&self) -> Option<&'static str> {
-        Some("urdf")
-    }
-}
+registered_transform!(
+    UrdfTransform, "urdf", "urdf",
+    model, config => Some(emit_urdf_stub(model.as_kinematic()?, &config.robot_name)), None
+);
 
 // ─── SDF ──────────────────────────────────────────────────────────────────
 
 pub struct SdfTransform;
 
-impl DomainTransform for SdfTransform {
-    fn name(&self) -> &'static str {
-        "sdf"
-    }
-    fn extension(&self) -> &'static str {
-        "sdf"
-    }
-    fn accepts(&self) -> ModelKind {
-        ModelKind::Kinematic
-    }
-    fn emit(&self, model: &ModelView, config: &TransformConfig) -> Option<String> {
-        let km = model.as_kinematic()?;
-        Some(emit_sdf_stub(km, &config.robot_name))
-    }
-    fn template_dir(&self) -> Option<&'static str> {
-        Some("sdf")
-    }
-}
+registered_transform!(
+    SdfTransform, "sdf", "sdf",
+    model, config => Some(emit_sdf_stub(model.as_kinematic()?, &config.robot_name)), None
+);
 
 // ─── MJCF ─────────────────────────────────────────────────────────────────
 
@@ -101,6 +98,12 @@ impl DomainTransform for MjcfTransform {
                 }
             }
             for drive in &km.actuation.drives {
+                if matches!(drive.law, DriveLaw::HydraulicMuscle { .. }) {
+                    diags.push(Diagnostic::error(format!(
+                        "{} is a hydraulic braided muscle, a Kawakern element with no MJCF counterpart",
+                        drive.name
+                    )));
+                }
                 if let Some([guide, side]) = drive.wrapping {
                     if !km
                         .actuation
@@ -263,44 +266,22 @@ impl DomainTransform for SysmlTransform {
 
 // ─── Template-only transforms ─────────────────────────────────────────────
 
-/// `DomainTransform` for a transform rendered only from `transforms/<name>/` via
-/// `render_from_templates`: it reads declarations and signed hyperedges, not a kinematic
-/// model, so `emit()` has no Rust fallback and `accepts()` is unused on the template path.
-/// The struct stays an ordinary declaration so the symbol index and rustdoc see it.
-macro_rules! template_only_transform {
-    ($ty:ident, $name:literal, $extension:literal) => {
-        impl DomainTransform for $ty {
-            fn name(&self) -> &'static str {
-                $name
-            }
-            fn extension(&self) -> &'static str {
-                $extension
-            }
-            fn accepts(&self) -> ModelKind {
-                ModelKind::Kinematic
-            }
-            fn emit(&self, _model: &ModelView, _config: &TransformConfig) -> Option<String> {
-                None
-            }
-            fn template_dir(&self) -> Option<&'static str> {
-                Some($name)
-            }
-        }
-    };
-}
-
 // ─── Requirements traceability (SysML v2 + DOT) — SMC #5 witness ───────────
 
 /// SysML v2 requirements-traceability emission (paper witness, SMC #5), rendered from
 /// `transforms/requirements_sysml/`: requirement/block decls and signed trace hyperedges.
 /// The same template is reused in the WASM editor via `include_str!`.
 pub struct RequirementsSysmlTransform;
-template_only_transform!(RequirementsSysmlTransform, "requirements_sysml", "sysml");
+registered_transform!(RequirementsSysmlTransform, "requirements_sysml", "sysml", _model, _config => None, Some("requirements_sysml"));
 
 /// DOT traceability-graph emission for the same requirements witness (SMC #5).
 /// Paired with [`RequirementsSysmlTransform`].
 pub struct RequirementsDotTransform;
-template_only_transform!(RequirementsDotTransform, "requirements_dot", "dot");
+registered_transform!(RequirementsDotTransform, "requirements_dot", "dot", _model, _config => None, Some("requirements_dot"));
+
+/// Tabular entity/relationship view of the same requirements-trace profile.
+pub struct RequirementsCsvTransform;
+registered_transform!(RequirementsCsvTransform, "requirements_csv", "csv", _model, _config => None, Some("requirements_csv"));
 
 // ─── SysML v2 structure (BDD / IBD / deployment) ─────────────────────────
 
@@ -309,7 +290,7 @@ template_only_transform!(RequirementsDotTransform, "requirements_dot", "dot");
 /// composition multiplicities, n-ary item-flow connectors and deployment, rendered from
 /// `transforms/sysml_structure/`.
 pub struct SysmlStructureTransform;
-template_only_transform!(SysmlStructureTransform, "sysml_structure", "sysml");
+registered_transform!(SysmlStructureTransform, "sysml_structure", "sysml", _model, _config => None, Some("sysml_structure"));
 
 // ─── Gazebo world (gz sim) ────────────────────────────────────────────────
 
@@ -411,7 +392,8 @@ fn emit_sdf_stub(model: &KinematicModel, name: &str) -> String {
 fn emit_mjcf(model: &KinematicModel, config: &TransformConfig) -> String {
     let mut out = String::with_capacity(4096);
     out.push_str(&format!("<mujoco model=\"{}\">\n", config.robot_name));
-    out.push_str("  <compiler angle=\"radian\" meshdir=\".\"/>\n");
+    // HyMeKo origins use URDF RPY: extrinsic XYZ, not MuJoCo's intrinsic xyz default.
+    out.push_str("  <compiler angle=\"radian\" eulerseq=\"XYZ\" meshdir=\".\"/>\n");
     out.push_str("  <option gravity=\"0 0 -9.81\" timestep=\"0.001\"/>\n\n");
 
     // Assets
@@ -578,6 +560,8 @@ fn emit_mjcf(model: &KinematicModel, config: &TransformConfig) -> String {
                 let force = area_m2 * pressure_pa;
                 out.push_str(&format!("    <general name=\"act_{name}\" tendon=\"{name}\" dyntype=\"filterexact\" dynprm=\"{response_s}\" gaintype=\"fixed\" gainprm=\"{area_m2}\" biastype=\"affine\" biasprm=\"0 0 -{damping_ns_m}\" ctrllimited=\"true\" ctrlrange=\"-{pressure_pa} {pressure_pa}\" forcelimited=\"true\" forcerange=\"-{force} {force}\"/>\n"));
             }
+            // Refused by `validate`; emission never reaches it.
+            DriveLaw::HydraulicMuscle { .. } => {}
         }
     }
     out.push_str("  </actuator>\n");
@@ -1098,8 +1082,8 @@ fn find_roots(model: &KinematicModel) -> Vec<String> {
 mod mjcf_emit_tests {
     use super::*;
     use hymeko::common::ids::DeclId;
-    use hymeko_geometry::kinematics::joints::JointInfo;
-    use hymeko_geometry::kinematics::kinematic::{GeometryInfo, GeometryShape, LinkInfo};
+    use hymeko_mechanism::kinematics::joints::JointInfo;
+    use hymeko_mechanism::kinematics::kinematic::{GeometryInfo, GeometryShape, LinkInfo};
 
     fn deep_chain_model(n: usize) -> KinematicModel {
         assert!(n >= 2);
@@ -1149,7 +1133,7 @@ mod mjcf_emit_tests {
     #[test]
     fn mjcf_emits_deep_serial_chain_without_stack_overflow() {
         let model = deep_chain_model(600);
-        let cfg = hymeko_geometry::transforms::TransformConfig::default().with_name("deep");
+        let cfg = crate::plugin::TransformConfig::default().with_name("deep");
         let xml = emit_mjcf(&model, &cfg);
         assert!(xml.contains("<mujoco"));
         assert!(xml.contains("</mujoco>"));
@@ -1162,7 +1146,7 @@ mod mjcf_emit_tests {
     #[test]
     fn mjcf_emits_parent_child_contact_excludes() {
         let model = deep_chain_model(4); // L0→L1→L2→L3, 3 parent→child joints, no `world`
-        let cfg = hymeko_geometry::transforms::TransformConfig::default().with_name("chain");
+        let cfg = crate::plugin::TransformConfig::default().with_name("chain");
         let xml = emit_mjcf(&model, &cfg);
         assert!(xml.contains("<contact>"), "expected a <contact> block");
         assert!(xml.contains("<exclude body1=\"L0\" body2=\"L1\"/>"));
@@ -1196,7 +1180,7 @@ mod mjcf_emit_tests {
                 limits: None,
             },
         );
-        let cfg = hymeko_geometry::transforms::TransformConfig::default().with_name("chain");
+        let cfg = crate::plugin::TransformConfig::default().with_name("chain");
         let xml = emit_mjcf(&model, &cfg);
         assert!(
             !xml.contains("body1=\"world\""),

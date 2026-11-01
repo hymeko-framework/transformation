@@ -1,13 +1,12 @@
-// Selects the requirements-trace decls for the SysML v2 emission.
-// Node types: requirement, block. Hyperedge types: satisfies, derives,
-// allocated_to (signed — + realizer/derived, - requirement/source/block).
+// Shared trace profile: exact selection is checked by TraceabilityExport.
 requirements_sysml_transform {}
 context
 {
     requirements: requirement {}
-    blocks:       block {}
-
+    blocks: block {}
+    tests: test_case {}
     @satisfies_edges: satisfies {}
-    @derives_edges:   derives {}
+    @derives_edges: derives {}
     @allocated_edges: allocated_to {}
+    @verifies_edges: verifies {}
 }

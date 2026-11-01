@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use hymeko::ir::ir::Ir;
 
-use hymeko_geometry::transforms::TransformConfig;
+use crate::plugin::TransformConfig;
 use hymeko_query::NameResolver;
 
 #[derive(Debug, Clone, Copy)]

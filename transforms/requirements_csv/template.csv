@@ -1,0 +1,9 @@
+record,kind,name,source,target,text,outcome
+{{#each requirements}}entity,requirement,{{name}},,,{{field:text}},
+{{/each}}{{#each blocks}}entity,component,{{name}},,,,
+{{/each}}{{#each tests}}entity,test_case,{{name}},,,,{{field:outcome}}
+{{/each}}{{#each satisfies_edges}}relation,satisfies,{{name}},{{bind:+:0}},{{bind:-:0}},,
+{{/each}}{{#each allocated_edges}}relation,allocated_to,{{name}},{{bind:+:0}},{{bind:-:0}},,
+{{/each}}{{#each derives_edges}}relation,derives,{{name}},{{bind:+:0}},{{bind:-:0}},,
+{{/each}}{{#each verifies_edges}}relation,verifies,{{name}},{{bind:+:0}},{{bind:-:0}},,
+{{/each}}

@@ -1,6 +1,6 @@
 //! Structural fuzz of the dynamics: random mechanisms, not random configurations of fixed ones.
 //!
-//! The suite in `hymeko_geometry/tests/articulated.rs` is strong on identities and thin on shapes.
+//! The suite in `hymeko_mechanism/tests/articulated.rs` is strong on identities and thin on shapes.
 //! It knows three hand-built fixtures and three real robots, and randomises the pose. Everything it
 //! has never seen is structural: chains twenty deep, a root with eight children, a mass ratio of
 //! `1e6` between neighbouring links, a centre of mass sitting exactly on the axis that is supposed
@@ -24,10 +24,10 @@
 use std::time::{Duration, Instant};
 
 use hymeko::common::ids::DeclId;
-use hymeko_geometry::articulated::AbaPlan;
-use hymeko_geometry::forward::FkPlan;
-use hymeko_geometry::kinematics::joints::{JointInfo, JointType};
-use hymeko_geometry::kinematics::kinematic::{KinematicModel, LinkInfo};
+use kawakern::articulated::AbaPlan;
+use hymeko_mechanism::forward::FkPlan;
+use hymeko_mechanism::kinematics::joints::{JointInfo, JointType};
+use hymeko_mechanism::kinematics::kinematic::{KinematicModel, LinkInfo};
 
 const GRAV: [f64; 3] = [0.0, 0.0, -9.80665];
 

@@ -2,8 +2,137 @@
 
 The HyMeKo IR→output (transformation) layer — a standalone cargo workspace.
 
+## Observed inspection task
+
+The T1 inspection observer (`scenario::inspection::InspectionSession`) moved with the rest of
+`hymeko_dynamics` to the kawakern repository's `kawakern_dynamics` on 2026-11-01; its contract,
+fixture and runner are documented in `kawakern_dynamics/README.md` there.
+
+## Requirements, components and verification records
+
+`hymeko_formats::traceability::TraceabilityExport` validates a bounded trace profile
+through `hymeko_query::traceability`, then uses the registered requirements SysML,
+DOT and CSV templates. It retains named parallel relationships and distinguishes
+allocation, satisfaction, verification links and authored outcomes (-1 unknown,
+0 fail, 1 pass). These outcomes are evidence records, not physical test executions.
+
+The facade requires one flat scope, unique ASCII identifiers, unweighted binary
+relations with checked endpoint roles, and delimiter-safe requirement text.
+Unsupported input is rejected before export. Generic template rendering alone
+does not provide this domain validation. SysML extraction checks the emitted
+subset; native SysML tool conformance is not claimed. Derivation is represented
+as a named connection, not a native `deriveReqt` assertion.
+
+```powershell
+cargo run --locked --offline -p hymeko_formats --example traceability -- data/paper/traceability_verification.hymeko verification_cell trace-output
+```
+
+The destination must be new. For the complete snapshot/negative-input evidence:
+
+```powershell
+$env:HYMEKO_TRACE_EVIDENCE = Join-Path (Get-Location) 'reports/traceability/outputs'
+cargo test --locked --offline -p hymeko_formats --test traceability
+python tools/traceability/check.py reports/traceability/outputs --result reports/traceability/results.json
+```
+
+The checker uses three format-specific readers, the Core/Query projection and a
+hand-authored full reference. It reports unmet requirements as diagnostic results;
+agreement between views does not make the modeled system compliant. Captured
+2026-10-15 evidence and its PDF are in `reports/2026-10-15-traceability-chain`,
+archived under `\\192.168.1.228\hymeko\reports\by-repository\transformation`.
+
+## Generated simulation evidence for the trace example
+
+`traceability_simulation.hymeko` imports the existing FANUC model and trace witness,
+adds a fixed vacuum cup, and binds six observation rules to the actual test identities.
+`SimulationBundle` resets the old synthetic outcomes to Unknown, emits the robot through
+`RobotProjection`, and produces Geometry pose references and the declared measurement
+contract. The separate Simulator client reuses `RobotRun` and `MissionMotion`; no RL
+environment or new physics solver is involved.
+
+From this repository, with a new output directory:
+
+```powershell
+cargo run --locked --offline -p hymeko_formats --example trace_simulation -- prepare data/paper/traceability_simulation.hymeko experiment NEW_BUNDLE
+```
+
+From the existing Simulator checkout:
+
+```powershell
+uv run --no-project --with mujoco==3.16.0 --with numpy==2.5.4 python python/requirement_simulation.py ABSOLUTE_BUNDLE --run --output NEW_RUN
+uv run --no-project --with mujoco==3.16.0 --with numpy==2.5.4 --with pillow python python/render_requirement_trial.py NEW_RUN/baseline_0 trial.gif
+```
+
+Back in Transformation, record the observations through Core's checked value updates:
+
+```powershell
+cargo run --locked --offline -p hymeko_formats --example trace_simulation -- record data/paper/traceability_simulation.hymeko experiment ABSOLUTE_RUN/evidence.json NEW_RECORDED_VIEWS
+```
+
+The actual simulated model uses an **ideal vacuum weld**, not a seal or frictional
+gripper model. The native integration timestep is declared in the source (0.5 ms).
+Missing evidence remains Unknown; censored observations retain explicit bounds.
+The 2026-10-15 run exposes two unmet requirements: station error about 0.508 mm
+against 0.5 mm, and stop qualification at 216.5 ms against 200 ms. These remain
+failed outcomes in SysML/DOT/CSV. Repeatability is deterministic simulation replay,
+not hardware repeatability. The full path error is reported separately from station
+positioning accuracy. Reports, recorded states, GIF and PDF are retained in
+`reports/2026-10-15-generated-simulation` and the shared Transformation report archive.
+
+## Retained mechanism bindings
+
+`hymeko_mechanism::kinematics::assembly::KinematicAssembly` binds one authored group
+by canonical `DeclId`. It reuses the existing `KinematicModel`, `FkPlan`, `VisualSet`
+and collision projection. A robot arm, hinged door and linear slider use the same
+API; local names may repeat across groups. Namespace ancestry selects membership;
+signed joint incidences define topology. Outside parent frames are allowed as
+anchors, while references to another group's body are refused.
+
+Bind once with `KinematicAssembly::read(&query, group_id)`. Supply observations
+through `set_state(coordinates, root_se3)` or `apply_values(updates)`, then borrow
+`visual_poses()`, `collider_placements()` and `attachment_pose(frame_id)`. All derive
+from the same accepted link frames. A failed sample leaves the previous accepted
+state intact; repeated checkpoint coordinates retain root placement. Position
+limits do not clamp measured observations. The host admits the source/model basis
+and recreates bindings after structural changes; numeric updates do not edit IR.
+
+Optional joint `coordinate -> leaf` fields bind scalar radians/metres; use
+`joint_index(DeclId)` for producer vector bindings. Unbound coordinates start at
+zero, including fixed joints. A group's `attachment_kind` names an explicit edge
+kind such as `kinematics.elements.frame_attachment`; instances bind `(+ body,
+- frame)` with local `origin` in metres and `rpy_deg`. These are oriented tool or
+sensor reference frames, distinct from force application points and physical
+attachment constraints. Visual and physical geometry remain separate projections.
+
+`QueryEngine::scoped(root)` is the underlying borrowed, root-inclusive selection.
+Predicates retain their full IR context, so shared imported vocabulary and axes
+remain resolvable. The legacy global model extractor keeps its behavior; use
+`KinematicModel::from_scope` for isolated mechanisms.
+
+The [three-mechanism fixture](hymeko_mechanism/tests/fixtures/assembly/room.hymeko)
+tests common placement, numeric updates, visual/collider offsets, attached tool
+frames, canonical identity isolation and refused inputs:
+
+```powershell
+cargo test --offline --locked -p hymeko_mechanism --test assembly
+cargo test --offline --locked -p hymeko_query --lib engine::scope::tests::
+```
+
+This is the geometry provider contract. XR renderer composition and the existing
+UR-specific DH/controller adapter have not been migrated to this facade.
+
+## Packages
+
 - **`hymeko_emitter/`** — editor IR (slotmap, `IRDelta`) + M2T emitters (`.hymeko`, SysML v2, Rust stubs, Lean 4)
 - **`hymeko_query/`** — pattern-matching query engine over the hypergraph IR
+- **`hymeko_mechanism/`** (formerly `hymeko_geometry`, renamed 2026-11-01) — reads mechanisms out of
+  compiled IR: links, joints, frames, actuation, visuals and cameras into the Geometry repository's
+  kinematic model, with Core `DeclId` handles (`kinematics::IrHandles`); and geometry-processing
+  recipes (`recipe`, `authoring` feature). The computations live with their owners: meshes,
+  materials and recipe execution in `hymeko_mesh`, kinematic models and FK/IK/collision in
+  `hymeko_kinematics` (both re-exported here), physics and roads in `hymeko/kawakern` (used directly,
+  e.g. `kawakern::Engine<IrHandles>`). The emitter plugin API (`plugin`), Gazebo plugin extraction
+  and the road reader (`environment::track`) moved to `hymeko_formats`.
 - **`hymeko_formats/`** — built-in format emitters (URDF / SDF / MJCF / DOT / Mermaid / Gazebo world) — a query plugin
 - **`hymeko_webxr/`** — WebXR/spatial vocabulary, semantic validation and borrowed queries over the canonical IR.
   `meta_room.hymeko` specialises the spatial vocabulary for XR rooms (room frame, root fiducial via
@@ -144,11 +273,14 @@ not measure performance. Existing files are never replaced. Geometry's current
 extractor reads the document's kinematic declarations; the supplied name labels
 the export, so provide a single-robot document.
 
-`generate_description(..., OutputFormat::Mjcf)`, the registered typed transform and
-`RobotProjection::mjcf()` now use the same articulated MJCF emitter. The incomplete
-flat-body MJCF template has been removed. `TransformRegistry::render` selects the
-registered backend; explicit `render_from_templates("mjcf", ...)` now returns
-`None`. Template errors in other formats remain errors, without a backend fallback.
+`generate_description`, the registered transforms and `TransformEngine` use the
+same model-based URDF, SDF and MJCF emitters. `RobotProjection::mjcf()` uses that
+same MJCF path. Explicit `render_from_templates` for these three robot formats
+returns `None`; their static templates are not registered backends. Diagram and
+traceability templates retain their Query-based rendering and explicit errors.
+URDF/SDF preserve non-cardinal axis components. SDF retains link, joint, visual
+and collision frames, including the authored world-root offset in the model frame.
+The `research_api` tests cover route parity and retained-snapshot view updates.
 
 Library/CLI regressions: `cargo test --locked --offline -p hymeko_formats --lib
 --bins --test research_api`. Physics and campaign execution remain explicit
@@ -197,6 +329,40 @@ semantics and a DOT graph. The selected GA profile has eight operators and
 expression interpreter or an equivalence proof. See the
 [shared mathematical definitions and GA trace checker](../hystl/research/metaheuristics-pilot/DEFINITIONS.md)
 and [validation report](reports/2026-10-06-metaheuristic-definitions.md).
+
+## Legged terrain over square, hexagonal and polar mazes
+
+`environment::locomotion` binds a declared HyMeKo locomotion profile (robot source and
+root, base joint/link, feet, controller id, stance height, nominal speed, step length,
+swing height, step-up, slope, friction, lateral margin) to the robot compiled through Core
+and projected by `RobotProjection`. It refuses unbounded joint defaults, missing inertia
+tensors and declarations the measured body cannot satisfy, and derives `TerrainBounds`
+(step-up, slope, friction, hurdle, foothold, passage width, roughness, speed).
+
+`environment::terrain` adds a robot-scaled `square` profile and robot-scaled hex/polar
+topologies (a separate `maze_scale` record, so historical hex/polar sources and digests are
+byte-identical), then places up to three features on route segments: ramp, steps, rough
+tiles, stepping-stone footholds, low-friction patch, narrow posts, step-over hurdle and a
+kinematic moving obstacle. Magnitudes are relative to the bounds; gene intensity maps to
+[0, 1.25] of a bound. Verification levels stay separate: topology (Graph route, Query counts),
+geometry (feature bounds, placement, swept wall clearance at wall mid-height) and temporal
+(route at the declared speed within 80 % of the horizon); dynamics is the simulator's.
+Categories: `valid`, `invalid_world` (a feature does not fit), `infeasible_task`.
+
+```bash
+adversarial_grid --project-legged PROFILE.hymeko NEW_DIR [--horizon S]          # flat pretest scene
+adversarial_grid --generate-terrain square|hex|polar SEED NEW_DIR PROFILE.hymeko     [--weights GENES.json] [--horizon S] [--task reach|coverage]
+```
+
+Outputs: canonical `source.hymeko` (maze, terrain, task and feature records, re-emitted and
+digested), `validation.json`, `model.hymeko` and `scene.xml` (existing MJCF owner, declared
+surface roles, friction and mocap motion queried back into `physics.json`), `terrain.json`
+(route, footholds, features, task) and `robot.xml`/`robot.json`. World frame Z up, floor top at
+z = 0, metres/seconds/radians in JSON; HyMeKo mounts keep degrees. The coverage task walks the
+maze tree depth-first through every cell. Generation runs on Amaterasu only; simulation is the
+simulator's `maze_contact.py --legged`. Owner tests: `cargo test --locked -p hymeko_formats --lib
+environment::` (add `HYMEKO_LOCOMOTION_PROFILE=<profile> ... -- --ignored` for the real-profile
+projection). Results: 2026-10-21 legged terrain report (archived under `by-repository`).
 
 ## Polar and hexagonal mazes
 
@@ -278,9 +444,11 @@ renders its actual state. See the local
 [integration report](reports/2026-09-29-adversarial-cyberdisc.md), archived under
 `\\192.168.1.228\hymeko\reports\by-repository`.
 
-**Kawakern** names the existing HyMeKo physical engine family used by Kawamirai.
-`hymeko_geometry::engine::Engine` owns articulated rigid dynamics and ground contact;
-`hymeko_dynamics` projects physical systems, including linear elasticity, into the
+**Kawakern** is the HyMeKo physics engine: since 2026-11-01 its own repository
+(`hymeko/kawakern`, crate `kawakern`). `kawakern::Engine<IrHandles>`, over a model read by
+`hymeko_mechanism`, owns articulated rigid dynamics and ground contact;
+`kawakern_dynamics` (kawakern repository, formerly `hymeko_dynamics` here) projects physical
+systems, including linear elasticity, into the
 existing Tensor numerical kernels. Graph owns signed incidence and octree structure.
 This name does not rename crates, add dependencies, or imply full MuJoCo parity.
 
@@ -312,3 +480,140 @@ with at most 32 material groups. The UR5 export has 20 parts and 95,694 triangle
 COLLADA matrix interpretation follows the Khronos 1.5.1 errata (XML rows, column
 vectors): https://www.khronos.org/files/collada_1_5_1_release_notes.pdf .
 URDF visual-origin semantics: https://docs.ros.org/en/kilted/Tutorials/Intermediate/URDF/Building-a-Visual-Robot-Model-with-URDF-from-Scratch.html .
+
+### Native mesh preparation (2026-10-21)
+
+The mesh and material modules described in this and the following sections are
+owned by the Geometry repository's IR-free `hymeko_mesh` crate (2026-11-01).
+`hymeko_mechanism` re-exports `hymeko_mesh::{mesh, material}`, so the
+`hymeko_mechanism::mesh` and `hymeko_mechanism::material` paths below name the same
+types. Their unit and focused tests run in the Geometry repository; the
+`surface_prepare` adapter and recipe pipeline stay here.
+
+`hymeko_mechanism::mesh::regularize::SurfaceRegularizer` produces real quad
+faces and corner UVs from a triangular source. Quality-ranked local pairing,
+conforming face/edge refinement and bounded tangential relaxation preserve
+protected seams and boundaries. Projection walks connected source faces and
+backs off before folding a quad. The reported source distance is sampled at
+vertices; it is not a Hausdorff bound. This is a local quality-based method,
+not QuadriFlow or a global cross-field optimizer.
+
+`mesh::normals::NormalSmoothing` smooths normals across coincident UV records
+within compatible crease cones without changing geometry or UVs. Texture
+rasterization and anatomical authoring remain the consumer's responsibilities.
+
+```powershell
+cargo build --locked --offline -p hymeko_mechanism --no-default-features --features mesh-optimization --release --example surface_prepare
+# Geometry repository root:
+cargo test --locked --offline -p hymeko_mesh --test mesh_regularization
+```
+
+The `surface_prepare quads|normals INPUT.json OUTPUT.json` authoring example
+accepts a `TriangleMesh`, `RegularizeOptions` and optional `control_lod` (0..3).
+Control reduction uses the existing optional mesh-optimization feature. There
+is no Blender invocation or new runtime dependency. The output contains either
+a `QuadSurface` with its triangulated GPU representation, or the updated mesh.
+
+### Bounded surface boundary joining
+
+`hymeko_mechanism::mesh::bridge::BoundaryBridge::indices` triangulates a gap between
+two existing ordered boundaries, including concave rims. It follows source winding,
+retains positions/attributes, caps edge length and work, and excludes triangles
+already present in the source. Rings together are bounded to2048 vertices. The
+`surface_prepare bridge INPUT.json OUTPUT.json` adapter exposes the same operation;
+no geometry algorithm lives in the character consumer. Focused tests cover unequal,
+reversed and concave rings plus invalid inputs. This is not a general solid boolean.
+
+### Closed surface union with a convex addition
+
+`hymeko_mechanism::mesh::solid::SurfaceUnion::with_convex` performs a bounded,
+transactional union of two closed, positively oriented surfaces; the addition
+must be convex. It constructs canonical edge/face intersections, partitions
+source faces, reuses the boundary triangulator and retains exterior regions.
+`UnionSurface` carries the resulting `TriangleMesh`, source face IDs and
+`VertexOrigin` barycentric weights for application-owned attributes. Original
+records remain exact; new normal/UV/tangent records are interpolated. LOD0 is
+rebuilt. Output checks use the actual float32 geometric aliases.
+
+This is a targeted authoring operation, not a complete CSG kernel. Inputs must
+already be free of self-intersections; combinatorial validation does not prove
+that precondition. Coplanar, tangential and numerically ambiguous contacts are
+rejected, as are multiple isolated contours within one source triangle. Relative
+contact tolerance, intersection storage, face counts and work are bounded.
+The existing `surface_prepare union INPUT.json OUTPUT.json` adapter accepts
+`mesh`, `addition` and optional `union_options`; it adds no dependency or renderer
+logic. Build with `--no-default-features --features authoring,mesh-optimization`.
+Focused tests (Geometry repository): `cargo test --locked --offline -p hymeko_mesh
+--lib mesh::solid::tests`.
+
+# Quad control-surface limit samples
+
+`hymeko_mechanism::mesh::subdivision::SubdivisionSurface` evaluates Catmull–Clark
+limits at control-vertex parameter locations on an oriented manifold quad cage.
+Regular vertices follow the bicubic B-spline limit; extraordinary vertices retain
+their valence, boundary curves use the cubic rule with single-face corners fixed.
+The borrowed cage is bounded; disconnected fans and inconsistent winding fail.
+`QuadSurface::source_vertices` retains original-to-control correspondence, including
+UV aliases. `SurfaceFairing::fit_targets` reuses displacement, support and orientation
+guards for a supplied field without running fairing iterations. Seam targets must
+agree, and failures leave the input unchanged. This is an additive local API.
+
+The existing `surface_prepare limit INPUT.json OUTPUT.json` adapter combines these
+owners; build with `--no-default-features --features authoring,mesh-optimization`.
+It returns the quad control cage, limit positions and fitted original triangle mesh.
+
+`SubdivisionSurface::limit_positions_with_fixed_boundary` holds boundary CVs exact
+for clipped fitting patches. Several oriented open fans may meet at a pinned
+corner; malformed winding and a closed fan meeting a boundary remain errors.
+Interior CVs retain the same limit rule. The original `limit_positions` stays
+strictly manifold. `surface_prepare limit` exposes this through the optional
+`fixed_patch_boundary` field; `surface_prepare fair` accepts optional `targets`
+and delegates to the existing bounded, transactional `SurfaceFairing::fit_targets`.
+It is fixed-density authoring, not an arbitrary-(u,v) evaluator or GPU tessellator.
+No new dependency. Reference: https://opensubdiv.org/docs/subdivision_surfaces.html.
+Focused checks (Geometry repository): `cargo test --locked --offline -p hymeko_mesh
+--lib mesh::subdivision` and `--test mesh_regularization`.
+## Optional skin optical profile
+
+`PbrMaterial::skin: Option<SkinProfile>` opts a material into the consumer's skin
+shading. `SkinProfile` validates RGB Gaussian diffusion sigma in world metres,
+strength, Beckmann slope scale, IOR, specular scale and skin normal strength. The Gaussian profile is an
+artistic visible-surface approximation, not measured tissue coefficients. When
+present, the existing AO texture's alpha carries the explicit skin mask; its red
+channel retains AO and green multiplies skin specular (white is neutral).
+`roughness` scales the squared mapped perceptual roughness, with neutral default1;
+`normal_scale` defaults to1 and is bounded to0..4. Old serialized materials default to `None`. Renderer resources,
+BRDF evaluation and screen-space filtering remain in Kawamirai.
+The current artist-authored human diffusion default is sigma4.5/2/1mm (RGB),
+strength0.9. Explicitly authored profiles retain their supplied values. This is
+visible-surface diffusion, not measured tissue data or backside transmission.
+Focused checks (Geometry repository): `cargo test --locked --offline -p hymeko_mesh
+--lib material::tests`.
+
+### Regular control charts and height-aware materials (2026-10-27)
+
+`mesh::spline::SplineSurface` owns a bounded regular bicubic control chart and its
+triangle view. `sample` returns position/normal/tangent; `render_mesh` supplies
+16/8/4/2sampling LODs with sampled error and conservative bounds. `CUBIC_BASIS`
+is the common coefficient source for the native and WGSL evaluators. This is a
+regular surface chart, not arbitrary-knot/rational NURBS or extraordinary patches.
+The existing Tensor `NurbsCurve` remains the generic curve owner; consumer tests
+independently compare the regular chart against that published numerical kernel.
+
+`ReliefProfile` carries bounded metre height/tile scale and traversal steps.
+Procedural baking preserves normal RGB and packs signed height into alpha, with
+`BakedSurface::height_scale_m` retaining its physical interpretation. Material
+library results attach the profile. `SkinProfile` adds authored RGB transmission
+lengths and strength; renderer-side shadow depth supplies the light-path estimate.
+Shader execution, temporal history, screen-space lighting and GPU sampling remain
+in Kawamirai. These asset/view APIs add no physics stepping or collision changes.
+
+### Ocular material projection (2026-10-28)
+
+`EyeProfile` carries bounded corneal IOR,roughness,virtual iris depth and bind-space
+radius. `PbrMaterial.eye_iris` optionally carries two registered iris tiles.
+`ocular_atlas` packs immutable base/iris images with filter guards for consumers
+that retain a fixed texture-binding budget. Matching clamped samplers and bounded
+packed dimensions are validated. Existing materials omit these fields unchanged.
+Eye identity/pose and WGSL light transport remain the renderer's responsibility;
+this data API introduces no rendering backend or physics integration dependency.

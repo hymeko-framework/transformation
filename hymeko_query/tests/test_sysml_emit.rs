@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod test_sysml_emit {
     use hymeko_formats::transforms::SysmlTransform;
-    use hymeko_geometry::transforms::{DomainTransform, ModelKind, TransformConfig};
+    use hymeko_formats::plugin::{DomainTransform, ModelKind, TransformConfig};
 
     use crate::test_helpers::load_and_lower;
 
@@ -15,7 +15,7 @@ mod test_sysml_emit {
     fn render_sysml(src: &str, name: &str) -> String {
         let (store, compiled) = load_and_lower(src).unwrap();
         let config = TransformConfig::default().with_name(name);
-        let model = hymeko_geometry::transforms::extract(
+        let model = hymeko_formats::plugin::extract(
             &compiled.ir,
             &store.it,
             &config.robot_name,

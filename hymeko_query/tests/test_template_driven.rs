@@ -5,7 +5,7 @@
 mod test_template_driven {
     use std::path::PathBuf;
 
-    use hymeko_geometry::transforms::{TransformConfig, TransformRegistry};
+    use hymeko_formats::plugin::{TransformConfig, TransformRegistry};
 
     use crate::test_helpers::load_and_lower;
 

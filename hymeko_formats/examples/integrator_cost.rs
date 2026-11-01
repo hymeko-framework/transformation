@@ -35,9 +35,9 @@
 //! Run: `cargo run --release --example integrator_cost`
 
 use hymeko::common::ids::DeclId;
-use hymeko_geometry::articulated::{AbaPlan, AbaScratch};
-use hymeko_geometry::kinematics::joints::{JointInfo, JointType};
-use hymeko_geometry::kinematics::kinematic::{KinematicModel, LinkInfo};
+use kawakern::articulated::{AbaPlan, AbaScratch};
+use hymeko_mechanism::kinematics::joints::{JointInfo, JointType};
+use hymeko_mechanism::kinematics::kinematic::{KinematicModel, LinkInfo};
 
 const GRAVITY: [f64; 3] = [0.0, 0.0, -9.80665];
 

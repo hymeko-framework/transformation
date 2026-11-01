@@ -1,0 +1,7 @@
+\begin{tikzpicture}[every node/.style={draw,rounded corners,align=center,text width=11cm},node distance=16mm]
+\node (a) {Typed HyMeKo quadratic functions and available linear inputs};
+\node (b) [below of=a] {Graph weighted bases and exact reconstruction coordinates};
+\node (c) [below of=b] {Quantum checks witness; emits and recompiles gate hyperedges};
+\node (d) [below of=c] {Exhaustive local semantics, P-graph selection, native norm oracle};
+\draw[->] (a)--(b);\draw[->] (b)--(c);\draw[->] (c)--(d);
+\end{tikzpicture}

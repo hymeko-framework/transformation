@@ -1,5 +1,5 @@
 //! Bounded self-contained GLB import through gltf-rs. No language parser here.
-use hymeko_geometry::mesh::{MeshLod, TriangleMesh};
+use hymeko_mechanism::mesh::{MeshLod, TriangleMesh};
 use std::{collections::HashMap, sync::Arc};
 
 pub struct MeshPart {
@@ -7,7 +7,7 @@ pub struct MeshPart {
     pub mesh: Arc<TriangleMesh>,
     pub transforms: Vec<[[f32; 4]; 4]>,
     pub color: [f32; 4],
-    pub material: Arc<hymeko_geometry::material::PbrMaterial>,
+    pub material: Arc<hymeko_mechanism::material::PbrMaterial>,
 }
 
 pub struct MeshImport {

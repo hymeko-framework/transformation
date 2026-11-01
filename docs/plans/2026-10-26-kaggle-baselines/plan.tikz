@@ -1,0 +1,29 @@
+\begin{tikzpicture}[every node/.style={draw,align=center,font=\small}]
+\node (src) at (0,0) {Domain source};
+\node (ir) at (4,0) {Core canonical IR};
+\node (view) at (4,-1.5) {Derived numerical view};
+\node (sbsh) at (8,-1.5) {SBSH BoundsIndex\\candidate pairs};
+\node (export) at (0,-1.5) {CSV / kickmix export};
+\node (verify) at (0,-3) {Official verifier};
+\node (record) at (4,-3) {Valid incumbent / evidence};
+\draw[->] (src)--(ir);\draw[->] (ir)--(view);\draw[->] (view)--(export);
+\draw[->] (view)--(sbsh);\draw[->] (sbsh) to[bend left] (view);
+\draw[->] (export)--(verify);\draw[->] (verify)--(record);
+\node (gates) at (0,-4.5) {Typed gate hyperedges};
+\node (semantics) at (4,-4.5) {Complex phase / adjoint\\Clifford rotor / cleanup};
+\node (synthesis) at (8,-4.5) {P-graph / Berge\\count, depth, $Q$, $QD$};
+\draw[->] (gates)--(semantics);\draw[->] (semantics)--(synthesis);
+\node (lattice) at (0,-6) {Integer norm shell};
+\node (ortho) at (4,-6) {SBSH 4D orthtree};
+\node (accepted) at (8,-6) {Norm / phase check};
+\draw[->] (lattice)--(ortho);\draw[->] (ortho)--(accepted);
+\node (nativefamily) at (0,-7.5) {Piecewise polynomial\\integer parameter family};
+\node (nativecore) at (4,-7.5) {Core tables / Query\\SBSH resource frontier};
+\node (nativeverify) at (8,-7.5) {MSG / ABB / Berge\\native full verification};
+\draw[->] (nativefamily)--(nativecore);\draw[->] (nativecore)--(nativeverify);
+\node (physical) at (0,-9) {Physical residuals\\$\Lambda$, SOS gap};
+\node (jointcost) at (4,-9) {Joint $Q/T$/phase\\contracts};
+\node (decoder) at (8,-9) {Decoder schedules\\confidence penalty};
+\draw[->] (physical)--(jointcost);\draw[->] (decoder)--(jointcost);
+\draw[->] (jointcost)--(nativecore);
+\end{tikzpicture}

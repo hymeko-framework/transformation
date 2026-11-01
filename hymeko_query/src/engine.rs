@@ -3,6 +3,8 @@ use crate::traits::NameResolver;
 use hymeko::common::ids::DeclId;
 use hymeko::ir::ir::{DeclKind, Ir, ValueR};
 
+pub mod scope;
+
 /// A single match result with captured arc bindings.
 #[derive(Debug, Clone)]
 pub struct QueryMatch {
@@ -48,6 +50,7 @@ pub struct QueryEngine<'a, R: NameResolver> {
     ir: &'a Ir,
     resolver: &'a R,
     config: QueryConfig,
+    scope: Option<DeclId>,
 }
 
 impl<'a, R: NameResolver> QueryEngine<'a, R> {
@@ -56,6 +59,7 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
             ir,
             resolver,
             config: QueryConfig::default(),
+            scope: None,
         }
     }
 
@@ -73,7 +77,7 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
         (0..ir.decl_nodes.len())
             .map(DeclId::new)
             .filter_map(move |did| {
-                if self.matches(did, pred, 0) {
+                if self.includes(did) && self.matches(did, pred, 0) {
                     Some(self.build_match(did))
                 } else {
                     None
@@ -94,7 +98,8 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
     /// Test an identity from this document without scanning unrelated declarations.
     /// Missing or out-of-range identities never match, including `Any`.
     pub fn query_decl(&self, id: DeclId, pred: &Predicate) -> Option<QueryMatch> {
-        (self.ir.decl_node(id).is_some() && self.matches(id, pred, 0)).then(|| self.build_match(id))
+        (self.ir.decl_node(id).is_some() && self.includes(id) && self.matches(id, pred, 0))
+            .then(|| self.build_match(id))
     }
 
     /// Batch: run multiple named queries, return results keyed by label.

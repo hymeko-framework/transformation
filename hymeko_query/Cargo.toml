@@ -25,7 +25,7 @@ env_logger = "0.11.9"
 log = "0.4.29"
 # The kinematics/transforms tests moved out with their modules but still live here; cargo permits a
 # dev-dependency cycle, so they can keep exercising the real crate rather than being duplicated.
-hymeko_geometry = { path = "../hymeko_geometry" }
+hymeko_mechanism = { path = "../hymeko_mechanism" }
 hymeko_formats = { path = "../hymeko_formats" }
 
 [[test]]

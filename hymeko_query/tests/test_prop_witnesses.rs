@@ -23,8 +23,8 @@ mod test_prop_witnesses {
     use hymeko_formats::gazebo::generate_gazebo_world;
     use hymeko_formats::sdf::generate_sdf;
     use hymeko_formats::urdf::generate_urdf;
-    use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
-    use hymeko_geometry::transforms::{ModelView, TransformConfig};
+    use hymeko_mechanism::kinematics::kinematic::extract_kinematic_model;
+    use hymeko_formats::plugin::{ModelView, TransformConfig};
     use hymeko_query::engine::QueryEngine;
 
     /// Pairs of (baseline, alias-variant) fixture paths denoting the

@@ -16,7 +16,7 @@ mod test_torch_dataflow {
     use std::path::PathBuf;
     use std::process::{Command, Stdio};
 
-    use hymeko_geometry::transforms::TransformConfig;
+    use hymeko_formats::plugin::TransformConfig;
 
     use crate::test_helpers::load_and_lower;
 

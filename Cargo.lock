@@ -138,12 +138,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bumpalo"
-version = "3.20.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649"
-
-[[package]]
 name = "bytemuck"
 version = "1.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -537,22 +531,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hymeko_dynamics"
-version = "0.1.0"
-dependencies = [
- "ciborium",
- "hymeko_core",
- "hymeko_geometry",
- "hymeko_graph",
- "hymeko_numerics",
- "hymeko_optimize",
- "hymeko_sources",
- "serde",
- "serde_json",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "hymeko_emitter"
 version = "0.1.0"
 dependencies = [
@@ -572,28 +550,12 @@ dependencies = [
  "hymeko_clifford",
  "hymeko_core",
  "hymeko_emitter",
- "hymeko_geometry",
  "hymeko_graph",
+ "hymeko_mechanism",
  "hymeko_query",
- "image",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "hymeko_geometry"
-version = "0.1.0"
-dependencies = [
- "hymeko_clifford",
- "hymeko_core",
- "hymeko_query",
- "hymeko_sbsh",
  "hymeko_sources",
- "hymeko_spline",
- "hymeko_tensor 0.1.0 (git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=d9a8a79f7152fdede8791c0bea5918eba0c3fab9)",
- "log",
- "meshopt",
- "parser",
+ "image",
+ "kawakern",
  "serde",
  "serde_json",
 ]
@@ -609,18 +571,41 @@ dependencies = [
 ]
 
 [[package]]
-name = "hymeko_numerics"
+name = "hymeko_kinematics"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7#9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/geometry.git?rev=bf79d26f358e0de413c933657818ed80722d20e3#bf79d26f358e0de413c933657818ed80722d20e3"
+dependencies = [
+ "hymeko_clifford",
+ "hymeko_sbsh",
+ "hymeko_spline",
+ "hymeko_tensor 0.1.0 (git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=6769dabc70587356b2a6542faa336de152f382c4)",
+]
 
 [[package]]
-name = "hymeko_optimize"
+name = "hymeko_mechanism"
 version = "0.1.0"
 dependencies = [
+ "hymeko_clifford",
  "hymeko_core",
+ "hymeko_kinematics",
+ "hymeko_mesh",
  "hymeko_query",
  "hymeko_sources",
- "wasm-bindgen",
+ "kawakern",
+ "log",
+ "parser",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "hymeko_mesh"
+version = "0.1.0"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/geometry.git?rev=a9c8b44d703828a3ca9c1a3dcd1ad633949a64fe#a9c8b44d703828a3ca9c1a3dcd1ad633949a64fe"
+dependencies = [
+ "meshopt",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -630,7 +615,7 @@ dependencies = [
  "env_logger",
  "hymeko_core",
  "hymeko_formats",
- "hymeko_geometry",
+ "hymeko_mechanism",
  "log",
  "parser",
 ]
@@ -662,17 +647,17 @@ dependencies = [
 [[package]]
 name = "hymeko_spline"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7#9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=514f7e8385a3bf7665494b94c2ae5acc4d5114a0#514f7e8385a3bf7665494b94c2ae5acc4d5114a0"
+
+[[package]]
+name = "hymeko_tensor"
+version = "0.1.0"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=6769dabc70587356b2a6542faa336de152f382c4#6769dabc70587356b2a6542faa336de152f382c4"
 
 [[package]]
 name = "hymeko_tensor"
 version = "0.1.0"
 source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7#9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7"
-
-[[package]]
-name = "hymeko_tensor"
-version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=d9a8a79f7152fdede8791c0bea5918eba0c3fab9#d9a8a79f7152fdede8791c0bea5918eba0c3fab9"
 
 [[package]]
 name = "hymeko_webxr"
@@ -768,6 +753,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "kawakern"
+version = "0.1.0"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/kawakern.git?rev=2bc23ea906ea1442755e4ca5f62f94e8885889ca#2bc23ea906ea1442755e4ca5f62f94e8885889ca"
+dependencies = [
+ "hymeko_clifford",
+ "hymeko_kinematics",
+ "hymeko_sbsh",
+ "hymeko_spline",
+ "hymeko_tensor 0.1.0 (git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=6769dabc70587356b2a6542faa336de152f382c4)",
+ "serde",
 ]
 
 [[package]]
@@ -1083,12 +1081,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b1e7f9a428571be2dc5bc0505c13fb6bf936822b894ec87abf8a08a4e51742d"
 
 [[package]]
-name = "rustversion"
-version = "1.0.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
-
-[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1311,51 +1303,6 @@ checksum = "29790946404f91d9c5d06f9874efddea1dc06c5efe94541a7d6863108e3a5e4b"
 dependencies = [
  "same-file",
  "winapi-util",
-]
-
-[[package]]
-name = "wasm-bindgen"
-version = "0.2.127"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b70935747edd64d89de3efa29d73789b806c15798f8e7dca4d8ac356b50ce70"
-dependencies = [
- "cfg-if",
- "once_cell",
- "rustversion",
- "wasm-bindgen-macro",
- "wasm-bindgen-shared",
-]
-
-[[package]]
-name = "wasm-bindgen-macro"
-version = "0.2.127"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77775f8f3f7217702089053b94958f8f54061a3f663417df76e19cbdcca29bc1"
-dependencies = [
- "quote",
- "wasm-bindgen-macro-support",
-]
-
-[[package]]
-name = "wasm-bindgen-macro-support"
-version = "0.2.127"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e11d33f857dc2fb11b8bc75aee111aa9cbeb12cd9f25efd3d4c2a3dd4e235284"
-dependencies = [
- "bumpalo",
- "proc-macro2",
- "quote",
- "syn 2.0.119",
- "wasm-bindgen-shared",
-]
-
-[[package]]
-name = "wasm-bindgen-shared"
-version = "0.2.127"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ef64dbcc55df09c7e5a46182d181c2cfa3e925f3da937ea764728b4bbb9dcbf"
-dependencies = [
- "unicode-ident",
 ]
 
 [[package]]

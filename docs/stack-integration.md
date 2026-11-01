@@ -23,7 +23,7 @@ Kawakern is the existing Geometry/Dynamics engine family over Tensor and Graph.
 The simulator supplies application inputs; it does not reimplement integration,
 contact resolution, forward kinematics or the canonical IR.
 
-`hymeko_geometry` enables `simulation` by default. Pure rendering consumers can
+`hymeko_mechanism` enables `simulation` by default. Pure rendering consumers can
 disable default features for mesh/material types. Kinematics consumers that
 disable defaults must explicitly enable `simulation`.
 

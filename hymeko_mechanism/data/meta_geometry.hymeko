@@ -1,0 +1,5 @@
+geometry_vocabulary {}
+geometry_types {
+    recipe { schema_version 1; length_unit "m"; up_axis "Z"; workflow "surface"; }
+    stage {}
+}

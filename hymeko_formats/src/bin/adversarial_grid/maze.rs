@@ -68,7 +68,7 @@ pub(super) fn run(args: &[String]) -> Result<()> {
         output.join("geometry.json"),
         serde_json::to_vec_pretty(&geometry)?,
     )?;
-    let receipt = json!({"schema_version":1,"semantic_digest":world.digest(),"query_checks":checks,"cell_count":geometry.cells().len(),"passage_count":geometry.passages().len(),"wall_count":geometry.walls().len(),"route_cells":geometry.route_cell_indices(),"route_points_m":geometry.route_points_m(),"clearance_radius_m":geometry.clearance_radius_m(),"clearance_owner":"hymeko_geometry::collide::intersects; swept capsule against actual yaw boxes","priority_pairs":topology.priority_pairs(),"priority_encoding":"lexicographic passage pairs; [0,1] mapped to exact 53-bit integer weights","loops":loops,"scope":"rank-2 connected maze with declared cycle rank; geometric route witness, not controller success or uniformly sampled trees"});
+    let receipt = json!({"schema_version":1,"semantic_digest":world.digest(),"query_checks":checks,"cell_count":geometry.cells().len(),"passage_count":geometry.passages().len(),"wall_count":geometry.walls().len(),"route_cells":geometry.route_cell_indices(),"route_points_m":geometry.route_points_m(),"clearance_radius_m":geometry.clearance_radius_m(),"clearance_owner":"hymeko_mechanism::collide::intersects; swept capsule against actual yaw boxes","priority_pairs":topology.priority_pairs(),"priority_encoding":"lexicographic passage pairs; [0,1] mapped to exact 53-bit integer weights","loops":loops,"scope":"rank-2 connected maze with declared cycle rank; geometric route witness, not controller success or uniformly sampled trees"});
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&receipt)?,

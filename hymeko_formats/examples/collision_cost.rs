@@ -15,9 +15,9 @@
 
 use std::time::Instant;
 
-use hymeko_geometry::collide::{BroadPhase, Placement, colliders_of, intersects, place};
-use hymeko_geometry::forward::FkPlan;
-use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
+use hymeko_mechanism::collide::{BroadPhase, Placement, colliders_of, intersects, place};
+use hymeko_mechanism::forward::FkPlan;
+use hymeko_mechanism::kinematics::kinematic::extract_kinematic_model;
 use hymeko_query::QueryEngine;
 
 fn main() {
@@ -99,7 +99,7 @@ fn main() {
 }
 
 fn time_narrow(
-    colliders: &[hymeko_geometry::collide::Collider],
+    colliders: &[hymeko_mechanism::collide::Collider],
     placed: &[Placement],
     pairs: &[(usize, usize)],
     reps: usize,

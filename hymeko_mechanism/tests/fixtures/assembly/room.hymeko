@@ -1,0 +1,51 @@
+description {
+    @"meta_kinematics.hymeko";
+    using meta_kinematics.kinematics as k;
+}
+world: k.elements.frame {}
+room {
+    samples { arm1 0; arm2 0; door 0; slider 0; unrelated 12; }
+    arm {
+        attachment_kind -> k.elements.frame_attachment;
+        base: k.elements.link { mass 1; link_geometry: k.geometry.box { dimension [0.2,0.2,0.2]; } }
+        middle: k.elements.link {
+            mass 1; origin [0.1,0,0];
+            link_geometry: k.geometry.box { dimension [0.4,0.1,0.1]; }
+            visual -> looks;
+            looks {
+                shell: k.geometry.box { dimension [0.4,0.1,0.1]; origin [0.1,0,0]; }
+                cover: k.geometry.sphere { dimension [0.03]; origin [0,0.1,0]; }
+            }
+        }
+        tip: k.elements.link { mass 1; origin [0.1,0,0]; link_geometry: k.geometry.box { dimension [0.2,0.1,0.1]; } }
+        tool: k.elements.frame {}
+        @mount: k.fixed_joint { (+ world, - base); }
+        @joint1: k.rev_joint {
+            (+ base [[1,0,0],[0,0,0]], - middle, - k.axes.AXIS_Z);
+            coordinate -> room.samples.arm1;
+        }
+        @joint2: k.rev_joint {
+            (+ middle [[1,0,0],[0,0,0]], - tip, - k.axes.AXIS_Z);
+            coordinate -> room.samples.arm2;
+        }
+        @tool_mount: k.elements.frame_attachment { (+ tip, - tool); origin [0.25,0,0]; rpy_deg [0,0,90]; }
+    }
+    door {
+        attachment_kind -> k.elements.frame_attachment;
+        base: k.elements.link { mass 1; link_geometry: k.geometry.box { dimension [0.1,0.1,1]; } }
+        tip: k.elements.link { mass 1; origin [0.5,0,0]; link_geometry: k.geometry.box { dimension [1,0.05,1]; } }
+        tool: k.elements.frame {}
+        @mount: k.fixed_joint { (+ world, - base); }
+        @joint1: k.rev_joint { (+ base, - tip, - k.axes.AXIS_Z); coordinate -> room.samples.door; }
+        @tool_mount: k.elements.frame_attachment { (+ tip, - tool); origin [1,0,0]; }
+    }
+    slider {
+        attachment_kind -> k.elements.frame_attachment;
+        base: k.elements.link { mass 1; link_geometry: k.geometry.box { dimension [1,0.05,0.05]; } }
+        tip: k.elements.link { mass 1; origin [0.1,0,0]; link_geometry: k.geometry.box { dimension [0.2,0.1,0.1]; } }
+        tool: k.elements.frame {}
+        @mount: k.fixed_joint { (+ world, - base); }
+        @joint1: k.prismatic_joint { (+ base, - tip, - k.axes.AXIS_X); coordinate -> room.samples.slider; }
+        @tool_mount: k.elements.frame_attachment { (+ tip, - tool); origin [0.2,0,0]; }
+    }
+}
