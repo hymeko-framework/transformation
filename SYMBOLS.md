@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**13 package(s), 946 public symbol(s).**
+**14 package(s), 1109 public symbol(s).**
 
 ## generated (python)
 
@@ -44,6 +44,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Connection` — `hymeko_dynamics/src/power.rs`
 - `Controls` — `hymeko_dynamics/src/fluid.rs`
 - `Coordinate` — `hymeko_dynamics/src/system.rs`
+- `Criteria` — `hymeko_dynamics/src/scenario/inspection/model.rs`
 - `Declared` — `hymeko_dynamics/src/system.rs`
 - `DiffusionSystem` — `hymeko_dynamics/src/diffusion.rs`
 - `Drive` — `hymeko_dynamics/src/system.rs`
@@ -53,17 +54,22 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Equation` — `hymeko_dynamics/src/power.rs`
 - `Event` — `hymeko_dynamics/src/scenario/model.rs`
 - `EventLog` — `hymeko_dynamics/src/scenario/model.rs`
+- `Evidence` — `hymeko_dynamics/src/scenario/inspection/model.rs`
 - `Fluid` — `hymeko_dynamics/src/fluid.rs`
 - `Graph` — `hymeko_dynamics/src/kirchhoff.rs`
 - `Guard` — `hymeko_dynamics/src/scenario/model.rs`
 - `GuardEvidence` — `hymeko_dynamics/src/scenario/model.rs`
 - `Hierarchy` — `hymeko_dynamics/src/hierarchy.rs`
 - `Identity` — `hymeko_dynamics/src/scenario/model.rs`
+- `InspectionModel` — `hymeko_dynamics/src/scenario/inspection/model.rs`
+- `InspectionSession` — `hymeko_dynamics/src/scenario/inspection/run.rs`
+- `InspectionSnapshot` — `hymeko_dynamics/src/scenario/inspection/model.rs`
 - `Invariant` — `hymeko_dynamics/src/scenario/model.rs`
 - `InvariantStatus` — `hymeko_dynamics/src/scenario/model.rs`
 - `Laws` — `hymeko_dynamics/src/kirchhoff.rs`
 - `LossSource` — `hymeko_dynamics/src/system.rs`
 - `Marker` — `hymeko_dynamics/src/fluid.rs`
+- `MechanicalProjection` — `hymeko_dynamics/src/power/canonical.rs`
 - `Mode` — `hymeko_dynamics/src/analysis.rs`
 - `MutationResult` — `hymeko_dynamics/src/scenario/model.rs`
 - `Node` — `hymeko_dynamics/src/power.rs`
@@ -75,6 +81,8 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Particle` — `hymeko_dynamics/src/softbody.rs`
 - `Port` — `hymeko_dynamics/src/power.rs`
 - `PortSource` — `hymeko_dynamics/src/system.rs`
+- `Pose` — `hymeko_dynamics/src/scenario/inspection/model.rs`
+- `PoseObservation` — `hymeko_dynamics/src/scenario/inspection/model.rs`
 - `PowerGraph` — `hymeko_dynamics/src/power.rs`
 - `PublicPort` — `hymeko_dynamics/src/hierarchy.rs`
 - `Refusal` — `hymeko_dynamics/src/scenario/model.rs`
@@ -86,6 +94,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `SoftBody` — `hymeko_dynamics/src/softbody.rs`
 - `Spring` — `hymeko_dynamics/src/softbody.rs`
 - `State` — `hymeko_dynamics/src/scenario/model.rs`
+- `Station` — `hymeko_dynamics/src/scenario/inspection/model.rs`
 - `Subsystem` — `hymeko_dynamics/src/hierarchy.rs`
 - `Sweep` — `hymeko_dynamics/src/system.rs`
 - `System` — `hymeko_dynamics/src/system.rs`
@@ -101,6 +110,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Comparison` — `hymeko_dynamics/src/scenario/model.rs`
 - `EffectKind` — `hymeko_dynamics/src/scenario/model.rs`
 - `EventAction` — `hymeko_dynamics/src/scenario/model.rs`
+- `InspectionPhase` — `hymeko_dynamics/src/scenario/inspection/model.rs`
 - `Integrator` — `hymeko_dynamics/src/run.rs`
 - `ObserverKind` — `hymeko_dynamics/src/scenario/model.rs`
 - `ReadError` — `hymeko_dynamics/src/read.rs`
@@ -125,6 +135,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `branch_drops` — `hymeko_dynamics/src/system.rs`
 - `branch_states` — `hymeko_dynamics/src/system.rs`
 - `calibration_error` — `hymeko_dynamics/src/field.rs`
+- `canonical_mechanics` — `hymeko_dynamics/src/power/canonical.rs`
 - `cell` — `hymeko_dynamics/src/fluid/grid.rs`
 - `component_of` — `hymeko_dynamics/src/layout.rs`
 - `contains` — `hymeko_dynamics/src/hierarchy.rs`
@@ -158,6 +169,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `input_at` — `hymeko_dynamics/src/system.rs`
 - `interconnection_graph` — `hymeko_dynamics/src/kirchhoff.rs`
 - `intervene` — `hymeko_dynamics/src/scenario/session.rs`
+- `invalidate` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `is_electric` — `hymeko_dynamics/src/field.rs`
 - `is_linear` — `hymeko_dynamics/src/system.rs`
 - `is_outlet` — `hymeko_dynamics/src/fluid/grid.rs`
@@ -168,10 +180,12 @@ docstring are all excluded for a stated reason rather than by luck.
 - `kirchhoff_residual` — `hymeko_dynamics/src/system.rs`
 - `layered` — `hymeko_dynamics/src/layout.rs`
 - `liquid` — `hymeko_dynamics/src/power/continuum.rs`
+- `log_bytes` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `log_bytes` — `hymeko_dynamics/src/scenario/session.rs`
 - `markers` — `hymeko_dynamics/src/fluid.rs`
 - `mechanical` — `hymeko_dynamics/src/power/mechanical.rs`
 - `mechanism` — `hymeko_dynamics/src/power/mechanical.rs`
+- `model` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `model` — `hymeko_dynamics/src/scenario/session.rs`
 - `modes` — `hymeko_dynamics/src/analysis.rs`
 - `mul` — `hymeko_dynamics/src/analysis.rs`
@@ -179,10 +193,14 @@ docstring are all excluded for a stated reason rather than by luck.
 - `needs_rate` — `hymeko_dynamics/src/system.rs`
 - `new` — `hymeko_dynamics/src/analysis.rs`
 - `new` — `hymeko_dynamics/src/fluid/grid.rs`
+- `new` — `hymeko_dynamics/src/scenario/inspection/read.rs`
 - `normalised_matrix` — `hymeko_dynamics/src/system.rs`
 - `observable_of` — `hymeko_dynamics/src/system.rs`
 - `observation` — `hymeko_dynamics/src/fluid.rs`
+- `observe` — `hymeko_dynamics/src/power/canonical.rs`
+- `observe` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `observe_at` — `hymeko_dynamics/src/system.rs`
+- `open` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `open` — `hymeko_dynamics/src/scenario/session.rs`
 - `parameter_of` — `hymeko_dynamics/src/system.rs`
 - `particles` — `hymeko_dynamics/src/softbody.rs`
@@ -199,9 +217,12 @@ docstring are all excluded for a stated reason rather than by luck.
 - `project_file` — `hymeko_dynamics/src/sources.rs`
 - `project_sources` — `hymeko_dynamics/src/sources.rs`
 - `quantity` — `hymeko_dynamics/src/diffusion.rs`
+- `read` — `hymeko_dynamics/src/scenario/inspection/read.rs`
 - `region_of` — `hymeko_dynamics/src/system.rs`
+- `required_visits` — `hymeko_dynamics/src/scenario/inspection/model.rs`
 - `reset` — `hymeko_dynamics/src/scenario/session.rs`
 - `response` — `hymeko_dynamics/src/analysis.rs`
+- `resume` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `revision` — `hymeko_dynamics/src/diffusion.rs`
 - `revision` — `hymeko_dynamics/src/scenario/session.rs`
 - `run` — `hymeko_dynamics/src/run.rs`
@@ -210,7 +231,9 @@ docstring are all excluded for a stated reason rather than by luck.
 - `sample` — `hymeko_dynamics/src/fluid/grid.rs`
 - `scale` — `hymeko_dynamics/src/analysis.rs`
 - `scene` — `hymeko_dynamics/src/web.rs`
+- `set_log_budget` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `set_log_budget` — `hymeko_dynamics/src/scenario/session.rs`
+- `snapshot` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `snapshot` — `hymeko_dynamics/src/scenario/session/history.rs`
 - `spacing` — `hymeko_dynamics/src/fluid.rs`
 - `span` — `hymeko_dynamics/src/field.rs`
@@ -227,17 +250,24 @@ docstring are all excluded for a stated reason rather than by luck.
 - `sub` — `hymeko_dynamics/src/analysis.rs`
 - `subsystem_balance` — `hymeko_dynamics/src/hierarchy.rs`
 - `system` — `hymeko_dynamics/src/power.rs`
+- `target` — `hymeko_dynamics/src/scenario/inspection/run.rs`
+- `target_at` — `hymeko_dynamics/src/scenario/inspection/model.rs`
+- `tick` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `time` — `hymeko_dynamics/src/diffusion.rs`
 - `time` — `hymeko_dynamics/src/softbody.rs`
 - `to_cbor` — `hymeko_dynamics/src/scenario/wire.rs`
+- `to_json` — `hymeko_dynamics/src/power.rs`
 - `to_json` — `hymeko_dynamics/src/scenario/wire.rs`
 - `transfer` — `hymeko_dynamics/src/fluid/grid.rs`
 - `transient` — `hymeko_dynamics/src/web.rs`
+- `transitions` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `tree` — `hymeko_dynamics/src/diffusion.rs`
 - `tree` — `hymeko_dynamics/src/fluid.rs`
 - `triangles` — `hymeko_dynamics/src/softbody.rs`
 - `validate` — `hymeko_dynamics/src/fluid.rs`
+- `validate` — `hymeko_dynamics/src/power/canonical.rs`
 - `value_of` — `hymeko_dynamics/src/system.rs`
+- `value_updates` — `hymeko_dynamics/src/scenario/inspection/run.rs`
 - `velocity` — `hymeko_dynamics/src/softbody.rs`
 - `volume` — `hymeko_dynamics/src/field.rs`
 
@@ -282,21 +312,36 @@ docstring are all excluded for a stated reason rather than by luck.
 - **Manifest:** `hymeko_formats/Cargo.toml`
 - **Charter:** HyMeKo built-in format plugins.
 
+### traits
+
+- `RobotFamily` — `hymeko_formats/src/robot_family/mod.rs`
+
 ### structs
 
 - `ArcDto` — `hymeko_formats/src/snapshot.rs`
 - `BinaryEdge` — `hymeko_formats/src/binary_graph.rs`
 - `BinaryGraph` — `hymeko_formats/src/binary_graph.rs`
+- `Candidate` — `hymeko_formats/src/robot_family/check.rs`
+- `Check` — `hymeko_formats/src/robot_family/check.rs`
 - `CompiledWorld` — `hymeko_formats/src/environment/mod.rs`
 - `Counters` — `hymeko_formats/src/environment/mod.rs`
+- `DesignCell` — `hymeko_formats/src/robot_family/cell.rs`
+- `DesignPoint` — `hymeko_formats/src/robot_family/mod.rs`
 - `DotTransform` — `hymeko_formats/src/transforms.rs`
 - `Evaluation` — `hymeko_formats/src/environment/mod.rs`
+- `Expectation` — `hymeko_formats/src/robot_family/mod.rs`
+- `FamilyGenerator` — `hymeko_formats/src/robot_family/mod.rs`
+- `FamilySampler` — `hymeko_formats/src/robot_family/mod.rs`
 - `Feature` — `hymeko_formats/src/environment/terrain.rs`
 - `Gate` — `hymeko_formats/src/environment/team.rs`
 - `GazeboWorldTransform` — `hymeko_formats/src/transforms.rs`
+- `GeneratedRobot` — `hymeko_formats/src/robot_family/mod.rs`
 - `GraphExecutionSettings` — `hymeko_formats/src/graph_execution.rs`
 - `Layout` — `hymeko_formats/src/environment/mod.rs`
+- `LeggedPairs` — `hymeko_formats/src/robot_family/legged.rs`
 - `LeggedRobot` — `hymeko_formats/src/environment/locomotion.rs`
+- `Limits` — `hymeko_formats/src/robot_family/source.rs`
+- `LinkSpec` — `hymeko_formats/src/robot_family/source.rs`
 - `LocomotionProfile` — `hymeko_formats/src/environment/locomotion.rs`
 - `MazeCell` — `hymeko_formats/src/environment/maze.rs`
 - `MazeGeometry` — `hymeko_formats/src/environment/maze.rs`
@@ -308,18 +353,27 @@ docstring are all excluded for a stated reason rather than by luck.
 - `MeshPart` — `hymeko_formats/src/mesh.rs`
 - `MjcfTransform` — `hymeko_formats/src/transforms.rs`
 - `NodeDto` — `hymeko_formats/src/snapshot.rs`
+- `ObservationRule` — `hymeko_formats/src/traceability/simulation.rs`
 - `PageRankSource` — `hymeko_formats/src/graph_execution.rs`
+- `ParameterSpace` — `hymeko_formats/src/robot_family/mod.rs`
+- `ParameterSpec` — `hymeko_formats/src/robot_family/mod.rs`
 - `Point` — `hymeko_formats/src/environment/mod.rs`
 - `Projection` — `hymeko_formats/src/environment/mod.rs`
 - `RelDto` — `hymeko_formats/src/snapshot.rs`
+- `Requirement` — `hymeko_formats/src/robot_family/mod.rs`
+- `RequirementsCsvTransform` — `hymeko_formats/src/transforms.rs`
 - `RequirementsDotTransform` — `hymeko_formats/src/transforms.rs`
 - `RequirementsSysmlTransform` — `hymeko_formats/src/transforms.rs`
 - `RobotPlan` — `hymeko_formats/src/environment/team.rs`
 - `RobotProjection` — `hymeko_formats/src/robot_projection.rs`
+- `RobotSource` — `hymeko_formats/src/robot_family/source.rs`
 - `Scale` — `hymeko_formats/src/environment/maze.rs`
 - `SdfTransform` — `hymeko_formats/src/transforms.rs`
 - `SearchRun` — `hymeko_formats/src/environment/maze/search.rs`
+- `SerialSixAxis` — `hymeko_formats/src/robot_family/manipulator.rs`
+- `SimulationBundle` — `hymeko_formats/src/traceability/simulation.rs`
 - `SnapshotDto` — `hymeko_formats/src/snapshot.rs`
+- `StationSolution` — `hymeko_formats/src/robot_family/cell.rs`
 - `SysmlStructureTransform` — `hymeko_formats/src/transforms.rs`
 - `SysmlTransform` — `hymeko_formats/src/transforms.rs`
 - `TeamPlan` — `hymeko_formats/src/environment/team.rs`
@@ -329,21 +383,32 @@ docstring are all excluded for a stated reason rather than by luck.
 - `TerrainWorld` — `hymeko_formats/src/environment/terrain.rs`
 - `Topology` — `hymeko_formats/src/environment/maze.rs`
 - `TorchDataflowTransform` — `hymeko_formats/src/transforms.rs`
+- `TraceabilityExport` — `hymeko_formats/src/traceability.rs`
+- `TreeRobotGenerator` — `hymeko_formats/src/robot_family/source.rs`
 - `UrdfTransform` — `hymeko_formats/src/transforms.rs`
 
 ### enums
 
 - `Category` — `hymeko_formats/src/environment/terrain.rs`
 - `CodegenError` — `hymeko_formats/src/codegen.rs`
+- `Comparison` — `hymeko_formats/src/traceability/simulation.rs`
+- `FamilyError` — `hymeko_formats/src/robot_family/mod.rs`
 - `FeatureKind` — `hymeko_formats/src/environment/terrain.rs`
 - `GraphExecutionError` — `hymeko_formats/src/graph_execution.rs`
+- `JointKind` — `hymeko_formats/src/robot_family/source.rs`
+- `Measurement` — `hymeko_formats/src/traceability/simulation.rs`
 - `OutputFormat` — `hymeko_formats/src/codegen.rs`
 - `Profile` — `hymeko_formats/src/environment/maze.rs`
+- `Shape` — `hymeko_formats/src/robot_family/source.rs`
 - `TaskKind` — `hymeko_formats/src/environment/terrain.rs`
 
 ### functions
 
+- `admit` — `hymeko_formats/src/robot_family/mod.rs`
+- `artifacts` — `hymeko_formats/src/robot_family/cell.rs`
+- `artifacts` — `hymeko_formats/src/traceability/simulation.rs`
 - `binding` — `hymeko_formats/src/environment/locomotion.rs`
+- `candidate` — `hymeko_formats/src/robot_family/check.rs`
 - `canonical` — `hymeko_formats/src/environment/mod.rs`
 - `cells` — `hymeko_formats/src/environment/maze.rs`
 - `check_receipts` — `hymeko_formats/src/environment/mod.rs`
@@ -352,13 +417,22 @@ docstring are all excluded for a stated reason rather than by luck.
 - `clique_edge_count` — `hymeko_formats/src/binary_graph.rs`
 - `compile` — `hymeko_formats/src/environment/mod.rs`
 - `compile` — `hymeko_formats/src/metaheuristic/mod.rs`
+- `compile_snapshot` — `hymeko_formats/src/robot_family/mod.rs`
+- `constant` — `hymeko_formats/src/robot_family/mod.rs`
+- `constant` — `hymeko_formats/src/robot_family/source.rs`
 - `default_registry` — `hymeko_formats/src/lib.rs`
 - `default_transforms_root` — `hymeko_formats/src/gazebo.rs`
+- `defaults` — `hymeko_formats/src/robot_family/mod.rs`
+- `design` — `hymeko_formats/src/robot_family/mod.rs`
 - `diagnostic_pose` — `hymeko_formats/src/robot_projection.rs`
 - `digest` — `hymeko_formats/src/environment/mod.rs`
+- `digest` — `hymeko_formats/src/robot_family/check.rs`
+- `digest` — `hymeko_formats/src/traceability/simulation.rs`
 - `dimension` — `hymeko_formats/src/environment/terrain.rs`
+- `dimension` — `hymeko_formats/src/robot_family/source.rs`
 - `dimension_for` — `hymeko_formats/src/environment/terrain.rs`
 - `dot_escape` — `hymeko_formats/src/snapshot.rs`
+- `emit` — `hymeko_formats/src/traceability.rs`
 - `emit_dot_graph` — `hymeko_formats/src/snapshot.rs`
 - `evaluate` — `hymeko_formats/src/environment/maze/search.rs`
 - `evaluate` — `hymeko_formats/src/environment/mod.rs`
@@ -366,8 +440,11 @@ docstring are all excluded for a stated reason rather than by luck.
 - `export` — `hymeko_formats/src/environment/terrain.rs`
 - `export_flat` — `hymeko_formats/src/environment/terrain.rs`
 - `export_physics` — `hymeko_formats/src/environment/physical.rs`
+- `finish` — `hymeko_formats/src/robot_family/source.rs`
 - `forward_poses` — `hymeko_formats/src/robot_projection.rs`
+- `frame` — `hymeko_formats/src/robot_family/source.rs`
 - `from_hyperedges` — `hymeko_formats/src/binary_graph.rs`
+- `from_unit` — `hymeko_formats/src/robot_family/mod.rs`
 - `generate` — `hymeko_formats/src/environment/maze.rs`
 - `generate` — `hymeko_formats/src/environment/terrain.rs`
 - `generate_description` — `hymeko_formats/src/codegen.rs`
@@ -380,37 +457,58 @@ docstring are all excluded for a stated reason rather than by luck.
 - `generate_urdf` — `hymeko_formats/src/urdf.rs`
 - `generate_urdf_from_model` — `hymeko_formats/src/urdf.rs`
 - `geometry` — `hymeko_formats/src/environment/maze/search.rs`
+- `get` — `hymeko_formats/src/robot_family/mod.rs`
 - `glb` — `hymeko_formats/src/mesh.rs`
 - `graph` — `hymeko_formats/src/graph_execution.rs`
+- `joint` — `hymeko_formats/src/robot_family/source.rs`
 - `layout` — `hymeko_formats/src/environment/mod.rs`
 - `leg_joints` — `hymeko_formats/src/environment/locomotion.rs`
+- `legs` — `hymeko_formats/src/robot_family/legged.rs`
+- `link` — `hymeko_formats/src/robot_family/source.rs`
 - `load` — `hymeko_formats/src/graph_execution.rs`
+- `load` — `hymeko_formats/src/robot_family/mod.rs`
 - `max_loops` — `hymeko_formats/src/environment/maze.rs`
 - `metadata` — `hymeko_formats/src/robot_projection.rs`
 - `mjcf` — `hymeko_formats/src/environment/locomotion.rs`
 - `mjcf` — `hymeko_formats/src/robot_projection.rs`
 - `mock_emit` — `hymeko_formats/src/binary_graph.rs`
 - `model` — `hymeko_formats/src/robot_projection.rs`
+- `model` — `hymeko_formats/src/traceability/simulation.rs`
 - `new` — `hymeko_formats/src/environment/maze.rs`
 - `new` — `hymeko_formats/src/environment/maze/search.rs`
+- `new` — `hymeko_formats/src/robot_family/legged.rs`
+- `new` — `hymeko_formats/src/robot_family/manipulator.rs`
+- `new` — `hymeko_formats/src/robot_family/mod.rs`
+- `new` — `hymeko_formats/src/robot_family/source.rs`
 - `new` — `hymeko_formats/src/robot_projection.rs`
+- `new` — `hymeko_formats/src/traceability.rs`
+- `new` — `hymeko_formats/src/traceability/simulation.rs`
 - `node_path` — `hymeko_formats/src/graph_execution.rs`
+- `number` — `hymeko_formats/src/robot_family/source.rs`
+- `objective` — `hymeko_formats/src/robot_family/cell.rs`
+- `on_grid` — `hymeko_formats/src/robot_family/mod.rs`
 - `parse` — `hymeko_formats/src/environment/maze.rs`
 - `parse` — `hymeko_formats/src/environment/terrain.rs`
 - `passages` — `hymeko_formats/src/environment/maze.rs`
 - `plan` — `hymeko_formats/src/environment/team.rs`
 - `prepare` — `hymeko_formats/src/graph_execution.rs`
+- `prepare` — `hymeko_formats/src/robot_family/cell.rs`
 - `priority_pairs` — `hymeko_formats/src/environment/maze.rs`
 - `profile` — `hymeko_formats/src/graph_execution.rs`
 - `project` — `hymeko_formats/src/environment/mod.rs`
 - `project` — `hymeko_formats/src/metaheuristic/catalog.rs`
+- `projection` — `hymeko_formats/src/traceability.rs`
 - `prompt_semantics` — `hymeko_formats/src/metaheuristic/mod.rs`
 - `radiance` — `hymeko_formats/src/texture.rs`
 - `read` — `hymeko_formats/src/environment/locomotion.rs`
+- `read` — `hymeko_formats/src/robot_family/mod.rs`
 - `read_features` — `hymeko_formats/src/environment/terrain.rs`
 - `receipt` — `hymeko_formats/src/environment/terrain.rs`
+- `record` — `hymeko_formats/src/traceability/simulation.rs`
 - `reemit` — `hymeko_formats/src/environment/mod.rs`
+- `reference` — `hymeko_formats/src/traceability.rs`
 - `register_defaults` — `hymeko_formats/src/lib.rs`
+- `robot_checks` — `hymeko_formats/src/robot_family/check.rs`
 - `route_cell_indices` — `hymeko_formats/src/environment/maze.rs`
 - `route_points_m` — `hymeko_formats/src/environment/maze.rs`
 - `run` — `hymeko_formats/src/graph_execution.rs`
@@ -420,20 +518,31 @@ docstring are all excluded for a stated reason rather than by luck.
 - `scaled` — `hymeko_formats/src/environment/maze.rs`
 - `select_targets` — `hymeko_formats/src/environment/team.rs`
 - `settings` — `hymeko_formats/src/graph_execution.rs`
+- `snap` — `hymeko_formats/src/robot_family/mod.rs`
 - `snapshot` — `hymeko_formats/src/snapshot.rs`
 - `snapshot_json` — `hymeko_formats/src/snapshot.rs`
+- `solid_inertia` — `hymeko_formats/src/robot_family/source.rs`
 - `solve_leg` — `hymeko_formats/src/environment/locomotion.rs`
 - `source` — `hymeko_formats/src/environment/mod.rs`
 - `starts` — `hymeko_formats/src/environment/team.rs`
+- `structure` — `hymeko_formats/src/robot_family/check.rs`
 - `structure_checks` — `hymeko_formats/src/environment/mod.rs`
+- `to_unit` — `hymeko_formats/src/robot_family/mod.rs`
+- `total_mass` — `hymeko_formats/src/robot_family/check.rs`
+- `trace_scope` — `hymeko_formats/src/traceability/simulation.rs`
 - `urdf_queries` — `hymeko_formats/src/urdf.rs`
+- `valid` — `hymeko_formats/src/robot_family/check.rs`
 - `validate` — `hymeko_formats/src/environment/mod.rs`
 - `validate` — `hymeko_formats/src/metaheuristic/mod.rs`
 - `validate_robot_schema` — `hymeko_formats/src/urdf.rs`
+- `values` — `hymeko_formats/src/robot_family/mod.rs`
 - `verify` — `hymeko_formats/src/environment/team.rs`
 - `visual_source` — `hymeko_formats/src/environment/maze.rs`
 - `visual_source` — `hymeko_formats/src/environment/visual.rs`
+- `vocabulary` — `hymeko_formats/src/robot_family/check.rs`
+- `volume` — `hymeko_formats/src/robot_family/source.rs`
 - `walls` — `hymeko_formats/src/environment/maze.rs`
+- `with_control` — `hymeko_formats/src/traceability/simulation.rs`
 - `world_sdf` — `hymeko_formats/src/environment/mod.rs`
 - `write` — `hymeko_formats/src/environment/locomotion.rs`
 - `xml_escape` — `hymeko_formats/src/xml_util.rs`
@@ -485,6 +594,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Bicycle` — `hymeko_geometry/src/vehicle.rs`
 - `BodyContact` — `hymeko_geometry/src/contact.rs`
 - `BoundaryBridge` — `hymeko_geometry/src/mesh/bridge.rs`
+- `BraidedSleeve` — `hymeko_geometry/src/kinematics/actuation.rs`
 - `BroadPhase` — `hymeko_geometry/src/collide.rs`
 - `Camera` — `hymeko_geometry/src/kinematics/cameras.rs`
 - `CameraSet` — `hymeko_geometry/src/kinematics/cameras.rs`
@@ -495,10 +605,12 @@ docstring are all excluded for a stated reason rather than by luck.
 - `CompiledRecipe` — `hymeko_geometry/src/pipeline/source.rs`
 - `Constraint` — `hymeko_geometry/src/contact.rs`
 - `ConstraintSolver` — `hymeko_geometry/src/contact.rs`
+- `ConstraintWork` — `hymeko_geometry/src/engine/energy.rs`
 - `Contact` — `hymeko_geometry/src/collide.rs`
 - `ContactParameters` — `hymeko_geometry/src/contact.rs`
 - `Diagnostic` — `hymeko_geometry/src/transforms/mod.rs`
 - `DriveCommand` — `hymeko_geometry/src/vehicle.rs`
+- `EnergyAudit` — `hymeko_geometry/src/engine/energy.rs`
 - `Engine` — `hymeko_geometry/src/engine.rs`
 - `Envelope` — `hymeko_geometry/src/kinematics/ik.rs`
 - `EyeProfile` — `hymeko_geometry/src/material.rs`
@@ -528,6 +640,11 @@ docstring are all excluded for a stated reason rather than by luck.
 - `MaterialLibrary` — `hymeko_geometry/src/material/library.rs`
 - `MeshLod` — `hymeko_geometry/src/mesh.rs`
 - `ModelChain` — `hymeko_geometry/src/kinematics/ik.rs`
+- `MuscleElement` — `hymeko_geometry/src/engine/muscle.rs`
+- `MuscleLaw` — `hymeko_geometry/src/engine/muscle.rs`
+- `MuscleShape` — `hymeko_geometry/src/engine/muscle.rs`
+- `MuscleState` — `hymeko_geometry/src/engine/muscle.rs`
+- `Muscles` — `hymeko_geometry/src/engine/muscle.rs`
 - `NormalSmoothing` — `hymeko_geometry/src/mesh/normals.rs`
 - `Outcome` — `hymeko_geometry/src/contact/replay.rs`
 - `PatchSample` — `hymeko_geometry/src/mesh/spline.rs`
@@ -543,6 +660,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `ReliefProfile` — `hymeko_geometry/src/material.rs`
 - `Replay` — `hymeko_geometry/src/contact/replay.rs`
 - `RgbaImage` — `hymeko_geometry/src/material.rs`
+- `RigidAttachment` — `hymeko_geometry/src/engine/attachment.rs`
 - `Settings` — `hymeko_geometry/src/contact/replay.rs`
 - `SkinProfile` — `hymeko_geometry/src/material.rs`
 - `SphericalGravity` — `hymeko_geometry/src/force_field.rs`
@@ -632,6 +750,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `bounding_radius` — `hymeko_geometry/src/collide.rs`
 - `bounds` — `hymeko_geometry/src/mesh.rs`
 - `bounds` — `hymeko_geometry/src/mesh/spline.rs`
+- `braid_angle` — `hymeko_geometry/src/kinematics/actuation.rs`
 - `builtin` — `hymeko_geometry/src/material/library.rs`
 - `by_extension` — `hymeko_geometry/src/transforms/mod.rs`
 - `clear` — `hymeko_geometry/src/kinematics/playout.rs`
@@ -639,6 +758,8 @@ docstring are all excluded for a stated reason rather than by luck.
 - `collider_placements` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `colliders` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `colliders_of` — `hymeko_geometry/src/collide.rs`
+- `command` — `hymeko_geometry/src/engine/muscle.rs`
+- `command_muscle` — `hymeko_geometry/src/engine.rs`
 - `compile` — `hymeko_geometry/src/pipeline/source.rs`
 - `complementarity_residual` — `hymeko_geometry/src/contact.rs`
 - `config` — `hymeko_geometry/src/vehicle.rs`
@@ -647,14 +768,21 @@ docstring are all excluded for a stated reason rather than by luck.
 - `contacts` — `hymeko_geometry/src/engine.rs`
 - `controller_time` — `hymeko_geometry/src/kinematics/playout.rs`
 - `coordinates` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
+- `damping_at` — `hymeko_geometry/src/engine/attachment.rs`
 - `delassus` — `hymeko_geometry/src/contact.rs`
+- `diameter` — `hymeko_geometry/src/kinematics/actuation.rs`
 - `dynamics` — `hymeko_geometry/src/engine.rs`
+- `elements` — `hymeko_geometry/src/engine/muscle.rs`
 - `emit_all` — `hymeko_geometry/src/transforms/mod.rs`
 - `emit_all` — `hymeko_geometry/src/transforms/transform_engine.rs`
 - `emit_format` — `hymeko_geometry/src/transforms/transform_engine.rs`
 - `emit_formats` — `hymeko_geometry/src/transforms/transform_engine.rs`
 - `emit_with_config` — `hymeko_geometry/src/transforms/transform_engine.rs`
+- `enable_energy_audit` — `hymeko_geometry/src/engine/energy.rs`
+- `enable_muscles` — `hymeko_geometry/src/engine.rs`
 - `enable_sphere_collisions` — `hymeko_geometry/src/engine.rs`
+- `energy_at` — `hymeko_geometry/src/engine/energy.rs`
+- `energy_audit` — `hymeko_geometry/src/engine/energy.rs`
 - `error` — `hymeko_geometry/src/transforms/mod.rs`
 - `extract` — `hymeko_geometry/src/kinematics/visual.rs`
 - `extract` — `hymeko_geometry/src/transforms/model_view.rs`
@@ -666,10 +794,12 @@ docstring are all excluded for a stated reason rather than by luck.
 - `follow_geometry` — `hymeko_geometry/src/mesh/normals.rs`
 - `for_processing` — `hymeko_geometry/src/mesh/topology.rs`
 - `force_at` — `hymeko_geometry/src/force_field.rs`
+- `force_per_pressure` — `hymeko_geometry/src/kinematics/actuation.rs`
 - `forward_kinematics` — `hymeko_geometry/src/forward.rs`
 - `from_declaration` — `hymeko_geometry/src/collide.rs`
 - `from_ir` — `hymeko_geometry/src/track.rs`
 - `from_json` — `hymeko_geometry/src/material/library.rs`
+- `from_model` — `hymeko_geometry/src/engine/muscle.rs`
 - `from_parameters` — `hymeko_geometry/src/force_field.rs`
 - `from_scope` — `hymeko_geometry/src/kinematics/kinematic/scope.rs`
 - `get` — `hymeko_geometry/src/forward.rs`
@@ -683,6 +813,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `impulses` — `hymeko_geometry/src/contact.rs`
 - `impulses` — `hymeko_geometry/src/engine.rs`
 - `inbound_joint` — `hymeko_geometry/src/articulated.rs`
+- `index` — `hymeko_geometry/src/engine/muscle.rs`
 - `indices` — `hymeko_geometry/src/mesh/bridge.rs`
 - `indices` — `hymeko_geometry/src/mesh/spline.rs`
 - `info` — `hymeko_geometry/src/transforms/mod.rs`
@@ -718,6 +849,8 @@ docstring are all excluded for a stated reason rather than by luck.
 - `model` — `hymeko_geometry/src/engine.rs`
 - `model` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `movable` — `hymeko_geometry/src/articulated.rs`
+- `muscle_shapes` — `hymeko_geometry/src/engine.rs`
+- `muscles` — `hymeko_geometry/src/engine.rs`
 - `nearest` — `hymeko_geometry/src/kinematics/ik.rs`
 - `new` — `hymeko_geometry/src/articulated.rs`
 - `new` — `hymeko_geometry/src/collide.rs`
@@ -742,10 +875,12 @@ docstring are all excluded for a stated reason rather than by luck.
 - `origin_rpy_rad` — `hymeko_geometry/src/kinematics/joints.rs`
 - `overlapping` — `hymeko_geometry/src/collide.rs`
 - `pairs` — `hymeko_geometry/src/collide.rs`
+- `parallel_force` — `hymeko_geometry/src/engine/muscle.rs`
 - `path_names` — `hymeko_geometry/src/kinematics/ik.rs`
 - `place` — `hymeko_geometry/src/collide.rs`
 - `polygons` — `hymeko_geometry/src/mesh/pairing.rs`
 - `poses` — `hymeko_geometry/src/engine.rs`
+- `potential_energy_by_link` — `hymeko_geometry/src/articulated.rs`
 - `prepare` — `hymeko_geometry/src/mesh/regularize.rs`
 - `prepare_transforms` — `hymeko_geometry/src/articulated.rs`
 - `project` — `hymeko_geometry/src/kinematics/cameras.rs`
@@ -778,8 +913,15 @@ docstring are all excluded for a stated reason rather than by luck.
 - `scope` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `scratch` — `hymeko_geometry/src/articulated.rs`
 - `sdf_str` — `hymeko_geometry/src/kinematics/joints.rs`
+- `select_ground_links` — `hymeko_geometry/src/engine/attachment.rs`
 - `set_armature` — `hymeko_geometry/src/articulated.rs`
+- `set_attachment` — `hymeko_geometry/src/engine/attachment.rs`
+- `set_joint_dynamics` — `hymeko_geometry/src/engine/attachment.rs`
 - `set_state` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
+- `settle` — `hymeko_geometry/src/engine/muscle.rs`
+- `shapes` — `hymeko_geometry/src/engine/muscle.rs`
+- `shortest_pulling_length` — `hymeko_geometry/src/kinematics/actuation.rs`
+- `sleeve_length` — `hymeko_geometry/src/engine/muscle.rs`
 - `slot` — `hymeko_geometry/src/forward.rs`
 - `slots` — `hymeko_geometry/src/articulated.rs`
 - `solve` — `hymeko_geometry/src/contact.rs`
@@ -787,16 +929,21 @@ docstring are all excluded for a stated reason rather than by luck.
 - `solve` — `hymeko_geometry/src/two_bone.rs`
 - `solve_factorised` — `hymeko_geometry/src/articulated.rs`
 - `solve_factorised_over` — `hymeko_geometry/src/articulated.rs`
+- `solve_mass` — `hymeko_geometry/src/articulated.rs`
 - `solve_serial` — `hymeko_geometry/src/kinematics/ik.rs`
 - `solve_standard_dh` — `hymeko_geometry/src/kinematics/ik.rs`
 - `solve_standard_dh_at` — `hymeko_geometry/src/kinematics/ik.rs`
 - `standard_dh_chain` — `hymeko_geometry/src/kinematics/dh.rs`
 - `standard_dh_transform` — `hymeko_geometry/src/kinematics/joints.rs`
 - `state` — `hymeko_geometry/src/vehicle.rs`
+- `states` — `hymeko_geometry/src/engine/muscle.rs`
+- `step` — `hymeko_geometry/src/engine/muscle.rs`
 - `step` — `hymeko_geometry/src/vehicle.rs`
 - `support` — `hymeko_geometry/src/collide.rs`
 - `sweeps` — `hymeko_geometry/src/contact.rs`
+- `tendon_force` — `hymeko_geometry/src/engine/muscle.rs`
 - `textures` — `hymeko_geometry/src/material/procedural.rs`
+- `torque` — `hymeko_geometry/src/engine/muscle.rs`
 - `unsatisfiable` — `hymeko_geometry/src/contact.rs`
 - `urdf_str` — `hymeko_geometry/src/kinematics/joints.rs`
 - `uv` — `hymeko_geometry/src/mesh/topology.rs`
@@ -811,6 +958,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `validate` — `hymeko_geometry/src/mesh/spline.rs`
 - `validate` — `hymeko_geometry/src/pipeline.rs`
 - `validate` — `hymeko_geometry/src/transforms/transform_engine.rs`
+- `viscous_power` — `hymeko_geometry/src/engine/attachment.rs`
 - `visual_poses` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `visuals` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
 - `warning` — `hymeko_geometry/src/transforms/mod.rs`
@@ -935,6 +1083,10 @@ docstring are all excluded for a stated reason rather than by luck.
 - `ScopeClause` — `hymeko_query/src/rewrite/template.rs`
 - `SplitProposal` — `hymeko_query/src/rewrite/split.rs`
 - `StructuralEntropy` — `hymeko_query/src/entropy.rs`
+- `TraceEntity` — `hymeko_query/src/traceability.rs`
+- `TraceRelation` — `hymeko_query/src/traceability.rs`
+- `TraceVocabulary` — `hymeko_query/src/traceability.rs`
+- `Traceability` — `hymeko_query/src/traceability.rs`
 - `TransformSpec` — `hymeko_query/src/rewrite/template.rs`
 
 ### enums
@@ -1017,6 +1169,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `query_decl` — `hymeko_query/src/engine.rs`
 - `query_first` — `hymeko_query/src/engine.rs`
 - `query_iter` — `hymeko_query/src/engine.rs`
+- `read` — `hymeko_query/src/traceability.rs`
 - `render` — `hymeko_query/src/rewrite/template.rs`
 - `resolve_field_decl` — `hymeko_query/src/rewrite/match_context.rs`
 - `resolver` — `hymeko_query/src/engine.rs`
@@ -1134,6 +1287,31 @@ docstring are all excluded for a stated reason rather than by luck.
 - `to_values` — `hymeko_webxr/src/room.rs`
 - `validate` — `hymeko_webxr/src/lib.rs`
 - `visuals` — `hymeko_webxr/src/visual.rs`
+
+## tools (python)
+
+- **Root:** `tools`
+- **Manifest:** none -- inferred from sources
+- **Charter:** <no charter>
+
+### classes
+
+- `AuditError` — `tools/traceability/check.py`
+- `CsvView` — `tools/traceability/check.py`
+- `DotView` — `tools/traceability/check.py`
+- `NativeSysml` — `tools/traceability/native_check.py`
+- `SysmlView` — `tools/traceability/check.py`
+- `TraceInvariant` — `tools/traceability/check.py`
+- `TraceView` — `tools/traceability/check.py`
+
+### functions
+
+- `compare` — `tools/traceability/check.py`
+- `coverage` — `tools/traceability/check.py`
+- `expected_for` — `tools/traceability/check.py`
+- `fault_controls` — `tools/traceability/check.py`
+- `main` — `tools/traceability/check.py`
+- `main` — `tools/traceability/native_check.py`
 
 ## transforms (python)
 

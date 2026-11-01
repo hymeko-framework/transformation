@@ -2,6 +2,120 @@
 
 The HyMeKo IR→output (transformation) layer — a standalone cargo workspace.
 
+## Observed inspection task
+
+`hymeko_dynamics::scenario::inspection::InspectionSession` qualifies a declared
+sequence of station poses from timestamped observations. It reuses `ScenarioSession`
+for discrete progress and bounded transition history. Source/frame/epoch/order,
+finite poses, position/orientation/speed thresholds and contiguous sampled dwell
+are checked before completion. Source expiry blocks progress until fresh data and
+an explicit `resume`; this is not a physical stop command or confirmation.
+
+The [typed source fixture](hymeko_dynamics/tests/fixtures/inspection/task.hymeko)
+declares three stations, four cycles, home, criteria, workflow bindings and output
+leaves. Its positions are conformance data, not a verified UR trajectory. Run the
+thin JSON-lines consumer from this repository:
+
+```powershell
+cargo run --locked -p hymeko_dynamics --example inspection -- hymeko_dynamics/tests/fixtures/inspection/task.hymeko inspection --cbor inspection.cbor
+```
+
+It prints initial state, then reads one `observe`, `tick`, `resume` or `history`
+operation per input line. For example, `{"operation":"tick","now_ns":0}` returns
+the initial missing-observation state. `observe` has `now_ns` plus a `sample`
+matching the public `PoseObservation` contract. Invalid operations return explicit
+refusals; malformed/oversized input terminates the runner. EOF writes the optional
+CBOR using Core's existing writer. The file is current canonical IR evidence,
+not a checkpoint of the full observer memory or robot execution state.
+
+`value_updates()` projects state into the declared output leaves for an admitted
+host model. The host commits through `CompiledModel::with_value_updates` and its
+existing publication transaction, checking model basis and handling failure.
+Unknown/stale measurements have explicit validity flags. Sequence halves and
+seconds/subsecond nanoseconds are exact numeric fields, avoiding per-sample
+interned timestamp strings. Current and last-evaluated target references remain
+distinct at a phase boundary.
+
+Focused correctness checks:
+
+```powershell
+cargo test --locked -p hymeko_dynamics --test inspection --example inspection
+```
+
+ROS/HIVE publication, actual MoveIt sequencing and XR acceptance of this observer
+are separate integration work; the standalone runner sends no robot commands.
+
+## Requirements, components and verification records
+
+`hymeko_formats::traceability::TraceabilityExport` validates a bounded trace profile
+through `hymeko_query::traceability`, then uses the registered requirements SysML,
+DOT and CSV templates. It retains named parallel relationships and distinguishes
+allocation, satisfaction, verification links and authored outcomes (-1 unknown,
+0 fail, 1 pass). These outcomes are evidence records, not physical test executions.
+
+The facade requires one flat scope, unique ASCII identifiers, unweighted binary
+relations with checked endpoint roles, and delimiter-safe requirement text.
+Unsupported input is rejected before export. Generic template rendering alone
+does not provide this domain validation. SysML extraction checks the emitted
+subset; native SysML tool conformance is not claimed. Derivation is represented
+as a named connection, not a native `deriveReqt` assertion.
+
+```powershell
+cargo run --locked --offline -p hymeko_formats --example traceability -- data/paper/traceability_verification.hymeko verification_cell trace-output
+```
+
+The destination must be new. For the complete snapshot/negative-input evidence:
+
+```powershell
+$env:HYMEKO_TRACE_EVIDENCE = Join-Path (Get-Location) 'reports/traceability/outputs'
+cargo test --locked --offline -p hymeko_formats --test traceability
+python tools/traceability/check.py reports/traceability/outputs --result reports/traceability/results.json
+```
+
+The checker uses three format-specific readers, the Core/Query projection and a
+hand-authored full reference. It reports unmet requirements as diagnostic results;
+agreement between views does not make the modeled system compliant. Captured
+2026-10-15 evidence and its PDF are in `reports/2026-10-15-traceability-chain`,
+archived under `\\192.168.1.228\hymeko\reports\by-repository\transformation`.
+
+## Generated simulation evidence for the trace example
+
+`traceability_simulation.hymeko` imports the existing FANUC model and trace witness,
+adds a fixed vacuum cup, and binds six observation rules to the actual test identities.
+`SimulationBundle` resets the old synthetic outcomes to Unknown, emits the robot through
+`RobotProjection`, and produces Geometry pose references and the declared measurement
+contract. The separate Simulator client reuses `RobotRun` and `MissionMotion`; no RL
+environment or new physics solver is involved.
+
+From this repository, with a new output directory:
+
+```powershell
+cargo run --locked --offline -p hymeko_formats --example trace_simulation -- prepare data/paper/traceability_simulation.hymeko experiment NEW_BUNDLE
+```
+
+From the existing Simulator checkout:
+
+```powershell
+uv run --no-project --with mujoco==3.16.0 --with numpy==2.5.4 python python/requirement_simulation.py ABSOLUTE_BUNDLE --run --output NEW_RUN
+uv run --no-project --with mujoco==3.16.0 --with numpy==2.5.4 --with pillow python python/render_requirement_trial.py NEW_RUN/baseline_0 trial.gif
+```
+
+Back in Transformation, record the observations through Core's checked value updates:
+
+```powershell
+cargo run --locked --offline -p hymeko_formats --example trace_simulation -- record data/paper/traceability_simulation.hymeko experiment ABSOLUTE_RUN/evidence.json NEW_RECORDED_VIEWS
+```
+
+The actual simulated model uses an **ideal vacuum weld**, not a seal or frictional
+gripper model. The native integration timestep is declared in the source (0.5 ms).
+Missing evidence remains Unknown; censored observations retain explicit bounds.
+The 2026-10-15 run exposes two unmet requirements: station error about 0.508 mm
+against 0.5 mm, and stop qualification at 216.5 ms against 200 ms. These remain
+failed outcomes in SysML/DOT/CSV. Repeatability is deterministic simulation replay,
+not hardware repeatability. The full path error is reported separately from station
+positioning accuracy. Reports, recorded states, GIF and PDF are retained in
+`reports/2026-10-15-generated-simulation` and the shared Transformation report archive.
+
 ## Retained mechanism bindings
 
 `hymeko_geometry::kinematics::assembly::KinematicAssembly` binds one authored group
@@ -188,11 +302,14 @@ not measure performance. Existing files are never replaced. Geometry's current
 extractor reads the document's kinematic declarations; the supplied name labels
 the export, so provide a single-robot document.
 
-`generate_description(..., OutputFormat::Mjcf)`, the registered typed transform and
-`RobotProjection::mjcf()` now use the same articulated MJCF emitter. The incomplete
-flat-body MJCF template has been removed. `TransformRegistry::render` selects the
-registered backend; explicit `render_from_templates("mjcf", ...)` now returns
-`None`. Template errors in other formats remain errors, without a backend fallback.
+`generate_description`, the registered transforms and `TransformEngine` use the
+same model-based URDF, SDF and MJCF emitters. `RobotProjection::mjcf()` uses that
+same MJCF path. Explicit `render_from_templates` for these three robot formats
+returns `None`; their static templates are not registered backends. Diagram and
+traceability templates retain their Query-based rendering and explicit errors.
+URDF/SDF preserve non-cardinal axis components. SDF retains link, joint, visual
+and collision frames, including the authored world-root offset in the model frame.
+The `research_api` tests cover route parity and retained-snapshot view updates.
 
 Library/CLI regressions: `cargo test --locked --offline -p hymeko_formats --lib
 --bins --test research_api`. Physics and campaign execution remain explicit
@@ -241,6 +358,40 @@ semantics and a DOT graph. The selected GA profile has eight operators and
 expression interpreter or an equivalence proof. See the
 [shared mathematical definitions and GA trace checker](../hystl/research/metaheuristics-pilot/DEFINITIONS.md)
 and [validation report](reports/2026-10-06-metaheuristic-definitions.md).
+
+## Legged terrain over square, hexagonal and polar mazes
+
+`environment::locomotion` binds a declared HyMeKo locomotion profile (robot source and
+root, base joint/link, feet, controller id, stance height, nominal speed, step length,
+swing height, step-up, slope, friction, lateral margin) to the robot compiled through Core
+and projected by `RobotProjection`. It refuses unbounded joint defaults, missing inertia
+tensors and declarations the measured body cannot satisfy, and derives `TerrainBounds`
+(step-up, slope, friction, hurdle, foothold, passage width, roughness, speed).
+
+`environment::terrain` adds a robot-scaled `square` profile and robot-scaled hex/polar
+topologies (a separate `maze_scale` record, so historical hex/polar sources and digests are
+byte-identical), then places up to three features on route segments: ramp, steps, rough
+tiles, stepping-stone footholds, low-friction patch, narrow posts, step-over hurdle and a
+kinematic moving obstacle. Magnitudes are relative to the bounds; gene intensity maps to
+[0, 1.25] of a bound. Verification levels stay separate: topology (Graph route, Query counts),
+geometry (feature bounds, placement, swept wall clearance at wall mid-height) and temporal
+(route at the declared speed within 80 % of the horizon); dynamics is the simulator's.
+Categories: `valid`, `invalid_world` (a feature does not fit), `infeasible_task`.
+
+```bash
+adversarial_grid --project-legged PROFILE.hymeko NEW_DIR [--horizon S]          # flat pretest scene
+adversarial_grid --generate-terrain square|hex|polar SEED NEW_DIR PROFILE.hymeko     [--weights GENES.json] [--horizon S] [--task reach|coverage]
+```
+
+Outputs: canonical `source.hymeko` (maze, terrain, task and feature records, re-emitted and
+digested), `validation.json`, `model.hymeko` and `scene.xml` (existing MJCF owner, declared
+surface roles, friction and mocap motion queried back into `physics.json`), `terrain.json`
+(route, footholds, features, task) and `robot.xml`/`robot.json`. World frame Z up, floor top at
+z = 0, metres/seconds/radians in JSON; HyMeKo mounts keep degrees. The coverage task walks the
+maze tree depth-first through every cell. Generation runs on Amaterasu only; simulation is the
+simulator's `maze_contact.py --legged`. Owner tests: `cargo test --locked -p hymeko_formats --lib
+environment::` (add `HYMEKO_LOCOMOTION_PROFILE=<profile> ... -- --ignored` for the real-profile
+projection). Results: 2026-10-21 legged terrain report (archived under `by-repository`).
 
 ## Polar and hexagonal mazes
 
