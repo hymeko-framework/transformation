@@ -6,6 +6,7 @@
 //! The executable source contract is exercised by `tests/scenario.rs` and its
 //! `fixtures/reference-cell.hymeko` input. Open validates a coherent compiled IR;
 //! mutations return typed refusals and never partially commit a single action.
+pub mod inspection;
 mod model;
 mod read;
 mod session;
