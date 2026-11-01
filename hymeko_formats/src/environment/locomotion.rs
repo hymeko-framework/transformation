@@ -276,6 +276,7 @@ impl LeggedRobot {
                 let (kind, area) = match d.law {
                     DriveLaw::Muscle { .. } => ("muscle", 0.0),
                     DriveLaw::Hydraulic { area_m2, .. } => ("hydraulic", area_m2),
+                    DriveLaw::HydraulicMuscle { .. } => ("hydraulic_muscle", 0.0),
                 };
                 Ok(json!({"name":d.name,"actuator":format!("act_{}",d.name),
                     "joint":joint_name(d.joint)?,"kind":kind,"area_m2":area}))

@@ -7,7 +7,6 @@ impl PowerGraph {
     /// available from the current solver and is explicitly not reported as zero.
     pub fn mechanism(engine: &Engine, time: f64, scope: Option<usize>) -> Option<Self> {
         if !time.is_finite()
-            || !engine.damping.is_finite()
             || engine
                 .gravity
                 .iter()
@@ -32,12 +31,15 @@ impl PowerGraph {
                 .map(|(t, v)| t * v)
                 .sum(),
         );
-        out.dissipated_power = Some(engine.damping * engine.qd.iter().map(|v| v * v).sum::<f64>());
+        out.dissipated_power = Some(engine.viscous_power()?);
+        if scope.is_none() {
+            out.audit = engine.energy_audit().cloned();
+        }
         if scope.is_some() {
             out.supplied_power = None;
             out.dissipated_power = None;
         }
-        out.note="Nonlinear articulated Hamiltonian. D reports joint viscous loss only. Internal joint reaction powers, contact friction and impact energy jumps are not yet measured.".into();
+        out.note="Nonlinear articulated Hamiltonian. D reports instantaneous joint viscous loss. An enabled energy audit separately records constraint impulse work, the numerical mobility correction and integration residual; these are not continuous friction powers.".into();
         Some(out)
     }
     /// Structural power view for a posed mechanism without a dynamical velocity state.
@@ -86,28 +88,19 @@ impl PowerGraph {
         if qd.len() != q.len() || qd.iter().any(|v| !v.is_finite()) {
             return None;
         }
-        let kinetic = plan.kinetic_energy_by_link(model, q, qd);
-        let mut poses = plan.kinematics().identity_poses_se3();
-        plan.kinematics().resolve_se3(model, q, &mut poses);
-        let potential: Vec<_> = model
+        let mut kinetic = plan.kinetic_energy_by_link(model, q, qd);
+        // Reflected joint inertia is physical storage. Attribute it to the
+        // child for the displayed partition; it is not a second body inertia.
+        let indices: std::collections::HashMap<_, _> = model
             .links
             .iter()
-            .zip(&poses)
-            .map(|(l, p)| {
-                let center = l
-                    .origin
-                    .as_ref()
-                    .filter(|v| v.len() >= 3)
-                    .map(|v| [v[0], v[1], v[2]])
-                    .unwrap_or([0.0; 3]);
-                -l.mass.unwrap_or(0.0)
-                    * p.apply(&center)
-                        .iter()
-                        .zip(gravity)
-                        .map(|(x, g)| x * g)
-                        .sum::<f64>()
-            })
+            .enumerate()
+            .map(|(i, link)| (link.name.as_str(), i))
             .collect();
+        for ((joint, &inertia), &rate) in model.joints.iter().zip(plan.armature()).zip(qd) {
+            kinetic[*indices.get(joint.child_link.as_str())?] += 0.5 * inertia * rate * rate;
+        }
+        let potential = plan.potential_energy_by_link(model, q, gravity);
         let h = scope
             .map(|i| kinetic[i] + potential[i])
             .unwrap_or_else(|| kinetic.iter().chain(&potential).sum());
@@ -121,7 +114,7 @@ impl PowerGraph {
         out.equations = vec![
             Equation::new(
                 "Mozgási energia",
-                "T = ½ Σᵢ (mᵢ vᵢ·vᵢ + ωᵢ·Iᵢωᵢ)",
+                "T = ½ Σᵢ (mᵢ vᵢ·vᵢ + ωᵢ·Iᵢωᵢ) + ½ Σⱼ Iʳⱼ q̇ⱼ²",
                 velocity.map(|_| t),
                 "J",
             ),

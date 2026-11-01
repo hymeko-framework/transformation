@@ -1,5 +1,9 @@
-//! Two-attachment force transmissions projected from resolved HyMeKo incidences.
-//! These attach to the existing body model; they introduce no pose tree or IR.
+//! Force transmissions projected from resolved HyMeKo incidences: two-attachment drives, and
+//! hydraulic braided muscles whose path runs through ordered via points.
+//! These attach to the existing body model; they introduce no pose tree or IR. An attachment is
+//! either a child of its link or a `mount` hyperedge onto it (an actuation layer that leaves a
+//! shared body unedited); a drive belongs to a robot when declared under its root or when its
+//! path runs between that robot's attachments.
 use hymeko::common::ids::DeclId;
 use hymeko::ir::ir::{Ir, ValueR};
 use hymeko_query::{Predicate, QueryEngine, traits::NameResolver};
@@ -32,6 +36,54 @@ pub enum DriveLaw {
         response_s: f64,
         damping_ns_m: f64,
     },
+    /// Hydraulic braided (McKibben-type) muscle: the pressurised sleeve is the contractile element,
+    /// in series with a tendon spring and in parallel with a passive spring and damper (the
+    /// three-element Hill arrangement). The valve lags the commanded pressure by `response_s`.
+    /// Pull only. Simulated by Kawakern (`engine::muscle`); MJCF has no such element.
+    HydraulicMuscle {
+        pressure_pa: f64,
+        response_s: f64,
+        sleeve: BraidedSleeve,
+        tendon_stiffness_n_m: f64,
+        tendon_slack_m: f64,
+        parallel_stiffness_n_m: f64,
+        parallel_rest_m: f64,
+        damping_ns_m: f64,
+    },
+}
+
+/// The declared geometry of a braided muscle sleeve. Inextensible threads of length `b` wound
+/// `n` turns fix the sleeve's shape by its length alone: at length `x`, `cos(theta) = x / b`
+/// and the diameter is `b sin(theta) / (n pi)`. Pressure shortens the sleeve and so widens it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BraidedSleeve {
+    pub braid_length_m: f64,
+    pub turns: f64,
+}
+
+impl BraidedSleeve {
+    /// Braid angle `theta` at sleeve length `length` (clamped to the braid's reach).
+    pub fn braid_angle(&self, length: f64) -> f64 {
+        (length / self.braid_length_m).clamp(0.0, 1.0).acos()
+    }
+
+    /// Sleeve diameter at length `length`.
+    pub fn diameter(&self, length: f64) -> f64 {
+        self.braid_length_m * self.braid_angle(length).sin() / (self.turns * std::f64::consts::PI)
+    }
+
+    /// Pulling force per unit pressure, `b^2 / (4 pi n^2) (3 cos^2 theta - 1)` (Chou and
+    /// Hannaford's ideal braided muscle), zero once the braid passes `acos(1 / sqrt 3)`.
+    pub fn force_per_pressure(&self, length: f64) -> f64 {
+        let c = (length / self.braid_length_m).clamp(0.0, 1.0);
+        let b = self.braid_length_m;
+        (b * b / (4.0 * std::f64::consts::PI * self.turns * self.turns) * (3.0 * c * c - 1.0)).max(0.0)
+    }
+
+    /// Shortest length at which the sleeve still pulls: `b / sqrt 3`.
+    pub fn shortest_pulling_length(&self) -> f64 {
+        self.braid_length_m / 3f64.sqrt()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -39,6 +91,8 @@ pub struct LinearDrive {
     pub did: DeclId,
     pub name: String,
     pub origin: DeclId,
+    /// Ordered via points between origin and insertion (hydraulic muscles only); empty otherwise.
+    pub via: Vec<DeclId>,
     pub insertion: DeclId,
     /// Optional spherical guide and its preferred-side attachment, both resolved declarations.
     pub wrapping: Option<[DeclId; 2]>,
@@ -101,28 +155,92 @@ impl Actuation {
                     .push(format!("attachment {}: {error}", found.name)),
             }
         }
+        // Mount hyperedges: one + arc onto a link of this robot, the point as its first weight.
+        for found in engine.query(&Predicate::edge().and(Predicate::inherits("mount"))) {
+            let Some(link) = found
+                .arc_bindings
+                .iter()
+                .find_map(|b| links.iter().find(|l| l.did == b.target))
+            else {
+                continue; // another robot's mount
+            };
+            let fields = Fields {
+                ir,
+                res,
+                did: found.id,
+            };
+            let result = (|| -> Result<Attachment, String> {
+                let [arc] = found.arc_bindings.as_slice() else {
+                    return Err("a mount has exactly one + arc onto its link".into());
+                };
+                if arc.sign != 1 {
+                    return Err("a mount has exactly one + arc onto its link".into());
+                }
+                let point = arc
+                    .weights
+                    .as_ref()
+                    .and_then(|w| w.first())
+                    .ok_or("a mount needs its point in the link frame as the arc's weight")?;
+                let ValueR::List(values) = point else {
+                    return Err("a mount point must be [x, y, z]".into());
+                };
+                let numbers: Vec<f64> = values
+                    .iter()
+                    .filter_map(|v| match v {
+                        ValueR::Num(n) if n.is_finite() => Some(*n),
+                        _ => None,
+                    })
+                    .collect();
+                let [x, y, z] = numbers[..] else {
+                    return Err("a mount point must be three finite numbers".into());
+                };
+                Ok(Attachment {
+                    did: found.id,
+                    name: format!("{}.{}", link.name, found.name),
+                    link: link.did,
+                    position: [x, y, z],
+                    radius_m: if fields.has("radius_m") {
+                        Some(fields.positive("radius_m")?)
+                    } else {
+                        None
+                    },
+                })
+            })();
+            match result {
+                Ok(attachment) => out.attachments.push(attachment),
+                Err(error) => out.errors.push(format!("mount {}: {error}", found.name)),
+            }
+        }
         for found in engine.query(&Predicate::edge().and(Predicate::inherits("linear_drive"))) {
             let parent = ir.decl_nodes[found.id.raw()].parent;
-            if parent.is_none() || res.resolve(ir.decl_nodes[parent.raw()].name) != root {
+            let under_root = !parent.is_none() && res.resolve(ir.decl_nodes[parent.raw()].name) == root;
+            let touches = found
+                .arc_bindings
+                .iter()
+                .any(|b| out.attachments.iter().any(|a| a.did == b.target));
+            // Declared under the root, or a layer's drive between this robot's attachments.
+            if !under_root && !touches {
                 continue;
             }
             let result = (|| -> Result<LinearDrive, String> {
                 let origins: Vec<_> = found.arc_bindings.iter().filter(|b| b.sign == 1).collect();
                 let insertions: Vec<_> =
                     found.arc_bindings.iter().filter(|b| b.sign == -1).collect();
-                if origins.len() != 1 || insertions.len() != 1 || found.arc_bindings.len() != 2 {
+                if origins.is_empty() || insertions.len() != 1 || origins.len() + 1 != found.arc_bindings.len() {
                     return Err(
                         "expected exactly one + origin and one - insertion attachment".into(),
                     );
                 }
                 let origin = origins[0].target;
+                let via: Vec<DeclId> = origins[1..].iter().map(|b| b.target).collect();
                 let insertion = insertions[0].target;
-                for id in [origin, insertion] {
-                    if !out.attachments.iter().any(|a| a.did == id) {
+                let path: Vec<DeclId> = std::iter::once(origin).chain(via.iter().copied()).chain([insertion]).collect();
+                for id in &path {
+                    if !out.attachments.iter().any(|a| a.did == *id) {
                         return Err("force endpoint is not a valid attachment on this robot".into());
                     }
                 }
-                if origin == insertion {
+                if path.windows(2).any(|pair| pair[0] == pair[1]) || origin == insertion {
                     return Err("force endpoints must differ".into());
                 }
                 let fields = Fields {
@@ -189,12 +307,36 @@ impl Actuation {
                         response_s: parameters.positive("response_s")?,
                         damping_ns_m: parameters.positive("damping_ns_m")?,
                     },
+                    "hydraulic_muscle" => {
+                        let sleeve = Fields {
+                            ir,
+                            res,
+                            did: parameters.reference("sleeve")?,
+                        };
+                        DriveLaw::HydraulicMuscle {
+                            pressure_pa: parameters.positive("pressure_pa")?,
+                            response_s: parameters.positive("response_s")?,
+                            sleeve: BraidedSleeve {
+                                braid_length_m: sleeve.positive("braid_length_m")?,
+                                turns: sleeve.positive("turns")?,
+                            },
+                            tendon_stiffness_n_m: parameters.positive("tendon_stiffness_n_m")?,
+                            tendon_slack_m: parameters.positive("tendon_slack_m")?,
+                            parallel_stiffness_n_m: parameters.positive("parallel_stiffness_n_m")?,
+                            parallel_rest_m: parameters.positive("parallel_rest_m")?,
+                            damping_ns_m: parameters.positive("damping_ns_m")?,
+                        }
+                    }
                     other => return Err(format!("unknown drive law {other}")),
                 };
+                if !via.is_empty() && !matches!(law, DriveLaw::HydraulicMuscle { .. }) {
+                    return Err("via points are defined for hydraulic muscles only".into());
+                }
                 Ok(LinearDrive {
                     did: found.id,
                     name: found.name.clone(),
                     origin,
+                    via,
                     insertion,
                     wrapping,
                     joint,

@@ -6,23 +6,27 @@ use hymeko_geometry::{
 };
 
 /// A conjugate physical port or a public interface declared by the owner.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct Port {
+    #[serde(rename = "id")]
     pub decl: DeclId,
     pub name: String,
 }
 /// Oriented reference connection. Incidence signs are independent of weight sign
 /// and instantaneous power flow. `decl=None` denotes a derived projection bond.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct Connection {
+    #[serde(rename = "source")]
     pub negative: String,
+    #[serde(rename = "target")]
     pub positive: String,
+    #[serde(rename = "id")]
     pub decl: Option<DeclId>,
     pub weight: Option<f64>,
 }
 /// Display-only physical law supplied by its domain owner, not an expression IR.
 /// `value` observes the current state; None means unavailable, not zero.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct Equation {
     pub label: &'static str,
     pub expression: &'static str,
@@ -45,14 +49,18 @@ impl Equation {
     }
 }
 /// A visible storage, dissipation, boundary or encapsulated subsystem.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct Node {
     pub key: String,
+    #[serde(rename = "id")]
     pub decl: DeclId,
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub scope: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<f64>,
     pub unit: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub energy: Option<f64>,
     pub ports: Vec<Port>,
 }
@@ -71,7 +79,7 @@ impl Node {
     }
 }
 /// One requested scope. Unknown measurements remain None, never fabricated zero power.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct PowerGraph {
     pub name: String,
     pub scope: Option<usize>,
@@ -80,16 +88,78 @@ pub struct PowerGraph {
     pub nodes: Vec<Node>,
     pub edges: Vec<Connection>,
     pub energy: Option<f64>,
+    #[serde(rename = "energyUnit")]
     pub energy_unit: String,
+    #[serde(rename = "power")]
     pub supplied_power: Option<f64>,
+    #[serde(rename = "dissipation")]
     pub dissipated_power: Option<f64>,
     pub time: f64,
     pub note: String,
     pub truncated: bool,
     pub equations: Vec<Equation>,
+    #[serde(rename = "equationNote")]
     pub equation_note: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mapping: Option<MechanicalProjection>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audit: Option<hymeko_geometry::engine::EnergyAudit>,
 }
 impl PowerGraph {
+    /// Bounded observation for existing presentation hosts. Derived objects
+    /// have null declaration IDs; missing physical measurements remain null.
+    pub fn to_json(&self) -> Result<serde_json::Value, String> {
+        if let Some(mapping) = &self.mapping {
+            mapping.validate()?;
+        }
+        if let Some(audit) = &self.audit {
+            let wire = serde_json::to_value(audit).map_err(|e| e.to_string())?;
+            if wire
+                .as_object()
+                .is_none_or(|o| o.values().any(serde_json::Value::is_null))
+            {
+                return Err("nonfinite energy audit".into());
+            }
+        }
+        let layout = self
+            .arrangement()
+            .ok_or("invalid or over-budget power graph")?;
+        let values = [
+            self.energy,
+            self.supplied_power,
+            self.dissipated_power,
+            Some(self.time),
+        ]
+        .into_iter()
+        .chain(self.nodes.iter().flat_map(|n| [n.energy, n.value]))
+        .chain(self.edges.iter().map(|e| e.weight))
+        .chain(self.equations.iter().map(|e| e.value));
+        if values.flatten().any(|v| !v.is_finite()) {
+            return Err("nonfinite power observation".into());
+        }
+        let mut value = serde_json::to_value(self).map_err(|e| e.to_string())?;
+        for (i, node) in self.nodes.iter().enumerate() {
+            let row = &mut value["nodes"][i];
+            row["position"] = serde_json::json!(layout[i]);
+            if node.decl.is_none() {
+                row["id"] = serde_json::Value::Null;
+            }
+            for (j, port) in node.ports.iter().enumerate() {
+                if port.decl.is_none() {
+                    row["ports"][j]["id"] = serde_json::Value::Null;
+                }
+            }
+        }
+        for (i, edge) in self.edges.iter().enumerate() {
+            value["edges"][i]["sourceSign"] = (-1).into();
+            value["edges"][i]["targetSign"] = 1.into();
+            if edge.decl.is_some_and(|id| id.is_none()) {
+                value["edges"][i]["id"] = serde_json::Value::Null;
+            }
+        }
+        Ok(value)
+    }
+
     fn new(name: String, scope: Option<usize>, time: f64, energy: Option<f64>) -> Self {
         Self {
             name,
@@ -107,6 +177,8 @@ impl PowerGraph {
             truncated: false,
             equations: vec![],
             equation_note: "Ehhez a projekcióhoz még nincs egyenletmegfigyelés. A gráf topológiája önmagában nem határoz meg Lagrange-függvényt.".into(),
+            mapping: None,
+            audit: None,
         }
     }
     fn push(&mut self, node: Node) {
@@ -277,9 +349,11 @@ impl PowerGraph {
     }
 }
 
+mod canonical;
 mod continuum;
 mod electromagnetic;
 mod mechanical;
+pub use canonical::MechanicalProjection;
 
 #[cfg(test)]
 mod tests {
@@ -324,6 +398,155 @@ mod tests {
         engine.damping = 0.5;
         engine
     }
+    fn rotor_body() -> Engine {
+        let mut engine = body(JointType::Revolute);
+        engine.set_joint_dynamics(&[3.], &[2.]).unwrap();
+        engine
+    }
+    #[test]
+    fn power_wire_observation_preserves_unknowns_and_rejects_nonfinite_data() {
+        let mut engine = body(JointType::Revolute);
+        let graph = PowerGraph::mechanism(&engine, 1., None).unwrap();
+        let wire = graph.to_json().unwrap();
+        assert_eq!(wire["energy"], serde_json::json!(graph.energy));
+        assert_eq!(wire["dissipation"], 4.5);
+        assert_eq!(wire["nodes"][0]["id"], 1);
+        assert!(wire["nodes"][0]["position"].is_array());
+        let mut unknown = graph.clone();
+        unknown.nodes[0].decl = DeclId::NONE;
+        unknown.supplied_power = None;
+        assert!(unknown.to_json().unwrap()["nodes"][0]["id"].is_null());
+        assert!(unknown.to_json().unwrap()["power"].is_null());
+        unknown.energy = Some(f64::NAN);
+        assert!(unknown.to_json().is_err());
+        engine.damping = -1.;
+        assert!(PowerGraph::mechanism(&engine, 1., None).is_none());
+        engine.set_joint_dynamics(&[0.], &[0.8]).unwrap();
+        assert_eq!(engine.viscous_power(), Some(7.200000000000001));
+        engine.qd[0] = f64::NAN;
+        assert!(engine.viscous_power().is_none());
+    }
+
+    #[test]
+    fn rotor_storage_and_per_joint_loss_match_the_active_engine_properties() {
+        let engine = rotor_body();
+        let before = (engine.q.clone(), engine.qd.clone(), engine.regime_counts());
+        let graph = PowerGraph::mechanism(&engine, 1.0, None).unwrap();
+        let expected = 22.5 - 2.0 * 9.80665 * 0.4_f64.cos();
+        assert!((graph.energy.unwrap() - expected).abs() < 1e-10);
+        assert_eq!(graph.dissipated_power, Some(18.0));
+        let part = PowerGraph::mechanism(&engine, 1.0, Some(0)).unwrap();
+        assert_eq!(graph.energy, part.energy);
+        assert_eq!(
+            part.nodes.iter().find(|n| n.key == "p0").unwrap().value,
+            Some(15.0)
+        );
+        assert_eq!(
+            before,
+            (engine.q.clone(), engine.qd.clone(), engine.regime_counts())
+        );
+    }
+
+    #[test]
+    fn canonical_pendulum_matches_analytic_hamiltonian_and_rejects_corruption() {
+        let mut e = rotor_body();
+        let before = (e.q.clone(), e.qd.clone(), e.regime_counts());
+        let m = MechanicalProjection::observe(&e).unwrap();
+        assert!((m.energy - (22.5 - 2. * 9.80665 * 0.4_f64.cos())).abs() < 1e-10);
+        assert_eq!(m.p, vec![15.]);
+        assert!((m.gradient[0] - 2. * 9.80665 * 0.4_f64.sin()).abs() < 1e-8);
+        assert!((m.gradient[1] - 3.).abs() < 1e-12);
+        assert!((m.smooth_rate[1] - (-m.gradient[0] + 2. - 6.)).abs() < 1e-10);
+        assert!(m.balance_residual.abs() < 1e-12);
+        let wire = PowerGraph::canonical_mechanics(&e, 1.)
+            .unwrap()
+            .to_json()
+            .unwrap();
+        assert_eq!(wire["mapping"]["declarations"][0], 2);
+        assert_eq!(wire["nodes"].as_array().unwrap().len(), 2);
+        assert_eq!(before, (e.q.clone(), e.qd.clone(), e.regime_counts()));
+        for fault in 0..4 {
+            let mut bad = m.clone();
+            match fault {
+                0 => bad.interconnection[1] = -1.,
+                1 => bad.damping[0] = -1.,
+                2 => bad.input_power += 1.,
+                _ => bad.gradient[0] += 1.,
+            }
+            assert!(bad.validate().is_err());
+        }
+        assert!(PowerGraph::canonical_mechanics(&e, f64::NAN).is_err());
+        e.enable_energy_audit().unwrap();
+        let mut invalid_audit = PowerGraph::canonical_mechanics(&e, 1.).unwrap();
+        invalid_audit.audit.as_mut().unwrap().drive_work = f64::NAN;
+        assert!(invalid_audit.to_json().is_err());
+    }
+
+    #[test]
+    fn canonical_coupled_mechanism_uses_fixed_momentum_gradient() {
+        let source = body(JointType::Revolute);
+        let mut model = source.model().clone();
+        let mut second = model.links[0].clone();
+        second.did = DeclId::new(3);
+        second.name = "second".into();
+        second.mass = Some(1.);
+        model.links.push(second);
+        let mut joint = model.joints[0].clone();
+        joint.did = DeclId::new(4);
+        joint.name = "elbow".into();
+        joint.parent = DeclId::new(1);
+        joint.child = DeclId::new(3);
+        joint.parent_link = "mass".into();
+        joint.child_link = "second".into();
+        joint.origin_xyz = Some([0., 0., -1.]);
+        model.joints.push(joint);
+        let mut e = Engine::new(model).unwrap();
+        e.ground = None;
+        e.q = vec![0.4, 0.6];
+        e.qd = vec![0.7, -1.1];
+        e.torque = vec![2., -1.];
+        e.set_joint_dynamics(&[0.3, 0.2], &[0.2, 0.4]).unwrap();
+        let m = MechanicalProjection::observe(&e).unwrap();
+        let c = 0.6_f64.cos();
+        let s = 0.6_f64.sin();
+        let g = 9.80665;
+        let p0 = (4.3 + 2. * c) * 0.7 + (1. + c) * (-1.1);
+        let p1 = (1. + c) * 0.7 + 1.2 * (-1.1);
+        assert!((m.p[0] - p0).abs() < 1e-11);
+        assert!((m.p[1] - p1).abs() < 1e-11);
+        assert!(
+            (m.energy
+                - (0.5 * (p0 * 0.7 + p1 * (-1.1)) - g * (3. * 0.4_f64.cos() + 1.0_f64.cos())))
+            .abs()
+                < 1e-10
+        );
+        assert!((m.gradient[0] - g * (3. * 0.4_f64.sin() + 1.0_f64.sin())).abs() < 1e-7);
+        let expected = s * (0.7 * 0.7 + 0.7 * (-1.1)) + g * 1.0_f64.sin();
+        assert!((m.gradient[1] - expected).abs() < 1e-7);
+        // A derivative at fixed velocity has the opposite kinetic term.
+        assert!((m.gradient[1] - (g * 1.0_f64.sin() - s * (0.7 * 0.7 + 0.7 * (-1.1)))).abs() > 0.1);
+        assert!(m.velocity_residual < 1e-12);
+        assert!(m.balance_residual.abs() < 1e-12);
+    }
+
+    #[test]
+    fn canonical_projection_rejects_singular_and_invalid_inputs() {
+        let e = body(JointType::Revolute);
+        let mut model = e.model().clone();
+        model.links[0].origin = Some(vec![0.; 3]);
+        let singular = Engine::new(model).unwrap();
+        assert!(MechanicalProjection::observe(&singular).is_err());
+        assert!(e.dynamics().solve_mass(e.model(), &[], &[]).is_none());
+        let mut invalid = body(JointType::Prismatic);
+        invalid.damping = -1.;
+        assert!(MechanicalProjection::observe(&invalid).is_err());
+        invalid.damping = 0.;
+        invalid.qd[0] = f64::NAN;
+        assert!(MechanicalProjection::observe(&invalid).is_err());
+        assert!(MechanicalProjection::observe(&body(JointType::Fixed)).is_err());
+        assert!(MechanicalProjection::observe(&body(JointType::Prismatic)).is_ok());
+    }
+
     #[test]
     fn nonlinear_pendulum_energy_momentum_and_power_are_observation_only() {
         let engine = body(JointType::Revolute);

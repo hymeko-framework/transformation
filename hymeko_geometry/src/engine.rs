@@ -40,6 +40,13 @@ use crate::forward::{FkError, FkPlan};
 use crate::kinematics::joints::JointType;
 use crate::kinematics::kinematic::KinematicModel;
 
+mod attachment;
+pub use attachment::RigidAttachment;
+mod energy;
+pub use energy::{ConstraintWork, EnergyAudit};
+pub mod muscle;
+use muscle::{MuscleShape, Muscles};
+
 /// How the engine advances between contacts.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FreeFlight {
@@ -103,6 +110,9 @@ pub struct Engine {
     pub gravity: [f64; 3],
     /// Height of the ground plane, or `None` for a mechanism with nothing to stand on.
     pub ground: Option<f64>,
+    /// Admit every touching cuboid corner against the support plane. Opt-in;
+    /// the historical single support-point path remains the default.
+    pub ground_manifold: bool,
     pub contact: ContactParameters,
     /// The step taken whenever anything is touching. First order, and unconditionally stable in the
     /// joint damping.
@@ -117,6 +127,12 @@ pub struct Engine {
     free: Vec<f64>,
     velocity: Vec<f64>,
     armature: Vec<f64>,
+    rotor_inertia: Vec<f64>,
+    joint_damping: Option<Vec<f64>>,
+    ground_links: Option<Vec<bool>>,
+    attachment: Option<RigidAttachment>,
+    energy_audit: Option<EnergyAudit>,
+    muscles: Option<Muscles>,
     poses: Vec<Se3>,
     predicted_poses: Vec<Se3>,
     placed: Vec<Placement>,
@@ -173,6 +189,7 @@ impl Engine {
             torque: vec![0.0; n],
             gravity: [0.0, 0.0, -9.80665],
             ground: Some(0.0),
+            ground_manifold: false,
             contact: ContactParameters::default(),
             contact_step: 1.0 / 240.0,
             damping: 0.0,
@@ -181,6 +198,12 @@ impl Engine {
             free: vec![0.0; n],
             velocity: vec![0.0; n],
             armature: vec![0.0; n],
+            rotor_inertia: vec![0.0; n],
+            joint_damping: None,
+            ground_links: None,
+            attachment: None,
+            energy_audit: None,
+            muscles: None,
             predicted_poses: poses.clone(),
             poses,
             placed: Vec::new(),
@@ -220,6 +243,51 @@ impl Engine {
     /// The contacts found at the last step.
     pub fn contacts(&self) -> &[GroundContact] {
         &self.contacts
+    }
+
+    /// Simulate the model's declared hydraulic muscles (`engine::muscle`), returning how many.
+    /// Their sleeves are settled at the current pose with the valves closed. A muscled engine
+    /// takes the contact-sized semi-implicit step throughout: the muscle state advances once per
+    /// step and its torque is held over it.
+    ///
+    /// # Errors
+    /// A muscle whose path names an attachment or link the model does not have.
+    pub fn enable_muscles(&mut self) -> Result<usize, String> {
+        let Some(mut muscles) = Muscles::from_model(&self.model)? else {
+            self.muscles = None;
+            return Ok(0);
+        };
+        self.plan.resolve_se3(&self.model, &self.q, &mut self.poses);
+        muscles.settle(&self.poses);
+        let count = muscles.elements().len();
+        self.muscles = Some(muscles);
+        Ok(count)
+    }
+
+    /// The simulated muscles, if enabled.
+    pub fn muscles(&self) -> Option<&Muscles> {
+        self.muscles.as_ref()
+    }
+
+    /// Command muscle `index` to `pressure` Pa (clamped to its declared range); false when no
+    /// such muscle is simulated.
+    pub fn command_muscle(&mut self, index: usize, pressure: f64) -> bool {
+        match &mut self.muscles {
+            Some(m) if index < m.elements().len() => {
+                m.command(index, pressure);
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Sleeve and tendon geometry of every muscle at the current pose.
+    pub fn muscle_shapes(&mut self) -> Vec<MuscleShape> {
+        if self.muscles.is_none() {
+            return Vec::new();
+        }
+        self.plan.resolve_se3(&self.model, &self.q, &mut self.poses);
+        self.muscles.as_ref().map_or_else(Vec::new, |m| m.shapes(&self.poses))
     }
 
     /// Enable exact sphere geometry on translational mechanisms. Rotational CCD
@@ -397,6 +465,8 @@ impl Engine {
     fn one_step(&mut self, budget: f64) -> f64 {
         if let FreeFlight::DormandPrince { step } = self.free_flight
             && !self.sphere_collisions
+            && self.attachment.is_none()
+            && self.muscles.is_none()
         {
             let big = step.min(budget);
             // No comparison against `contact_step` here. Whether the free step is larger is the
@@ -408,6 +478,10 @@ impl Engine {
                 self.trial.1.copy_from_slice(&self.qd);
                 self.dormand_prince(big);
                 if self.clearance_is_positive() {
+                    if let Some(audit) = &mut self.energy_audit {
+                        audit.complete = false;
+                        audit.unobserved_steps += 1;
+                    }
                     self.free_steps += 1;
                     return big;
                 }
@@ -418,6 +492,11 @@ impl Engine {
             }
         }
         let small = self.contact_step.min(budget);
+        if let Some(muscles) = &mut self.muscles {
+            self.plan.resolve_se3(&self.model, &self.q, &mut self.poses);
+            self.aba.prepare_transforms(&self.model, &self.q, &mut self.scratch);
+            muscles.step(&self.aba, &self.poses, small, &mut self.scratch);
+        }
         let taken = self.semi_implicit(small);
         self.contact_steps += 1;
         taken
@@ -446,13 +525,21 @@ impl Engine {
             self.contact.margin,
             &mut self.contacts,
         );
+        self.filter_ground_contacts();
         self.contacts.is_empty()
     }
 
     /// Accelerations at a state, with the damping torque added.
     fn accelerate(&mut self, q: &[f64], qd: &[f64], out: &mut [f64]) {
-        for ((slot, &applied), &rate) in self.velocity.iter_mut().zip(&self.torque).zip(qd) {
-            *slot = applied - self.damping * rate;
+        for (i, ((slot, &applied), &rate)) in self
+            .velocity
+            .iter_mut()
+            .zip(&self.torque)
+            .zip(qd)
+            .enumerate()
+        {
+            let damping = self.joint_damping.as_ref().map_or(self.damping, |d| d[i]);
+            *slot = applied - damping * rate;
         }
         self.aba.accelerations(
             &self.model,
@@ -473,11 +560,15 @@ impl Engine {
     fn semi_implicit(&mut self, h: f64) -> f64 {
         let n = self.aba.slots();
         self.armature.clear();
-        self.armature.resize(n, h * self.damping);
+        self.armature.extend((0..n).map(|i| {
+            self.rotor_inertia[i] + h * self.joint_damping.as_ref().map_or(self.damping, |d| d[i])
+        }));
         self.aba.set_armature(&self.armature);
 
         for k in 0..n {
-            self.velocity[k] = self.torque[k] - self.damping * self.qd[k];
+            let damping = self.joint_damping.as_ref().map_or(self.damping, |d| d[k]);
+            let muscle = self.muscles.as_ref().map_or(0.0, |m| m.torque().get(k).copied().unwrap_or(0.0));
+            self.velocity[k] = self.torque[k] + muscle - damping * self.qd[k];
         }
         let mut free = std::mem::take(&mut self.free);
         self.aba.accelerations(
@@ -500,6 +591,7 @@ impl Engine {
                 return self.semi_implicit(split);
             }
         }
+        let energy_probe = self.energy_probe(h);
         self.constraints.clear();
         self.contacts.clear();
         self.body_contacts.clear();
@@ -519,7 +611,20 @@ impl Engine {
                 self.contact.margin,
                 &mut self.contacts,
             );
-            self.predict_ground_contacts(height, h);
+            self.filter_ground_contacts();
+            if self.ground_manifold || self.contacts.len() != self.colliders.len() {
+                for ((next, &q), &velocity) in
+                    self.trial.0.iter_mut().zip(&self.q).zip(&self.velocity)
+                {
+                    *next = q + h * velocity;
+                }
+                self.plan
+                    .resolve_se3(&self.model, &self.trial.0, &mut self.predicted_poses);
+            }
+            self.predict_ground_contacts(height);
+            if self.ground_manifold {
+                self.expand_ground_manifold(height);
+            }
             if !self.contacts.is_empty() {
                 ground_constraints(
                     &self.aba,
@@ -537,7 +642,10 @@ impl Engine {
         if self.sphere_collisions {
             self.sphere_constraints(h);
         }
+        let limits_start = self.constraints.len();
         self.joint_constraints(h);
+        let attachment_start = self.constraints.len();
+        self.attachment_constraints(h);
         if !self.constraints.is_empty() {
             let mut velocity = std::mem::take(&mut self.velocity);
             self.solver.solve(
@@ -550,13 +658,17 @@ impl Engine {
             self.velocity = velocity;
         }
 
+        let energy_step = energy_probe
+            .map(|probe| self.finish_energy_probe(probe, limits_start, attachment_start));
+
         for k in 0..n {
             self.qd[k] = self.velocity[k];
             self.q[k] += h * self.qd[k];
         }
-        self.armature.clear();
-        self.armature.resize(n, 0.0);
-        self.aba.set_armature(&self.armature);
+        self.aba.set_armature(&self.rotor_inertia);
+        if let Some(step) = energy_step {
+            self.record_energy_step(step);
+        }
         h
     }
 
@@ -581,16 +693,18 @@ impl Engine {
     /// Admit impending plane crossings using the free end pose, while the
     /// constraint Jacobian and gap remain at the current pose. Exact for linear
     /// translations; this is not continuous collision detection for rotations.
-    fn predict_ground_contacts(&mut self, height: f64, h: f64) {
+    fn predict_ground_contacts(&mut self, height: f64) {
         if self.contacts.len() == self.colliders.len() {
             return;
         }
-        for ((next, &q), &velocity) in self.trial.0.iter_mut().zip(&self.q).zip(&self.velocity) {
-            *next = q + h * velocity;
-        }
-        self.plan
-            .resolve_se3(&self.model, &self.trial.0, &mut self.predicted_poses);
         for (collider, (shape, placed)) in self.colliders.iter().zip(&self.placed).enumerate() {
+            if self
+                .ground_links
+                .as_ref()
+                .is_some_and(|links| !links[shape.link])
+            {
+                continue;
+            }
             let point = placed.support(&shape.shape, [0.0, 0.0, -1.0]);
             let separation = point[2] - height;
             if separation <= self.contact.margin {

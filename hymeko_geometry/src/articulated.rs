@@ -222,14 +222,90 @@ impl AbaPlan {
     /// Reflected joint armatures are excluded from this per-body observation.
     /// # Panics
     /// If q or qd does not cover every joint, as for inverse_dynamics.
-    pub fn kinetic_energy_by_link(&self, model: &KinematicModel, q: &[f64], qd: &[f64]) -> Vec<f64> {
+    pub fn kinetic_energy_by_link(
+        &self,
+        model: &KinematicModel,
+        q: &[f64],
+        qd: &[f64],
+    ) -> Vec<f64> {
         let mut scratch = self.scratch();
         let zero = vec![0.0; self.slots()];
         let mut torque = zero.clone();
         self.inverse_dynamics(model, q, qd, &zero, [0.0; 3], &mut scratch, &mut torque);
-        self.inertia.iter().zip(&scratch.v)
+        self.inertia
+            .iter()
+            .zip(&scratch.v)
             .map(|(inertia, velocity)| 0.5 * velocity.dot(&inertia.apply(velocity)))
             .collect()
+    }
+
+    /// Gravitational potential of each link, relative to the world origin.
+    /// Uses the same resolved poses and centres of mass as the mechanical model.
+    /// The plan must belong to `model`; q must cover its slots.
+    pub fn potential_energy_by_link(
+        &self,
+        model: &KinematicModel,
+        q: &[f64],
+        gravity: [f64; 3],
+    ) -> Vec<f64> {
+        let mut poses = self.plan.identity_poses_se3();
+        self.plan.resolve_se3(model, q, &mut poses);
+        model
+            .links
+            .iter()
+            .zip(&poses)
+            .map(|(link, pose)| {
+                let center = link
+                    .origin
+                    .as_ref()
+                    .filter(|v| v.len() >= 3)
+                    .map(|v| [v[0], v[1], v[2]])
+                    .unwrap_or([0.; 3]);
+                -link.mass.unwrap_or(0.)
+                    * pose
+                        .apply(&center)
+                        .iter()
+                        .zip(gravity)
+                        .map(|(x, g)| x * g)
+                        .sum::<f64>()
+            })
+            .collect()
+    }
+
+    /// Checked inverse of the articulated mass operator, including its armature.
+    /// Rejects nonfinite dimensions and any moving coordinate suppressed by the
+    /// owner's inertia floor. Fixed slots must have zero applied momentum.
+    /// The plan must belong to `model`. No engine or caller state is changed.
+    pub fn solve_mass(
+        &self,
+        model: &KinematicModel,
+        q: &[f64],
+        momentum: &[f64],
+    ) -> Option<Vec<f64>> {
+        if q.len() != self.slots()
+            || momentum.len() != self.slots()
+            || q.iter().chain(momentum).any(|v| !v.is_finite())
+            || self
+                .subspace
+                .iter()
+                .zip(momentum)
+                .any(|(s, p)| s.is_none() && *p != 0.)
+        {
+            return None;
+        }
+        let mut scratch = self.scratch();
+        self.factorise(model, q, &mut scratch);
+        if self
+            .subspace
+            .iter()
+            .zip(&scratch.d)
+            .any(|(s, d)| s.is_some() && (!d.is_finite() || *d <= 0.))
+        {
+            return None;
+        }
+        let mut velocity = vec![0.; self.slots()];
+        self.solve_factorised(momentum, &mut scratch, &mut velocity);
+        velocity.iter().all(|v| v.is_finite()).then_some(velocity)
     }
 
     /// Set the per-joint inertia added to `d`. See [`Self::armature`].
