@@ -29,3 +29,5 @@ log = "0.4.29"
 hymeko_graph = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "ea1c588697dd07412bc008a4a41813db8969a83e" }
 hymeko_pgraph = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "ea1c588697dd07412bc008a4a41813db8969a83e" }
 hymeko_sbsh = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "ea1c588697dd07412bc008a4a41813db8969a83e" }
+# IR-free triangle meshes and surface materials are owned by the Geometry repository.
+hymeko_mesh = { git = "ssh://git@192.168.1.228:2222/hymeko/geometry.git", rev = "b08141cffb31622eb48ca04db08f6730976ff21b" }

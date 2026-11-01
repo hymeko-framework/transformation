@@ -586,14 +586,13 @@ version = "0.1.0"
 dependencies = [
  "hymeko_clifford",
  "hymeko_core",
+ "hymeko_mesh",
  "hymeko_query",
  "hymeko_sbsh",
  "hymeko_sources",
  "hymeko_spline",
  "hymeko_tensor 0.1.0 (git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=d9a8a79f7152fdede8791c0bea5918eba0c3fab9)",
- "image",
  "log",
- "meshopt",
  "parser",
  "serde",
  "serde_json",
@@ -607,6 +606,16 @@ dependencies = [
  "dashmap",
  "hymeko_core",
  "rayon",
+]
+
+[[package]]
+name = "hymeko_mesh"
+version = "0.1.0"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/geometry.git?rev=b08141cffb31622eb48ca04db08f6730976ff21b#b08141cffb31622eb48ca04db08f6730976ff21b"
+dependencies = [
+ "meshopt",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

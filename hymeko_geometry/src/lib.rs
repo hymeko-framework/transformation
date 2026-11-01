@@ -38,8 +38,9 @@ pub mod contact;
 pub mod engine;
 #[cfg(feature = "simulation")]
 pub mod forward;
-pub mod mesh;
-pub mod material;
+/// Triangle meshes and surface materials, owned by the Geometry repository's IR-free
+/// `hymeko_mesh` and re-exported so existing paths keep one type identity.
+pub use hymeko_mesh::{material, mesh};
 /// HyMeKo-authored, bounded geometry processing recipes and surface execution.
 pub mod pipeline;
 /// Analytic two-bone limb IK, dependency-free (no `simulation` feature needed).

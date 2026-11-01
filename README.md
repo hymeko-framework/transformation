@@ -510,6 +510,13 @@ URDF visual-origin semantics: https://docs.ros.org/en/kilted/Tutorials/Intermedi
 
 ### Native mesh preparation (2026-10-21)
 
+The mesh and material modules described in this and the following sections are
+owned by the Geometry repository's IR-free `hymeko_mesh` crate (2026-11-01).
+`hymeko_geometry` re-exports `hymeko_mesh::{mesh, material}`, so the
+`hymeko_geometry::mesh` and `hymeko_geometry::material` paths below name the same
+types. Their unit and focused tests run in the Geometry repository; the
+`surface_prepare` adapter and recipe pipeline stay here.
+
 `hymeko_geometry::mesh::regularize::SurfaceRegularizer` produces real quad
 faces and corner UVs from a triangular source. Quality-ranked local pairing,
 conforming face/edge refinement and bounded tangential relaxation preserve
@@ -524,7 +531,8 @@ rasterization and anatomical authoring remain the consumer's responsibilities.
 
 ```powershell
 cargo build --locked --offline -p hymeko_geometry --no-default-features --features mesh-optimization --release --example surface_prepare
-cargo test --locked --offline -p hymeko_geometry --no-default-features --test mesh_regularization
+# Geometry repository root:
+cargo test --locked --offline -p hymeko_mesh --test mesh_regularization
 ```
 
 The `surface_prepare quads|normals INPUT.json OUTPUT.json` authoring example
@@ -562,8 +570,8 @@ contact tolerance, intersection storage, face counts and work are bounded.
 The existing `surface_prepare union INPUT.json OUTPUT.json` adapter accepts
 `mesh`, `addition` and optional `union_options`; it adds no dependency or renderer
 logic. Build with `--no-default-features --features authoring,mesh-optimization`.
-Focused tests: `cargo test --locked --offline -p hymeko_geometry
---no-default-features --lib mesh::solid::tests`.
+Focused tests (Geometry repository): `cargo test --locked --offline -p hymeko_mesh
+--lib mesh::solid::tests`.
 
 # Quad control-surface limit samples
 
@@ -590,7 +598,7 @@ strictly manifold. `surface_prepare limit` exposes this through the optional
 and delegates to the existing bounded, transactional `SurfaceFairing::fit_targets`.
 It is fixed-density authoring, not an arbitrary-(u,v) evaluator or GPU tessellator.
 No new dependency. Reference: https://opensubdiv.org/docs/subdivision_surfaces.html.
-Focused checks: `cargo test --locked --offline -p hymeko_geometry --no-default-features
+Focused checks (Geometry repository): `cargo test --locked --offline -p hymeko_mesh
 --lib mesh::subdivision` and `--test mesh_regularization`.
 ## Optional skin optical profile
 
@@ -606,8 +614,8 @@ BRDF evaluation and screen-space filtering remain in Kawamirai.
 The current artist-authored human diffusion default is sigma4.5/2/1mm (RGB),
 strength0.9. Explicitly authored profiles retain their supplied values. This is
 visible-surface diffusion, not measured tissue data or backside transmission.
-Focused checks: `cargo test --locked --offline -p hymeko_geometry
---no-default-features --lib material::tests`.
+Focused checks (Geometry repository): `cargo test --locked --offline -p hymeko_mesh
+--lib material::tests`.
 
 ### Regular control charts and height-aware materials (2026-10-27)
 
