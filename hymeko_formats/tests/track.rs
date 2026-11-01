@@ -1,8 +1,9 @@
 use hymeko::{
-    common::ids::DeclId, module_store::module_store::ModuleStore, util::real_parser::RealParser,
+    common::ids::DeclId,
+    module_store::{module_store::ModuleStore, source_provider::MemProvider},
+    util::real_parser::RealParser,
 };
 use hymeko_formats::environment::track::{Track, read_track};
-use hymeko_sources::MemoryProvider;
 use std::path::Path;
 
 const CIRCLE: &str = r#"
@@ -26,7 +27,7 @@ road {
 "#;
 fn project(source: &str) -> Result<Track, String> {
     let mut store = ModuleStore::new(
-        MemoryProvider::new().with("track.hymeko", source),
+        MemProvider::default().with_file("track.hymeko", source),
         RealParser,
     );
     let program = store.compile(Path::new("track.hymeko")).unwrap();

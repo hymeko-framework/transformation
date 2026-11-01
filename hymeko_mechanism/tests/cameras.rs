@@ -1,7 +1,7 @@
+use hymeko::module_store::source_provider::MemProvider;
 use hymeko::{module_store::module_store::ModuleStore, util::real_parser::RealParser};
 use hymeko_mechanism::kinematics::{cameras::CameraSet, kinematic::extract_kinematic_model};
 use hymeko_query::QueryEngine;
-use hymeko_sources::MemoryProvider;
 use std::path::Path;
 
 const SOURCE: &str = r#"
@@ -27,7 +27,7 @@ robot: elements {
 
 fn project(source: &str) -> Result<CameraSet, String> {
     let mut store = ModuleStore::new(
-        MemoryProvider::new().with("camera.hymeko", source),
+        MemProvider::default().with_file("camera.hymeko", source),
         RealParser,
     );
     let program = store.compile(Path::new("camera.hymeko")).unwrap();

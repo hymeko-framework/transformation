@@ -553,7 +553,6 @@ dependencies = [
  "hymeko_graph",
  "hymeko_mechanism",
  "hymeko_query",
- "hymeko_sources",
  "image",
  "kawakern",
  "serde",
@@ -590,7 +589,6 @@ dependencies = [
  "hymeko_kinematics",
  "hymeko_mesh",
  "hymeko_query",
- "hymeko_sources",
  "kawakern",
  "log",
  "parser",
@@ -635,13 +633,6 @@ source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=ea1c588697dd0741
 dependencies = [
  "hymeko_core",
  "hymeko_graph",
-]
-
-[[package]]
-name = "hymeko_sources"
-version = "0.1.0"
-dependencies = [
- "hymeko_core",
 ]
 
 [[package]]
