@@ -1,8 +1,8 @@
 //! URDF XML generation from kinematic model.
 
 use hymeko::ir::ir::Ir;
-use hymeko_geometry::kinematics::joints::JointType;
-use hymeko_geometry::kinematics::kinematic::{
+use hymeko_mechanism::kinematics::joints::JointType;
+use hymeko_mechanism::kinematics::kinematic::{
     GeometryInfo, GeometryShape, KinematicModel, extract_kinematic_model,
 };
 use hymeko_query::traits::NameResolver;

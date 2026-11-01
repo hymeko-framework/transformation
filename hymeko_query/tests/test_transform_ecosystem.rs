@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test_transform_ecosystem {
-    use hymeko_geometry::kinematics::kinematic::*;
-    use hymeko_geometry::transforms::ModelView;
+    use hymeko_mechanism::kinematics::kinematic::*;
+    use hymeko_formats::plugin::ModelView;
     use hymeko_query::engine::QueryEngine;
 
     const MOVEO_ARM: &str = "../data/robotics/robots/anthropomorphic_arm.hymeko";
@@ -16,7 +16,7 @@ mod test_transform_ecosystem {
     mod registry {
         use super::*;
         use crate::test_helpers::load_and_lower;
-        use hymeko_geometry::transforms::{TransformConfig, TransformRegistry};
+        use hymeko_formats::plugin::{TransformConfig, TransformRegistry};
 
         #[test]
         fn default_registry_has_all_formats() {
@@ -49,11 +49,11 @@ mod test_transform_ecosystem {
             let reg = hymeko_formats::default_registry();
             let config = TransformConfig::default().with_name("moveo");
 
-            let model = hymeko_geometry::transforms::extract(
+            let model = hymeko_formats::plugin::extract(
                 &compiled.ir,
                 &store.it,
                 &config.robot_name,
-                hymeko_geometry::transforms::ModelKind::Kinematic,
+                hymeko_formats::plugin::ModelKind::Kinematic,
             );
             let results = reg.emit_all(&model, &config);
 
@@ -77,11 +77,11 @@ mod test_transform_ecosystem {
             for (path, name) in &[(MOVEO_ARM, "moveo"), (DIFF_ROBOT, "diff_robot")] {
                 let (store, compiled) = load_and_lower(path).unwrap();
                 let config = TransformConfig::default().with_name(name);
-                let model = hymeko_geometry::transforms::extract(
+                let model = hymeko_formats::plugin::extract(
                     &compiled.ir,
                     &store.it,
                     &config.robot_name,
-                    hymeko_geometry::transforms::ModelKind::Kinematic,
+                    hymeko_formats::plugin::ModelKind::Kinematic,
                 );
                 let results = reg.emit_all(&model, &config);
 
@@ -105,7 +105,7 @@ mod test_transform_ecosystem {
         use super::*;
         use crate::test_helpers::load_and_lower;
         use hymeko_formats::MjcfTransform;
-        use hymeko_geometry::transforms::{DomainTransform, ModelView, TransformRegistry};
+        use hymeko_formats::plugin::{DomainTransform, ModelView, TransformRegistry};
 
         #[test]
         fn moveo_validates_clean_for_all_formats() {
@@ -158,7 +158,7 @@ mod test_transform_ecosystem {
         use super::*;
         use crate::test_helpers::load_and_lower;
         use hymeko_formats::MjcfTransform;
-        use hymeko_geometry::transforms::{DomainTransform, ModelView, TransformConfig};
+        use hymeko_formats::plugin::{DomainTransform, ModelView, TransformConfig};
 
         #[test]
         fn moveo_mjcf_wellformed() {
@@ -318,7 +318,7 @@ mod test_transform_ecosystem {
         use super::*;
         use crate::test_helpers::load_and_lower;
         use hymeko_formats::DotTransform;
-        use hymeko_geometry::transforms::{DomainTransform, ModelView, TransformConfig};
+        use hymeko_formats::plugin::{DomainTransform, ModelView, TransformConfig};
 
         #[test]
         fn moveo_dot_wellformed() {
@@ -459,7 +459,7 @@ mod test_transform_ecosystem {
         use super::*;
         use crate::test_helpers::load_and_lower;
         use hymeko_formats::DotTransform;
-        use hymeko_geometry::transforms::{
+        use hymeko_formats::plugin::{
             DomainTransform, ModelView, TransformConfig, TransformRegistry,
         };
         use std::collections::BTreeSet;
@@ -716,7 +716,7 @@ mod test_transform_ecosystem {
     // ============================================================
     mod requirements_trace {
         use crate::test_helpers::load_and_lower;
-        use hymeko_geometry::transforms::TransformConfig;
+        use hymeko_formats::plugin::TransformConfig;
         use std::path::PathBuf;
 
         const WITNESS: &str = "../data/paper/traceability_smc.hymeko";
@@ -795,7 +795,7 @@ mod test_transform_ecosystem {
     // ============================================================
     mod sysml_structure {
         use crate::test_helpers::load_and_lower;
-        use hymeko_geometry::transforms::TransformConfig;
+        use hymeko_formats::plugin::TransformConfig;
         use std::path::PathBuf;
 
         const WITNESS: &str = "../data/sysml/sysml_structure_witness.hymeko";

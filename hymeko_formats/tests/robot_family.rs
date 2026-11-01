@@ -8,7 +8,7 @@ use hymeko::{
     util::real_parser::RealParser,
 };
 use hymeko_formats::robot_projection::RobotProjection;
-use hymeko_geometry::forward::{JointValues, forward_kinematics};
+use hymeko_mechanism::forward::{JointValues, forward_kinematics};
 use robot_family::{
     FamilyError, FamilyGenerator, FamilySampler, JointKind, LinkSpec, ParameterSpace, RobotFamily, RobotSource, Shape,
     cell::DesignCell,

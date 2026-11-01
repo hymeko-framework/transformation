@@ -556,30 +556,12 @@ dependencies = [
  "hymeko_clifford",
  "hymeko_core",
  "hymeko_emitter",
- "hymeko_geometry",
  "hymeko_graph",
+ "hymeko_mechanism",
  "hymeko_query",
- "image",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "hymeko_geometry"
-version = "0.1.0"
-dependencies = [
- "hymeko_clifford",
- "hymeko_core",
- "hymeko_kinematics",
- "hymeko_mesh",
- "hymeko_query",
- "hymeko_sbsh",
  "hymeko_sources",
- "hymeko_spline",
- "hymeko_tensor 0.1.0 (git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=6769dabc70587356b2a6542faa336de152f382c4)",
+ "image",
  "kawakern",
- "log",
- "parser",
  "serde",
  "serde_json",
 ]
@@ -606,9 +588,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "hymeko_mechanism"
+version = "0.1.0"
+dependencies = [
+ "hymeko_clifford",
+ "hymeko_core",
+ "hymeko_kinematics",
+ "hymeko_mesh",
+ "hymeko_query",
+ "hymeko_sources",
+ "kawakern",
+ "log",
+ "parser",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "hymeko_mesh"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/geometry.git?rev=bf79d26f358e0de413c933657818ed80722d20e3#bf79d26f358e0de413c933657818ed80722d20e3"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/geometry.git?rev=a9c8b44d703828a3ca9c1a3dcd1ad633949a64fe#a9c8b44d703828a3ca9c1a3dcd1ad633949a64fe"
 dependencies = [
  "meshopt",
  "serde",
@@ -633,7 +632,7 @@ dependencies = [
  "env_logger",
  "hymeko_core",
  "hymeko_formats",
- "hymeko_geometry",
+ "hymeko_mechanism",
  "log",
  "parser",
 ]
@@ -776,11 +775,12 @@ dependencies = [
 [[package]]
 name = "kawakern"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/kawakern.git?rev=24e78b386381b2293ff26c7172e08b73c8759219#24e78b386381b2293ff26c7172e08b73c8759219"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/kawakern.git?rev=2bc23ea906ea1442755e4ca5f62f94e8885889ca#2bc23ea906ea1442755e4ca5f62f94e8885889ca"
 dependencies = [
  "hymeko_clifford",
  "hymeko_kinematics",
  "hymeko_sbsh",
+ "hymeko_spline",
  "hymeko_tensor 0.1.0 (git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=6769dabc70587356b2a6542faa336de152f382c4)",
  "serde",
 ]

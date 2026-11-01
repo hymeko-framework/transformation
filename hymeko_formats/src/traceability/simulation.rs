@@ -266,8 +266,8 @@ impl SimulationBundle {
                     &j.name == name
                         && matches!(
                             j.joint_type,
-                            hymeko_geometry::kinematics::joints::JointType::Revolute
-                                | hymeko_geometry::kinematics::joints::JointType::Continuous
+                            hymeko_mechanism::kinematics::joints::JointType::Revolute
+                                | hymeko_mechanism::kinematics::joints::JointType::Continuous
                         )
                 })
             })

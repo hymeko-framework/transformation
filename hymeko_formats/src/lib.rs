@@ -1,6 +1,6 @@
 //! HyMeKo built-in format plugins.
 //!
-//! `hymeko_geometry` owns the plugin API — the [`DomainTransform`] trait,
+//! `hymeko_mechanism` owns the plugin API — the [`DomainTransform`] trait,
 //! the [`TransformRegistry`], the template dispatcher — but has zero
 //! hard-coded knowledge of any specific output format. This crate is
 //! the first (and currently only) consumer of that API: it ships the
@@ -10,8 +10,8 @@
 //! downstream consumers can assemble a ready-to-use registry in one
 //! call.
 //!
-//! [`DomainTransform`]: hymeko_geometry::transforms::DomainTransform
-//! [`TransformRegistry`]: hymeko_geometry::transforms::TransformRegistry
+//! [`DomainTransform`]: crate::plugin::DomainTransform
+//! [`TransformRegistry`]: crate::plugin::TransformRegistry
 
 #![allow(clippy::collapsible_if, clippy::get_first, clippy::needless_borrow)]
 
@@ -19,8 +19,13 @@ pub mod binary_graph;
 pub mod codegen;
 pub mod environment;
 pub mod gazebo;
+/// Gazebo plugin declarations read from IR (moved from the former hymeko_geometry).
+pub mod gazebo_plugins;
 pub mod graph_execution;
 pub mod mesh;
+/// The `DomainTransform` plugin API, the model view emitters consume, and the orchestrating engine
+/// (moved from the former hymeko_geometry::transforms).
+pub mod plugin;
 pub mod metaheuristic;
 pub mod robot_family;
 pub mod robot_projection;
@@ -40,12 +45,12 @@ pub use transforms::{
     SysmlTransform, TorchDataflowTransform, UrdfTransform,
 };
 
-use hymeko_geometry::transforms::TransformRegistry;
+use crate::plugin::TransformRegistry;
 
 /// Register the built-in transforms into an existing registry.
 ///
 /// This is the single point that binds format names to concrete
-/// implementations. `hymeko_geometry::transforms::TransformRegistry::new()`
+/// implementations. `crate::plugin::TransformRegistry::new()`
 /// starts empty; call this (or [`default_registry`]) to wire up the
 /// standard set.
 pub fn register_defaults(reg: &mut TransformRegistry) {

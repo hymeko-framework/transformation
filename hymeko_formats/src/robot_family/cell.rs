@@ -12,7 +12,7 @@ use hymeko::{
     ir::ir::ValueR,
     module_store::execution::{CompiledModel, ValueUpdate},
 };
-use hymeko_geometry::kinematics::ik::{IkOptions, ModelChain, solve_serial};
+use hymeko_mechanism::kinematics::ik::{IkOptions, ModelChain, solve_serial};
 use hymeko_query::{Predicate, QueryEngine};
 use serde::Serialize;
 use serde_json::Value;

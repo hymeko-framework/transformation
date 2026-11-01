@@ -8,7 +8,7 @@
 use super::*;
 use crate::robot_projection::RobotProjection;
 use hymeko::module_store::source_provider::StdFsProvider;
-use hymeko_geometry::{
+use hymeko_mechanism::{
     collide::{Convex, colliders_of},
     forward::{FkPlan, JointValues, forward_kinematics},
     kinematics::{

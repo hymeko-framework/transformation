@@ -13,7 +13,7 @@ use hymeko_formats::{
     generate_description, metaheuristic,
     robot_projection::RobotProjection,
 };
-use hymeko_geometry::transforms::{TransformConfig, TransformEngine};
+use hymeko_formats::plugin::{TransformConfig, TransformEngine};
 use std::path::{Path, PathBuf};
 
 fn robot() -> CompiledModel {
@@ -157,7 +157,7 @@ fn all_kinematic_codegen_routes_use_the_same_model_emitter() {
 
 #[test]
 fn declared_parent_frames_are_accepted_but_unknown_parents_are_rejected() {
-    use hymeko_geometry::transforms::ModelView;
+    use hymeko_formats::plugin::ModelView;
     let document = fidelity_model();
     let projection = RobotProjection::new(&document, "robot").unwrap();
     let registry = default_registry();

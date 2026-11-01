@@ -1,18 +1,16 @@
 //! Real Core compilation through the public projection and format boundary.
 use hymeko::module_store::{module_store::ModuleStore, source_provider::StdFsProvider};
 use hymeko::util::real_parser::RealParser;
+use hymeko_formats::plugin::{DomainTransform, ModelView, TransformConfig};
 use hymeko_formats::transforms::MjcfTransform;
-use hymeko_geometry::{
-    kinematics::kinematic::{KinematicModel, extract_kinematic_model},
-    transforms::{DomainTransform, ModelView, TransformConfig},
-};
+use hymeko_mechanism::kinematics::kinematic::{KinematicModel, extract_kinematic_model};
 use hymeko_query::QueryEngine;
 use std::{
     path::PathBuf,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-const SOURCE: &str = include_str!("../../hymeko_geometry/tests/data/linear_drive.hymeko");
+const SOURCE: &str = include_str!("../../hymeko_mechanism/tests/data/linear_drive.hymeko");
 static SERIAL: AtomicUsize = AtomicUsize::new(0);
 
 fn compile(source: &str) -> KinematicModel {

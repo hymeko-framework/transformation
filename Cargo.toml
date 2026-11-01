@@ -1,7 +1,7 @@
 # hymeko/transformation — the HyMeKo IR→output (transformation) layer.
 #   hymeko_emitter : editor IR + M2T emitters (.hymeko, SysML v2, Rust stubs, Lean 4)
 #   hymeko_query   : pattern-matching query engine over the hypergraph IR
-#   hymeko_geometry: the geometric/kinematic reading of the IR; re-exports hymeko_mesh, hymeko_kinematics, kawakern
+#   hymeko_mechanism: mechanisms (and geometry recipes) read out of the IR into the hymeko_kinematics model
 #   hymeko_formats : built-in format emitters (URDF/SDF/MJCF/DOT/Mermaid/Gazebo) — query plugin
 #   hymeko_optimize: IR -> constrained-optimisation problem (MNA), solved by hymeko_tensor::optimize
 #   hymeko_sources : a SourceProvider over strings, so a model compiles where there is no disk
@@ -10,7 +10,7 @@
 # `core` and `parser` are external repos, pulled as git dependencies.
 [workspace]
 resolver = "2"
-members = ["hymeko_emitter", "hymeko_query", "hymeko_geometry", "hymeko_formats", "hymeko_optimize", "hymeko_sources", "hymeko_webxr", "hymeko_relational"]
+members = ["hymeko_emitter", "hymeko_query", "hymeko_mechanism", "hymeko_formats", "hymeko_optimize", "hymeko_sources", "hymeko_webxr", "hymeko_relational"]
 
 [workspace.dependencies]
 # Pinned to the integrated core commit: WebXR is supplied by this workspace's
@@ -30,6 +30,6 @@ hymeko_pgraph = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "
 hymeko_sbsh = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "ea1c588697dd07412bc008a4a41813db8969a83e" }
 # IR-free meshes, materials (hymeko_mesh) and kinematic computation (hymeko_kinematics) are owned by
 # the Geometry repository; physics over the kinematic model is the kawakern repository.
-hymeko_mesh = { git = "ssh://git@192.168.1.228:2222/hymeko/geometry.git", rev = "bf79d26f358e0de413c933657818ed80722d20e3" }
+hymeko_mesh = { git = "ssh://git@192.168.1.228:2222/hymeko/geometry.git", rev = "a9c8b44d703828a3ca9c1a3dcd1ad633949a64fe" }
 hymeko_kinematics = { git = "ssh://git@192.168.1.228:2222/hymeko/geometry.git", rev = "bf79d26f358e0de413c933657818ed80722d20e3", default-features = false }
-kawakern = { git = "ssh://git@192.168.1.228:2222/hymeko/kawakern.git", rev = "24e78b386381b2293ff26c7172e08b73c8759219" }
+kawakern = { git = "ssh://git@192.168.1.228:2222/hymeko/kawakern.git", rev = "2bc23ea906ea1442755e4ca5f62f94e8885889ca" }

@@ -2,7 +2,7 @@
 pub mod search;
 use super::*;
 
-use hymeko_geometry::collide::{Convex, Placement, intersects};
+use hymeko_mechanism::collide::{Convex, Placement, intersects};
 use hymeko_graph::rand_lcg::Lcg;
 use hymeko_graph::{
     GraphicMatroidWorkspace, MatroidRef, rank2_spanning_forest, rank2_weighted_basis,

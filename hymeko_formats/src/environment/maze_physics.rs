@@ -3,7 +3,7 @@ use super::maze::{MazeGeometry, MazeWall};
 use super::*;
 use std::collections::BTreeMap;
 use hymeko::module_store::{execution::CompiledModel, source_provider::StdFsProvider};
-use hymeko_geometry::{
+use hymeko_mechanism::{
     collide::{Convex, Placement, intersects},
     kinematics::kinematic::extract_kinematic_model,
 };
@@ -383,7 +383,7 @@ pub fn export(maze: &MazeGeometry, output: &Path, actor: Option<&Path>) -> Resul
 
 /// Reuse the actor contract and the existing kinematic/visual projections.
 fn robot_projection(maze: &MazeGeometry, path: &Path) -> Result<(String, Value)> {
-    use hymeko_geometry::kinematics::{kinematic::GeometryShape, visual::VisualSet};
+    use hymeko_mechanism::kinematics::{kinematic::GeometryShape, visual::VisualSet};
     let contract = super::physical::ActorContract::read(path)?;
     if contract.radius >= maze.clearance_radius_m || maze.route_points_m.len() < 2 {
         return Err("robot needs a validated, sufficiently wide route segment".into());

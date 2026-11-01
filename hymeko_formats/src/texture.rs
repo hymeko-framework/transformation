@@ -1,5 +1,5 @@
 //! Bounded glTF embedded-image and Radiance decoding via the image crate.
-use hymeko_geometry::material::{PbrMaterial, RadianceImage, RgbaImage, TextureMap, TextureWrap};
+use hymeko_mechanism::material::{PbrMaterial, RadianceImage, RgbaImage, TextureMap, TextureWrap};
 use std::{collections::HashMap, io::Cursor, sync::Arc};
 
 fn bounded_reader(

@@ -2,7 +2,7 @@
 //! The generic template registry remains unvalidated; use this facade for the bounded
 //! flat/binary trace profile. SysML text extraction is not native-tool conformance.
 use hymeko::{common::ids::DeclId, module_store::execution::CompiledModel};
-use hymeko_geometry::transforms::TransformConfig;
+use crate::plugin::TransformConfig;
 use hymeko_query::{
     Predicate, QueryEngine,
     traceability::{TraceVocabulary, Traceability},

@@ -6,7 +6,7 @@
 use super::{Expectation, FamilyError, FamilyGenerator, GeneratedRobot, LinkSpec, Requirement, RobotFamily};
 use crate::robot_projection::RobotProjection;
 use hymeko::{generators::GraphGenerator, ir::ir::ValueR, module_store::execution::CompiledModel};
-use hymeko_geometry::{
+use hymeko_mechanism::{
     forward::{JointValues, forward_kinematics},
     kinematics::{joints::JointType, kinematic::GeometryShape},
 };

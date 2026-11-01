@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**12 package(s), 577 public symbol(s).**
+**12 package(s), 571 public symbol(s).**
 
 ## generated (python)
 
@@ -69,6 +69,7 @@ docstring are all excluded for a stated reason rather than by luck.
 
 ### traits
 
+- `DomainTransform` — `hymeko_formats/src/plugin/mod.rs`
 - `RobotFamily` — `hymeko_formats/src/robot_family/mod.rs`
 
 ### structs
@@ -82,6 +83,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Counters` — `hymeko_formats/src/environment/mod.rs`
 - `DesignCell` — `hymeko_formats/src/robot_family/cell.rs`
 - `DesignPoint` — `hymeko_formats/src/robot_family/mod.rs`
+- `Diagnostic` — `hymeko_formats/src/plugin/mod.rs`
 - `DotTransform` — `hymeko_formats/src/transforms.rs`
 - `Evaluation` — `hymeko_formats/src/environment/mod.rs`
 - `Expectation` — `hymeko_formats/src/robot_family/mod.rs`
@@ -89,6 +91,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `FamilySampler` — `hymeko_formats/src/robot_family/mod.rs`
 - `Feature` — `hymeko_formats/src/environment/terrain.rs`
 - `Gate` — `hymeko_formats/src/environment/team.rs`
+- `GazeboPluginInfo` — `hymeko_formats/src/gazebo_plugins.rs`
 - `GazeboWorldTransform` — `hymeko_formats/src/transforms.rs`
 - `GeneratedRobot` — `hymeko_formats/src/robot_family/mod.rs`
 - `GraphExecutionSettings` — `hymeko_formats/src/graph_execution.rs`
@@ -139,6 +142,9 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Topology` — `hymeko_formats/src/environment/maze.rs`
 - `TorchDataflowTransform` — `hymeko_formats/src/transforms.rs`
 - `TraceabilityExport` — `hymeko_formats/src/traceability.rs`
+- `TransformConfig` — `hymeko_formats/src/plugin/mod.rs`
+- `TransformEngine` — `hymeko_formats/src/plugin/transform_engine.rs`
+- `TransformRegistry` — `hymeko_formats/src/plugin/mod.rs`
 - `TreeRobotGenerator` — `hymeko_formats/src/robot_family/source.rs`
 - `UrdfTransform` — `hymeko_formats/src/transforms.rs`
 
@@ -147,11 +153,15 @@ docstring are all excluded for a stated reason rather than by luck.
 - `Category` — `hymeko_formats/src/environment/terrain.rs`
 - `CodegenError` — `hymeko_formats/src/codegen.rs`
 - `Comparison` — `hymeko_formats/src/traceability/simulation.rs`
+- `DiagLevel` — `hymeko_formats/src/plugin/mod.rs`
 - `FamilyError` — `hymeko_formats/src/robot_family/mod.rs`
 - `FeatureKind` — `hymeko_formats/src/environment/terrain.rs`
+- `GazeboPluginKind` — `hymeko_formats/src/gazebo_plugins.rs`
 - `GraphExecutionError` — `hymeko_formats/src/graph_execution.rs`
 - `JointKind` — `hymeko_formats/src/robot_family/source.rs`
 - `Measurement` — `hymeko_formats/src/traceability/simulation.rs`
+- `ModelKind` — `hymeko_formats/src/plugin/model_view.rs`
+- `ModelView` — `hymeko_formats/src/plugin/model_view.rs`
 - `OutputFormat` — `hymeko_formats/src/codegen.rs`
 - `Profile` — `hymeko_formats/src/environment/maze.rs`
 - `Shape` — `hymeko_formats/src/robot_family/source.rs`
@@ -162,7 +172,10 @@ docstring are all excluded for a stated reason rather than by luck.
 - `admit` — `hymeko_formats/src/robot_family/mod.rs`
 - `artifacts` — `hymeko_formats/src/robot_family/cell.rs`
 - `artifacts` — `hymeko_formats/src/traceability/simulation.rs`
+- `as_kinematic` — `hymeko_formats/src/plugin/model_view.rs`
+- `available` — `hymeko_formats/src/plugin/mod.rs`
 - `binding` — `hymeko_formats/src/environment/locomotion.rs`
+- `by_extension` — `hymeko_formats/src/plugin/mod.rs`
 - `candidate` — `hymeko_formats/src/robot_family/check.rs`
 - `canonical` — `hymeko_formats/src/environment/mod.rs`
 - `cells` — `hymeko_formats/src/environment/maze.rs`
@@ -188,13 +201,22 @@ docstring are all excluded for a stated reason rather than by luck.
 - `dimension_for` — `hymeko_formats/src/environment/terrain.rs`
 - `dot_escape` — `hymeko_formats/src/snapshot.rs`
 - `emit` — `hymeko_formats/src/traceability.rs`
+- `emit_all` — `hymeko_formats/src/plugin/mod.rs`
+- `emit_all` — `hymeko_formats/src/plugin/transform_engine.rs`
 - `emit_dot_graph` — `hymeko_formats/src/snapshot.rs`
+- `emit_format` — `hymeko_formats/src/plugin/transform_engine.rs`
+- `emit_formats` — `hymeko_formats/src/plugin/transform_engine.rs`
+- `emit_with_config` — `hymeko_formats/src/plugin/transform_engine.rs`
+- `error` — `hymeko_formats/src/plugin/mod.rs`
 - `evaluate` — `hymeko_formats/src/environment/maze/search.rs`
 - `evaluate` — `hymeko_formats/src/environment/mod.rs`
 - `export` — `hymeko_formats/src/environment/maze_physics.rs`
 - `export` — `hymeko_formats/src/environment/terrain.rs`
 - `export_flat` — `hymeko_formats/src/environment/terrain.rs`
 - `export_physics` — `hymeko_formats/src/environment/physical.rs`
+- `extract` — `hymeko_formats/src/plugin/model_view.rs`
+- `extract_gazebo_plugins` — `hymeko_formats/src/gazebo_plugins.rs`
+- `extract_kinematic` — `hymeko_formats/src/plugin/model_view.rs`
 - `finish` — `hymeko_formats/src/robot_family/source.rs`
 - `forward_poses` — `hymeko_formats/src/robot_projection.rs`
 - `frame` — `hymeko_formats/src/robot_family/source.rs`
@@ -212,10 +234,15 @@ docstring are all excluded for a stated reason rather than by luck.
 - `generate_urdf` — `hymeko_formats/src/urdf.rs`
 - `generate_urdf_from_model` — `hymeko_formats/src/urdf.rs`
 - `geometry` — `hymeko_formats/src/environment/maze/search.rs`
+- `get` — `hymeko_formats/src/plugin/mod.rs`
 - `get` — `hymeko_formats/src/robot_family/mod.rs`
 - `glb` — `hymeko_formats/src/mesh.rs`
 - `graph` — `hymeko_formats/src/graph_execution.rs`
+- `info` — `hymeko_formats/src/plugin/mod.rs`
+- `is_complete` — `hymeko_formats/src/gazebo_plugins.rs`
+- `is_error` — `hymeko_formats/src/plugin/mod.rs`
 - `joint` — `hymeko_formats/src/robot_family/source.rs`
+- `kind` — `hymeko_formats/src/plugin/model_view.rs`
 - `layout` — `hymeko_formats/src/environment/mod.rs`
 - `leg_joints` — `hymeko_formats/src/environment/locomotion.rs`
 - `legs` — `hymeko_formats/src/robot_family/legged.rs`
@@ -231,6 +258,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `model` — `hymeko_formats/src/traceability/simulation.rs`
 - `new` — `hymeko_formats/src/environment/maze.rs`
 - `new` — `hymeko_formats/src/environment/maze/search.rs`
+- `new` — `hymeko_formats/src/plugin/mod.rs`
 - `new` — `hymeko_formats/src/robot_family/legged.rs`
 - `new` — `hymeko_formats/src/robot_family/manipulator.rs`
 - `new` — `hymeko_formats/src/robot_family/mod.rs`
@@ -258,11 +286,15 @@ docstring are all excluded for a stated reason rather than by luck.
 - `read` — `hymeko_formats/src/environment/locomotion.rs`
 - `read` — `hymeko_formats/src/robot_family/mod.rs`
 - `read_features` — `hymeko_formats/src/environment/terrain.rs`
+- `read_track` — `hymeko_formats/src/environment/track.rs`
 - `receipt` — `hymeko_formats/src/environment/terrain.rs`
 - `record` — `hymeko_formats/src/traceability/simulation.rs`
 - `reemit` — `hymeko_formats/src/environment/mod.rs`
 - `reference` — `hymeko_formats/src/traceability.rs`
+- `register` — `hymeko_formats/src/plugin/mod.rs`
 - `register_defaults` — `hymeko_formats/src/lib.rs`
+- `render` — `hymeko_formats/src/plugin/mod.rs`
+- `render_from_templates` — `hymeko_formats/src/plugin/mod.rs`
 - `robot_checks` — `hymeko_formats/src/robot_family/check.rs`
 - `route_cell_indices` — `hymeko_formats/src/environment/maze.rs`
 - `route_points_m` — `hymeko_formats/src/environment/maze.rs`
@@ -289,6 +321,7 @@ docstring are all excluded for a stated reason rather than by luck.
 - `valid` — `hymeko_formats/src/robot_family/check.rs`
 - `validate` — `hymeko_formats/src/environment/mod.rs`
 - `validate` — `hymeko_formats/src/metaheuristic/mod.rs`
+- `validate` — `hymeko_formats/src/plugin/transform_engine.rs`
 - `validate_robot_schema` — `hymeko_formats/src/urdf.rs`
 - `values` — `hymeko_formats/src/robot_family/mod.rs`
 - `verify` — `hymeko_formats/src/environment/team.rs`
@@ -297,9 +330,14 @@ docstring are all excluded for a stated reason rather than by luck.
 - `vocabulary` — `hymeko_formats/src/robot_family/check.rs`
 - `volume` — `hymeko_formats/src/robot_family/source.rs`
 - `walls` — `hymeko_formats/src/environment/maze.rs`
+- `warning` — `hymeko_formats/src/plugin/mod.rs`
 - `with_control` — `hymeko_formats/src/traceability/simulation.rs`
+- `with_name` — `hymeko_formats/src/plugin/mod.rs`
+- `with_option` — `hymeko_formats/src/plugin/mod.rs`
 - `world_sdf` — `hymeko_formats/src/environment/mod.rs`
 - `write` — `hymeko_formats/src/environment/locomotion.rs`
+- `write_all` — `hymeko_formats/src/plugin/mod.rs`
+- `write_all` — `hymeko_formats/src/plugin/transform_engine.rs`
 - `xml_escape` — `hymeko_formats/src/xml_util.rs`
 
 ## hymeko_formats (python)
@@ -327,116 +365,69 @@ docstring are all excluded for a stated reason rather than by luck.
 - `topic` — `hymeko_formats/tools/validate_adversarial_grid_gazebo.py`
 - `validate` — `hymeko_formats/tools/validate_adversarial_grid_gazebo.py`
 
-## hymeko_geometry (rust)
+## hymeko_mechanism (rust)
 
-- **Root:** `hymeko_geometry`
-- **Manifest:** `hymeko_geometry/Cargo.toml`
-- **Charter:** # `hymeko_geometry` — the geometric reading of the HyMeKo IR
-
-### traits
-
-- `DomainTransform` — `hymeko_geometry/src/transforms/mod.rs`
+- **Root:** `hymeko_mechanism`
+- **Manifest:** `hymeko_mechanism/Cargo.toml`
+- **Charter:** # `hymeko_mechanism` — mechanisms read out of HyMeKo IR
 
 ### structs
 
-- `Axis` — `hymeko_geometry/src/kinematics/tp.rs`
-- `Camera` — `hymeko_geometry/src/kinematics/cameras.rs`
-- `CameraSet` — `hymeko_geometry/src/kinematics/cameras.rs`
-- `Chart` — `hymeko_geometry/src/kinematics/tp.rs`
-- `CompiledRecipe` — `hymeko_geometry/src/pipeline/source.rs`
-- `Diagnostic` — `hymeko_geometry/src/transforms/mod.rs`
-- `FrameAttachment` — `hymeko_geometry/src/kinematics/assembly/attachments.rs`
-- `GazeboPluginInfo` — `hymeko_geometry/src/kinematics/gazebo_plugins.rs`
-- `GeometryRecipe` — `hymeko_geometry/src/pipeline.rs`
-- `GeometryStage` — `hymeko_geometry/src/pipeline.rs`
-- `IrHandles` — `hymeko_geometry/src/kinematics/mod.rs`
-- `KinematicAssembly` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
-- `PipelineResult` — `hymeko_geometry/src/pipeline.rs`
-- `RecipeProject` — `hymeko_geometry/src/pipeline/source.rs`
-- `StageReport` — `hymeko_geometry/src/pipeline.rs`
-- `StereoPair` — `hymeko_geometry/src/kinematics/cameras.rs`
-- `Track` — `hymeko_geometry/src/track.rs`
-- `TrackControl` — `hymeko_geometry/src/track.rs`
-- `TrackObstacle` — `hymeko_geometry/src/track.rs`
-- `TrackProjection` — `hymeko_geometry/src/track.rs`
-- `TrackSample` — `hymeko_geometry/src/track.rs`
-- `TransformConfig` — `hymeko_geometry/src/transforms/mod.rs`
-- `TransformEngine` — `hymeko_geometry/src/transforms/transform_engine.rs`
-- `TransformRegistry` — `hymeko_geometry/src/transforms/mod.rs`
-- `VisualInstance` — `hymeko_geometry/src/kinematics/visual.rs`
-- `VisualSet` — `hymeko_geometry/src/kinematics/visual.rs`
+- `Axis` — `hymeko_mechanism/src/kinematics/tp.rs`
+- `Camera` — `hymeko_mechanism/src/kinematics/cameras.rs`
+- `CameraSet` — `hymeko_mechanism/src/kinematics/cameras.rs`
+- `Chart` — `hymeko_mechanism/src/kinematics/tp.rs`
+- `CompiledRecipe` — `hymeko_mechanism/src/recipe.rs`
+- `Fields` — `hymeko_mechanism/src/kinematics/actuation.rs`
+- `FrameAttachment` — `hymeko_mechanism/src/kinematics/assembly/attachments.rs`
+- `IrHandles` — `hymeko_mechanism/src/kinematics/mod.rs`
+- `KinematicAssembly` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
+- `RecipeProject` — `hymeko_mechanism/src/recipe.rs`
+- `StereoPair` — `hymeko_mechanism/src/kinematics/cameras.rs`
+- `VisualInstance` — `hymeko_mechanism/src/kinematics/visual.rs`
+- `VisualSet` — `hymeko_mechanism/src/kinematics/visual.rs`
 
 ### enums
 
-- `AssemblyError` — `hymeko_geometry/src/kinematics/assembly/error.rs`
-- `DiagLevel` — `hymeko_geometry/src/transforms/mod.rs`
-- `GazeboPluginKind` — `hymeko_geometry/src/kinematics/gazebo_plugins.rs`
-- `ModelKind` — `hymeko_geometry/src/transforms/model_view.rs`
-- `ModelView` — `hymeko_geometry/src/transforms/model_view.rs`
-- `ScopedModelError` — `hymeko_geometry/src/kinematics/kinematic/scope.rs`
-- `StateError` — `hymeko_geometry/src/kinematics/assembly/error.rs`
+- `AssemblyError` — `hymeko_mechanism/src/kinematics/assembly/error.rs`
+- `ScopedModelError` — `hymeko_mechanism/src/kinematics/kinematic/scope.rs`
+- `StateError` — `hymeko_mechanism/src/kinematics/assembly/error.rs`
 
 ### functions
 
-- `apply_values` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
-- `as_kinematic` — `hymeko_geometry/src/transforms/model_view.rs`
-- `attachment_pose` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
-- `attachments` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
-- `available` — `hymeko_geometry/src/transforms/mod.rs`
-- `body_joint_hyperedges` — `hymeko_geometry/src/kinematics/tp.rs`
-- `by_extension` — `hymeko_geometry/src/transforms/mod.rs`
-- `collider_placements` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
-- `colliders` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
-- `compile` — `hymeko_geometry/src/pipeline/source.rs`
-- `coordinates` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
-- `emit_all` — `hymeko_geometry/src/transforms/mod.rs`
-- `emit_all` — `hymeko_geometry/src/transforms/transform_engine.rs`
-- `emit_format` — `hymeko_geometry/src/transforms/transform_engine.rs`
-- `emit_formats` — `hymeko_geometry/src/transforms/transform_engine.rs`
-- `emit_with_config` — `hymeko_geometry/src/transforms/transform_engine.rs`
-- `error` — `hymeko_geometry/src/transforms/mod.rs`
-- `extract` — `hymeko_geometry/src/kinematics/visual.rs`
-- `extract` — `hymeko_geometry/src/transforms/model_view.rs`
-- `extract_gazebo_plugins` — `hymeko_geometry/src/kinematics/gazebo_plugins.rs`
-- `extract_kinematic` — `hymeko_geometry/src/transforms/model_view.rs`
-- `extract_kinematic_model` — `hymeko_geometry/src/kinematics/kinematic.rs`
-- `extract_scoped_model` — `hymeko_geometry/src/kinematics/kinematic/scope.rs`
-- `from_ir` — `hymeko_geometry/src/track.rs`
-- `get` — `hymeko_geometry/src/transforms/mod.rs`
-- `info` — `hymeko_geometry/src/transforms/mod.rs`
-- `intrinsics` — `hymeko_geometry/src/kinematics/cameras.rs`
-- `is_complete` — `hymeko_geometry/src/kinematics/gazebo_plugins.rs`
-- `is_error` — `hymeko_geometry/src/transforms/mod.rs`
-- `joint_index` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
-- `kind` — `hymeko_geometry/src/transforms/model_view.rs`
-- `length` — `hymeko_geometry/src/track.rs`
-- `link_pose` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
-- `model` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
-- `new` — `hymeko_geometry/src/transforms/mod.rs`
-- `offset` — `hymeko_geometry/src/track.rs`
-- `project` — `hymeko_geometry/src/kinematics/cameras.rs`
-- `project` — `hymeko_geometry/src/kinematics/tp.rs`
-- `project` — `hymeko_geometry/src/pipeline/source.rs`
-- `project` — `hymeko_geometry/src/track.rs`
-- `read` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
-- `register` — `hymeko_geometry/src/transforms/mod.rs`
-- `render` — `hymeko_geometry/src/transforms/mod.rs`
-- `render_from_templates` — `hymeko_geometry/src/transforms/mod.rs`
-- `run` — `hymeko_geometry/examples/surface_prepare/pipeline.rs`
-- `run` — `hymeko_geometry/src/pipeline.rs`
-- `sample` — `hymeko_geometry/src/track.rs`
-- `samples` — `hymeko_geometry/src/track.rs`
-- `scope` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
-- `set_state` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
-- `validate` — `hymeko_geometry/src/pipeline.rs`
-- `validate` — `hymeko_geometry/src/transforms/transform_engine.rs`
-- `visual_poses` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
-- `visuals` — `hymeko_geometry/src/kinematics/assembly/mod.rs`
-- `warning` — `hymeko_geometry/src/transforms/mod.rs`
-- `with_name` — `hymeko_geometry/src/transforms/mod.rs`
-- `with_option` — `hymeko_geometry/src/transforms/mod.rs`
-- `write_all` — `hymeko_geometry/src/transforms/mod.rs`
-- `write_all` — `hymeko_geometry/src/transforms/transform_engine.rs`
+- `apply_values` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
+- `array` — `hymeko_mechanism/src/kinematics/actuation.rs`
+- `attachment_pose` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
+- `attachments` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
+- `body_joint_hyperedges` — `hymeko_mechanism/src/kinematics/tp.rs`
+- `child` — `hymeko_mechanism/src/kinematics/actuation.rs`
+- `collider_placements` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
+- `colliders` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
+- `compile` — `hymeko_mechanism/src/recipe.rs`
+- `coordinates` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
+- `extract` — `hymeko_mechanism/src/kinematics/visual.rs`
+- `extract_kinematic_model` — `hymeko_mechanism/src/kinematics/kinematic.rs`
+- `extract_scoped_model` — `hymeko_mechanism/src/kinematics/kinematic/scope.rs`
+- `has` — `hymeko_mechanism/src/kinematics/actuation.rs`
+- `integer` — `hymeko_mechanism/src/kinematics/actuation.rs`
+- `intrinsics` — `hymeko_mechanism/src/kinematics/cameras.rs`
+- `joint_index` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
+- `link_pose` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
+- `model` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
+- `number` — `hymeko_mechanism/src/kinematics/actuation.rs`
+- `positive` — `hymeko_mechanism/src/kinematics/actuation.rs`
+- `project` — `hymeko_mechanism/src/kinematics/cameras.rs`
+- `project` — `hymeko_mechanism/src/kinematics/tp.rs`
+- `project` — `hymeko_mechanism/src/recipe.rs`
+- `read` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
+- `reference` — `hymeko_mechanism/src/kinematics/actuation.rs`
+- `run` — `hymeko_mechanism/examples/surface_prepare/pipeline.rs`
+- `scope` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
+- `set_state` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
+- `text` — `hymeko_mechanism/src/kinematics/actuation.rs`
+- `value` — `hymeko_mechanism/src/kinematics/actuation.rs`
+- `visual_poses` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
+- `visuals` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
 
 ## hymeko_optimize (rust)
 

@@ -5,10 +5,10 @@
 //!   B  topology prepared once            — flat index arrays, same Se arithmetic
 //!   C  arithmetic only                   — the Se compositions B does, and nothing else
 use hymeko_clifford::Se;
-use hymeko_geometry::forward::{
+use hymeko_mechanism::forward::{
     FkPlan, JointValues, forward_kinematics, joint_motion, joint_origin,
 };
-use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
+use hymeko_mechanism::kinematics::kinematic::extract_kinematic_model;
 use hymeko_query::QueryEngine;
 
 fn main() {

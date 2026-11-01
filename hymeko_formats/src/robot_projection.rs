@@ -1,13 +1,13 @@
 //! Robot export and FK diagnostics over a retained Core compilation.
 //! Physical execution and scenario assembly remain consumer responsibilities.
+use crate::plugin::{ModelKind, ModelView, extract};
 use hymeko::{ir::canonical_hash::Canon, module_store::execution::CompiledModel};
-use hymeko_geometry::{
+use hymeko_mechanism::{
     forward::{FkPlan, JointValues, forward_kinematics},
     kinematics::{
         joints::{JointLimits, JointType},
         kinematic::KinematicModel,
     },
-    transforms::{ModelKind, ModelView, extract},
 };
 use serde_json::{Value, json};
 

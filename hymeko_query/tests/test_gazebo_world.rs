@@ -3,7 +3,7 @@
 //! Exercises `hymeko_formats::gazebo::generate_gazebo_world` and
 //! the `GazeboWorldTransform` registry entry, plus the
 //! `extract_gazebo_plugins` helper in
-//! `hymeko_geometry::kinematics::gazebo_plugins`. The fixtures
+//! `hymeko_formats::gazebo_plugins`. The fixtures
 //! `anthropomorphic_arm.hymeko` and `robot_4wh.hymeko` both declare
 //! `sim_plugin` + `control_plugin` hyperedges with concrete `plugin` /
 //! `filename` / `parameters` children, so each should produce a world
@@ -12,9 +12,9 @@
 #[cfg(test)]
 mod test_gazebo_world {
     use hymeko_formats::gazebo::generate_gazebo_world;
-    use hymeko_geometry::kinematics::gazebo_plugins::{GazeboPluginKind, extract_gazebo_plugins};
-    use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
-    use hymeko_geometry::transforms::{
+    use hymeko_formats::gazebo_plugins::{GazeboPluginKind, extract_gazebo_plugins};
+    use hymeko_mechanism::kinematics::kinematic::extract_kinematic_model;
+    use hymeko_formats::plugin::{
         DomainTransform, ModelView, TransformConfig, TransformRegistry,
     };
     use hymeko_query::engine::QueryEngine;

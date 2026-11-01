@@ -31,8 +31,8 @@ mod test_imported_real {
     use hymeko_formats::default_registry;
     use hymeko_formats::sdf::generate_sdf;
     use hymeko_formats::urdf::generate_urdf;
-    use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
-    use hymeko_geometry::transforms::{ModelView, TransformConfig};
+    use hymeko_mechanism::kinematics::kinematic::extract_kinematic_model;
+    use hymeko_formats::plugin::{ModelView, TransformConfig};
     use hymeko_query::engine::QueryEngine;
 
     /// Imported real-robot fixture metadata. (path, robot_name,

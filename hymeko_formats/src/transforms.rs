@@ -6,10 +6,10 @@ use std::fmt::Write;
 
 use std::collections::{HashMap, HashSet};
 
-use hymeko_geometry::kinematics::actuation::{Attachment, DriveLaw};
-use hymeko_geometry::kinematics::joints::{JointInfo, JointType};
-use hymeko_geometry::kinematics::kinematic::{GeometryShape, KinematicModel, LinkInfo};
-use hymeko_geometry::transforms::{
+use hymeko_mechanism::kinematics::actuation::{Attachment, DriveLaw};
+use hymeko_mechanism::kinematics::joints::{JointInfo, JointType};
+use hymeko_mechanism::kinematics::kinematic::{GeometryShape, KinematicModel, LinkInfo};
+use crate::plugin::{
     Diagnostic, DomainTransform, ModelKind, ModelView, TransformConfig,
 };
 
@@ -1082,8 +1082,8 @@ fn find_roots(model: &KinematicModel) -> Vec<String> {
 mod mjcf_emit_tests {
     use super::*;
     use hymeko::common::ids::DeclId;
-    use hymeko_geometry::kinematics::joints::JointInfo;
-    use hymeko_geometry::kinematics::kinematic::{GeometryInfo, GeometryShape, LinkInfo};
+    use hymeko_mechanism::kinematics::joints::JointInfo;
+    use hymeko_mechanism::kinematics::kinematic::{GeometryInfo, GeometryShape, LinkInfo};
 
     fn deep_chain_model(n: usize) -> KinematicModel {
         assert!(n >= 2);
@@ -1133,7 +1133,7 @@ mod mjcf_emit_tests {
     #[test]
     fn mjcf_emits_deep_serial_chain_without_stack_overflow() {
         let model = deep_chain_model(600);
-        let cfg = hymeko_geometry::transforms::TransformConfig::default().with_name("deep");
+        let cfg = crate::plugin::TransformConfig::default().with_name("deep");
         let xml = emit_mjcf(&model, &cfg);
         assert!(xml.contains("<mujoco"));
         assert!(xml.contains("</mujoco>"));
@@ -1146,7 +1146,7 @@ mod mjcf_emit_tests {
     #[test]
     fn mjcf_emits_parent_child_contact_excludes() {
         let model = deep_chain_model(4); // L0→L1→L2→L3, 3 parent→child joints, no `world`
-        let cfg = hymeko_geometry::transforms::TransformConfig::default().with_name("chain");
+        let cfg = crate::plugin::TransformConfig::default().with_name("chain");
         let xml = emit_mjcf(&model, &cfg);
         assert!(xml.contains("<contact>"), "expected a <contact> block");
         assert!(xml.contains("<exclude body1=\"L0\" body2=\"L1\"/>"));
@@ -1180,7 +1180,7 @@ mod mjcf_emit_tests {
                 limits: None,
             },
         );
-        let cfg = hymeko_geometry::transforms::TransformConfig::default().with_name("chain");
+        let cfg = crate::plugin::TransformConfig::default().with_name("chain");
         let xml = emit_mjcf(&model, &cfg);
         assert!(
             !xml.contains("body1=\"world\""),

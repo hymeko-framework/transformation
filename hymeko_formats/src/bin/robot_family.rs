@@ -193,7 +193,7 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
             // Installation envelope: the flange's far face above the floor with the arm stretched up.
             let projection = hymeko_formats::robot_projection::RobotProjection::new(&c.model, "robot")?;
             let zero = projection.model().joints.iter().map(|j| (j.name.clone(), 0.)).collect();
-            let poses = hymeko_geometry::forward::forward_kinematics(projection.model(), &zero)?;
+            let poses = hymeko_mechanism::forward::forward_kinematics(projection.model(), &zero)?;
             let envelope = poses.get("tool_flange").ok_or("tool_flange not posed")?.translation[2] + 0.02;
             manifest["design"] = json!({"family": space.family, "values": c.generated.design.values(), "envelope_m": envelope, "unit": space.to_unit(&c.generated.design), "robot_digest": c.digest(), "robot_structure": c.structure(), "total_mass_kg": c.total_mass(), "requirements": c.requirements});
             manifest["stations"] = json!(cell.stations);

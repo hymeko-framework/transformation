@@ -2,8 +2,8 @@
 //! SDF 1.7 format for Gazebo compatibility.
 
 use hymeko::ir::ir::Ir;
-use hymeko_geometry::kinematics::joints::JointType;
-use hymeko_geometry::kinematics::kinematic::{
+use hymeko_mechanism::kinematics::joints::JointType;
+use hymeko_mechanism::kinematics::kinematic::{
     GeometryInfo, GeometryShape, KinematicModel, extract_kinematic_model,
 };
 use hymeko_query::QueryEngine;

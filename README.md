@@ -81,7 +81,7 @@ positioning accuracy. Reports, recorded states, GIF and PDF are retained in
 
 ## Retained mechanism bindings
 
-`hymeko_geometry::kinematics::assembly::KinematicAssembly` binds one authored group
+`hymeko_mechanism::kinematics::assembly::KinematicAssembly` binds one authored group
 by canonical `DeclId`. It reuses the existing `KinematicModel`, `FkPlan`, `VisualSet`
 and collision projection. A robot arm, hinged door and linear slider use the same
 API; local names may repeat across groups. Namespace ancestry selects membership;
@@ -109,12 +109,12 @@ Predicates retain their full IR context, so shared imported vocabulary and axes
 remain resolvable. The legacy global model extractor keeps its behavior; use
 `KinematicModel::from_scope` for isolated mechanisms.
 
-The [three-mechanism fixture](hymeko_geometry/tests/fixtures/assembly/room.hymeko)
+The [three-mechanism fixture](hymeko_mechanism/tests/fixtures/assembly/room.hymeko)
 tests common placement, numeric updates, visual/collider offsets, attached tool
 frames, canonical identity isolation and refused inputs:
 
 ```powershell
-cargo test --offline --locked -p hymeko_geometry --test assembly
+cargo test --offline --locked -p hymeko_mechanism --test assembly
 cargo test --offline --locked -p hymeko_query --lib engine::scope::tests::
 ```
 
@@ -125,12 +125,14 @@ UR-specific DH/controller adapter have not been migrated to this facade.
 
 - **`hymeko_emitter/`** — editor IR (slotmap, `IRDelta`) + M2T emitters (`.hymeko`, SysML v2, Rust stubs, Lean 4)
 - **`hymeko_query/`** — pattern-matching query engine over the hypergraph IR
-- **`hymeko_geometry/`** — reads the kinematic model (links, joints, shapes, frames, actuation) out of
-  compiled IR and projects the emitters' model view. The computations moved out on 2026-11-01:
-  meshes/materials and kinematics (FK/IK, DH, playout, two-bone, collision) to the Geometry
-  repository (`hymeko_mesh`, `hymeko_kinematics`), physics to `hymeko/kawakern`. They are
-  re-exported under the former paths; model types are aliases with Core `DeclId` handles
-  (`kinematics::IrHandles`). New code should depend on the owners directly.
+- **`hymeko_mechanism/`** (formerly `hymeko_geometry`, renamed 2026-11-01) — reads mechanisms out of
+  compiled IR: links, joints, frames, actuation, visuals and cameras into the Geometry repository's
+  kinematic model, with Core `DeclId` handles (`kinematics::IrHandles`); and geometry-processing
+  recipes (`recipe`, `authoring` feature). The computations live with their owners: meshes,
+  materials and recipe execution in `hymeko_mesh`, kinematic models and FK/IK/collision in
+  `hymeko_kinematics` (both re-exported here), physics and roads in `hymeko/kawakern` (used directly,
+  e.g. `kawakern::Engine<IrHandles>`). The emitter plugin API (`plugin`), Gazebo plugin extraction
+  and the road reader (`environment::track`) moved to `hymeko_formats`.
 - **`hymeko_formats/`** — built-in format emitters (URDF / SDF / MJCF / DOT / Mermaid / Gazebo world) — a query plugin
 - **`hymeko_webxr/`** — WebXR/spatial vocabulary, semantic validation and borrowed queries over the canonical IR.
   `meta_room.hymeko` specialises the spatial vocabulary for XR rooms (room frame, root fiducial via
@@ -443,8 +445,8 @@ renders its actual state. See the local
 `\\192.168.1.228\hymeko\reports\by-repository`.
 
 **Kawakern** is the HyMeKo physics engine: since 2026-11-01 its own repository
-(`hymeko/kawakern`, crate `kawakern`). `hymeko_geometry::engine::Engine` re-exports
-`kawakern::Engine<IrHandles>`, which owns articulated rigid dynamics and ground contact;
+(`hymeko/kawakern`, crate `kawakern`). `kawakern::Engine<IrHandles>`, over a model read by
+`hymeko_mechanism`, owns articulated rigid dynamics and ground contact;
 `kawakern_dynamics` (kawakern repository, formerly `hymeko_dynamics` here) projects physical
 systems, including linear elasticity, into the
 existing Tensor numerical kernels. Graph owns signed incidence and octree structure.
@@ -483,12 +485,12 @@ URDF visual-origin semantics: https://docs.ros.org/en/kilted/Tutorials/Intermedi
 
 The mesh and material modules described in this and the following sections are
 owned by the Geometry repository's IR-free `hymeko_mesh` crate (2026-11-01).
-`hymeko_geometry` re-exports `hymeko_mesh::{mesh, material}`, so the
-`hymeko_geometry::mesh` and `hymeko_geometry::material` paths below name the same
+`hymeko_mechanism` re-exports `hymeko_mesh::{mesh, material}`, so the
+`hymeko_mechanism::mesh` and `hymeko_mechanism::material` paths below name the same
 types. Their unit and focused tests run in the Geometry repository; the
 `surface_prepare` adapter and recipe pipeline stay here.
 
-`hymeko_geometry::mesh::regularize::SurfaceRegularizer` produces real quad
+`hymeko_mechanism::mesh::regularize::SurfaceRegularizer` produces real quad
 faces and corner UVs from a triangular source. Quality-ranked local pairing,
 conforming face/edge refinement and bounded tangential relaxation preserve
 protected seams and boundaries. Projection walks connected source faces and
@@ -501,7 +503,7 @@ within compatible crease cones without changing geometry or UVs. Texture
 rasterization and anatomical authoring remain the consumer's responsibilities.
 
 ```powershell
-cargo build --locked --offline -p hymeko_geometry --no-default-features --features mesh-optimization --release --example surface_prepare
+cargo build --locked --offline -p hymeko_mechanism --no-default-features --features mesh-optimization --release --example surface_prepare
 # Geometry repository root:
 cargo test --locked --offline -p hymeko_mesh --test mesh_regularization
 ```
@@ -514,7 +516,7 @@ a `QuadSurface` with its triangulated GPU representation, or the updated mesh.
 
 ### Bounded surface boundary joining
 
-`hymeko_geometry::mesh::bridge::BoundaryBridge::indices` triangulates a gap between
+`hymeko_mechanism::mesh::bridge::BoundaryBridge::indices` triangulates a gap between
 two existing ordered boundaries, including concave rims. It follows source winding,
 retains positions/attributes, caps edge length and work, and excludes triangles
 already present in the source. Rings together are bounded to2048 vertices. The
@@ -524,7 +526,7 @@ reversed and concave rings plus invalid inputs. This is not a general solid bool
 
 ### Closed surface union with a convex addition
 
-`hymeko_geometry::mesh::solid::SurfaceUnion::with_convex` performs a bounded,
+`hymeko_mechanism::mesh::solid::SurfaceUnion::with_convex` performs a bounded,
 transactional union of two closed, positively oriented surfaces; the addition
 must be convex. It constructs canonical edge/face intersections, partitions
 source faces, reuses the boundary triangulator and retains exterior regions.
@@ -546,7 +548,7 @@ Focused tests (Geometry repository): `cargo test --locked --offline -p hymeko_me
 
 # Quad control-surface limit samples
 
-`hymeko_geometry::mesh::subdivision::SubdivisionSurface` evaluates Catmull–Clark
+`hymeko_mechanism::mesh::subdivision::SubdivisionSurface` evaluates Catmull–Clark
 limits at control-vertex parameter locations on an oriented manifold quad cage.
 Regular vertices follow the bicubic B-spline limit; extraordinary vertices retain
 their valence, boundary curves use the cubic rule with single-face corners fixed.
