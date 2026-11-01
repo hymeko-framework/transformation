@@ -113,7 +113,7 @@ pub fn generate_urdf_from_model(model: &KinematicModel) -> String {
             if let Some(ax) = joint.axis {
                 out.push_str(&format!(
                     "    <axis xyz=\"{} {} {}\"/>\n",
-                    ax[0] as i32, ax[1] as i32, ax[2] as i32
+                    ax[0], ax[1], ax[2]
                 ));
             }
         }

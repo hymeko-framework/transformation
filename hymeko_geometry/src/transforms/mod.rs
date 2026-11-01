@@ -63,7 +63,9 @@ pub trait DomainTransform {
             let link_names: std::collections::HashSet<&str> =
                 km.links.iter().map(|l| l.name.as_str()).collect();
             for joint in &km.joints {
-                if !link_names.contains(joint.parent_link.as_str()) {
+                if !link_names.contains(joint.parent_link.as_str())
+                    && !km.frames.iter().any(|frame| frame == &joint.parent_link)
+                {
                     diags.push(Diagnostic::error(format!(
                         "Joint '{}': unknown parent '{}'",
                         joint.name, joint.parent_link

@@ -28,8 +28,22 @@ pub fn generate_sdf_from_model(model: &KinematicModel) -> String {
     out.push_str(&format!("  <model name=\"{}\">\n", model.name));
     out.push_str("    <static>false</static>\n\n");
 
+    // SDF links have independent poses: a joint's pose alone does not place its
+    // child. At q=0 the child link frame coincides with the incoming joint frame.
+    let incoming: std::collections::HashMap<_, _> = model
+        .joints
+        .iter()
+        .map(|joint| (joint.child_link.as_str(), joint.name.as_str()))
+        .collect();
+
     for link in &model.links {
         out.push_str(&format!("    <link name=\"{}\">\n", link.name));
+        if let Some(joint) = incoming.get(link.name.as_str()) {
+            out.push_str(&format!(
+                "      <pose relative_to=\"{}\">0 0 0 0 0 0</pose>\n",
+                crate::xml_util::xml_escape(joint)
+            ));
+        }
 
         if let Some(mass) = link.mass {
             out.push_str("      <inertial>\n");
@@ -42,8 +56,15 @@ pub fn generate_sdf_from_model(model: &KinematicModel) -> String {
         }
 
         if let Some(ref geom) = link.geometry {
+            let origin = link.origin.as_deref().filter(|values| values.len() >= 3);
             for tag in &["visual", "collision"] {
                 out.push_str(&format!("      <{} name=\"{}_{}\">\n", tag, link.name, tag));
+                if let Some(xyz) = origin {
+                    out.push_str(&format!(
+                        "        <pose>{} {} {} 0 0 0</pose>\n",
+                        xyz[0], xyz[1], xyz[2]
+                    ));
+                }
                 out.push_str("        <geometry>\n");
                 emit_sdf_geometry(&mut out, geom, 10);
                 out.push_str("        </geometry>\n");
@@ -63,32 +84,33 @@ pub fn generate_sdf_from_model(model: &KinematicModel) -> String {
         out.push_str(&format!("      <parent>{}</parent>\n", joint.parent_link));
         out.push_str(&format!("      <child>{}</child>\n", joint.child_link));
 
-        // Skip the joint `<pose>` when the parent is `world` — the
-        // `world` identifier inside an SDF `<model>` is not a valid
-        // `relative_to` target (Gazebo error 26: "relative_to name
-        // [world] does not match a nested model, link, joint, or
-        // frame name"). The model-to-world pose is established by
-        // the `<include>` directive that loads the model into a
-        // world file. The HymeKo convention `(+ world, - base_link)`
-        // for the j_fix joint maps to "bolt the model frame to the
-        // world frame at the include pose" and emits no model-local
-        // `<pose>`.
-        if let Some(xyz) = joint.origin_xyz {
-            if joint.parent_link != "world" {
-                let rpy = joint.origin_rpy_rad().unwrap_or([0.0; 3]);
-                out.push_str(&format!(
-                    "      <pose relative_to=\"{}\">{} {} {} {:.4} {:.4} {:.4}</pose>\n",
-                    joint.parent_link, xyz[0], xyz[1], xyz[2], rpy[0], rpy[1], rpy[2]
-                ));
-            }
-        }
+        // An external world anchor is expressed in this model's placement
+        // frame, so standalone export retains the authored root offset. SDF's
+        // reserved __model__ reference is valid within the model's pose graph.
+        let parent_frame = if joint.parent_link == "world" {
+            "__model__"
+        } else {
+            joint.parent_link.as_str()
+        };
+        let xyz = joint.origin_xyz.unwrap_or([0.0; 3]);
+        let rpy = joint.origin_rpy_rad().unwrap_or([0.0; 3]);
+        out.push_str(&format!(
+            "      <pose relative_to=\"{}\">{} {} {} {:.4} {:.4} {:.4}</pose>\n",
+            crate::xml_util::xml_escape(parent_frame),
+            xyz[0],
+            xyz[1],
+            xyz[2],
+            rpy[0],
+            rpy[1],
+            rpy[2]
+        ));
 
         if joint.joint_type != JointType::Fixed {
             if let Some(ax) = joint.axis {
                 out.push_str("      <axis>\n");
                 out.push_str(&format!(
                     "        <xyz>{} {} {}</xyz>\n",
-                    ax[0] as i32, ax[1] as i32, ax[2] as i32
+                    ax[0], ax[1], ax[2]
                 ));
                 // Emit `<limit>` for non-fixed joints. For
                 // Continuous joints we keep the SDF idiom of very
