@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**12 package(s), 571 public symbol(s).**
+**11 package(s), 529 public symbol(s).**
 
 ## generated (python)
 
@@ -428,66 +428,6 @@ docstring are all excluded for a stated reason rather than by luck.
 - `value` — `hymeko_mechanism/src/kinematics/actuation.rs`
 - `visual_poses` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
 - `visuals` — `hymeko_mechanism/src/kinematics/assembly/mod.rs`
-
-## hymeko_optimize (rust)
-
-- **Root:** `hymeko_optimize`
-- **Manifest:** `hymeko_optimize/Cargo.toml`
-- **Charter:** The optimisation projection: a compiled HyMeKo IR read as a constrained design problem.
-
-### traits
-
-- `Backend` — `hymeko_optimize/src/backend.rs`
-
-### structs
-
-- `Constraint` — `hymeko_optimize/src/problem.rs`
-- `Evaluation` — `hymeko_optimize/src/problem.rs`
-- `Problem` — `hymeko_optimize/src/problem.rs`
-- `Quantity` — `hymeko_optimize/src/problem.rs`
-- `Residual` — `hymeko_optimize/src/report.rs`
-- `Resolved` — `hymeko_optimize/src/report.rs`
-- `Scenario` — `hymeko_optimize/src/problem.rs`
-- `Solution` — `hymeko_optimize/src/network.rs`
-- `Solved` — `hymeko_optimize/src/report.rs`
-- `Unit` — `hymeko_optimize/src/problem.rs`
-
-### enums
-
-- `BackendError` — `hymeko_optimize/src/backend.rs`
-- `Branch` — `hymeko_optimize/src/network.rs`
-- `Kind` — `hymeko_optimize/src/problem.rs`
-- `NetworkError` — `hymeko_optimize/src/network.rs`
-- `ProblemError` — `hymeko_optimize/src/problem.rs`
-- `ReadError` — `hymeko_optimize/src/read.rs`
-- `Relation` — `hymeko_optimize/src/problem.rs`
-- `Sense` — `hymeko_optimize/src/problem.rs`
-
-### functions
-
-- `bounds` — `hymeko_optimize/src/problem.rs`
-- `check` — `hymeko_optimize/src/problem.rs`
-- `describe` — `hymeko_optimize/src/web.rs`
-- `dimension` — `hymeko_optimize/src/problem.rs`
-- `div` — `hymeko_optimize/src/problem.rs`
-- `evaluate` — `hymeko_optimize/src/problem.rs`
-- `feasible` — `hymeko_optimize/src/report.rs`
-- `index_of` — `hymeko_optimize/src/problem.rs`
-- `index_of_name` — `hymeko_optimize/src/problem.rs`
-- `label` — `hymeko_optimize/src/problem.rs`
-- `mul` — `hymeko_optimize/src/problem.rs`
-- `multistart` — `hymeko_optimize/src/backend.rs`
-- `named` — `hymeko_optimize/src/problem.rs`
-- `nets` — `hymeko_optimize/src/network.rs`
-- `of` — `hymeko_optimize/src/report.rs`
-- `project` — `hymeko_optimize/src/read.rs`
-- `result` — `hymeko_optimize/src/problem.rs`
-- `solve` — `hymeko_optimize/src/network.rs`
-- `solve` — `hymeko_optimize/src/web.rs`
-- `start` — `hymeko_optimize/src/problem.rs`
-- `starts` — `hymeko_optimize/src/backend.rs`
-- `to_json` — `hymeko_optimize/src/report.rs`
-- `value_of` — `hymeko_optimize/src/report.rs`
 
 ## hymeko_query (rust)
 
