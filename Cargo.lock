@@ -537,22 +537,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hymeko_dynamics"
-version = "0.1.0"
-dependencies = [
- "ciborium",
- "hymeko_core",
- "hymeko_geometry",
- "hymeko_graph",
- "hymeko_numerics",
- "hymeko_optimize",
- "hymeko_sources",
- "serde",
- "serde_json",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "hymeko_emitter"
 version = "0.1.0"
 dependencies = [
@@ -630,11 +614,6 @@ dependencies = [
  "serde",
  "serde_json",
 ]
-
-[[package]]
-name = "hymeko_numerics"
-version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7#9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7"
 
 [[package]]
 name = "hymeko_optimize"
