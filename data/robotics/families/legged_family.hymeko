@@ -1,0 +1,34 @@
+// Legged family: a box body with `legs` legs in left/right pairs (2 biped, 4 quadruped,
+// 6 hexapod, 8 octopod). The leg count is the structural parameter, chosen separately from the
+// continuous ones below; every count shares them. Each leg: hip abduction about X, hip flexion
+// and knee about Y, a fixed foot. Coordinates: X forward, Y left, Z up; pairs are numbered from
+// the front, left legs carry suffix l (positive Y). Lengths in metres, masses in kilograms.
+legged_family_description {
+    @"meta_robot_family.hymeko";
+}
+
+legged: meta_robot_family.robot_family.family {
+    generator "legged_pairs";
+    leg_counts [2, 4, 6, 8];
+
+    body_length: meta_robot_family.robot_family.parameter { unit "m"; lower 0.2; upper 1.2; default 0.6; resolution 0.0001; }
+    body_width: meta_robot_family.robot_family.parameter { unit "m"; lower 0.12; upper 0.5; default 0.24; resolution 0.0001; }
+    body_height: meta_robot_family.robot_family.parameter { unit "m"; lower 0.06; upper 0.3; default 0.16; resolution 0.0001; }
+    pair_pitch: meta_robot_family.robot_family.parameter { unit "m"; lower 0.08; upper 0.5; default 0.18; resolution 0.0001; }
+    hip_offset: meta_robot_family.robot_family.parameter { unit "m"; lower 0.06; upper 0.3; default 0.17; resolution 0.0001; }
+    thigh_length: meta_robot_family.robot_family.parameter { unit "m"; lower 0.08; upper 0.5; default 0.3; resolution 0.0001; }
+    shin_length: meta_robot_family.robot_family.parameter { unit "m"; lower 0.08; upper 0.5; default 0.3; resolution 0.0001; }
+    leg_radius: meta_robot_family.robot_family.parameter { unit "m"; lower 0.01; upper 0.06; default 0.035; resolution 0.0001; }
+    body_density: meta_robot_family.robot_family.parameter { unit "kg/m^3"; lower 200; upper 2000; default 217; resolution 1; }
+    leg_density: meta_robot_family.robot_family.parameter { unit "kg/m^3"; lower 200; upper 3000; default 866; resolution 1; }
+
+    // Stance: the body hangs from the world at this height for loading checks (no gait here).
+    stance: meta_robot_family.robot_family.structure {
+        mount_height 0.72;
+        hip_drop 0.05;
+        flex_lower -60; flex_upper 60;
+        knee_lower -120; knee_upper 0;
+        abduct_lower -30; abduct_upper 30;
+        effort 40; velocity 8;
+    }
+}

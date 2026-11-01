@@ -1,0 +1,38 @@
+// Six-axis serial manipulator family (fixed topology). The defaults reproduce the kinematics and
+// link masses of ../sim/dual_fanuc/fanuc_lrmate200id.hymeko, the robot of the generated cell.
+// Coordinates: X forward, Y left, Z up; joint 1 turns about +Z at the base; at zero the arm
+// points up. Lengths in metres, masses in kilograms, densities in kg/m^3, moduli in pascals.
+manipulator_family_description {
+    @"meta_robot_family.hymeko";
+}
+
+serial_six_axis: meta_robot_family.robot_family.family {
+    generator "serial_six_axis";
+    reference "fanuc_lrmate200id";
+    // Dimensions are specified on a 0.1 mm grid (resolution); off-grid proposals are refused.
+
+    pedestal_height: meta_robot_family.robot_family.parameter { unit "m"; lower 0.25; upper 0.42; default 0.33; resolution 0.0001; }
+    upper_arm_length: meta_robot_family.robot_family.parameter { unit "m"; lower 0.22; upper 0.44; default 0.33; resolution 0.0001; }
+    forearm_length: meta_robot_family.robot_family.parameter { unit "m"; lower 0.2; upper 0.4; default 0.29; resolution 0.0001; }
+    upper_arm_radius: meta_robot_family.robot_family.parameter { unit "m"; lower 0.025; upper 0.065; default 0.05; resolution 0.0001; }
+    forearm_radius: meta_robot_family.robot_family.parameter { unit "m"; lower 0.02; upper 0.055; default 0.04; resolution 0.0001; }
+
+    // A link is an aluminium tube plus equipment (drive, cabling) spread over its length as a
+    // solid core inside the tube. The reference masses hold at the default geometry; the
+    // equipment share (reference mass minus tube mass there) is the same for every design.
+    tube: meta_robot_family.robot_family.material {
+        density 2700;
+        elastic_modulus 70000000000;
+        wall 0.003;
+        pedestal_mass 6;
+        upper_arm_mass 3.5;
+        forearm_mass 2.5;
+    }
+    // Static stiffness requirement: with the arm horizontal, the bending deflection of both
+    // tubes under the distal masses and the declared payload stays within the bound.
+    stiffness: meta_robot_family.robot_family.structure {
+        payload 0.03;
+        max_deflection 0.0001;
+        gravity 9.81;
+    }
+}

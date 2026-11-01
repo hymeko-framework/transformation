@@ -1,0 +1,13 @@
+// Vocabulary for parameterised robot families: the declared design space a generator reads.
+// A family names its generator, its continuous parameters (with units, bounds and the default
+// that reproduces its reference robot) and the constants of its mass and structure models.
+meta_robot_family
+{
+
+}
+robot_family {
+    family {}
+    parameter {}
+    material {}
+    structure {}
+}

@@ -38,6 +38,7 @@ pub mod interpret;
 #[cfg(feature = "interpret")]
 pub mod rewrite;
 
+pub mod traceability;
 pub mod traits;
 
 #[cfg(test)]

@@ -18,14 +18,16 @@
 pub mod binary_graph;
 pub mod codegen;
 pub mod environment;
-pub mod graph_execution;
 pub mod gazebo;
+pub mod graph_execution;
 pub mod mesh;
 pub mod metaheuristic;
+pub mod robot_family;
 pub mod robot_projection;
 pub mod sdf;
 pub mod snapshot;
 pub mod texture;
+pub mod traceability;
 pub mod transforms;
 pub mod urdf;
 pub mod xml_util;
@@ -33,9 +35,9 @@ pub mod xml_util;
 pub use binary_graph::{BinaryEdge, BinaryGraph};
 pub use codegen::{CodegenError, OutputFormat, generate_description};
 pub use transforms::{
-    DotTransform, GazeboWorldTransform, MermaidTransform, MjcfTransform, RequirementsDotTransform,
-    RequirementsSysmlTransform, SdfTransform, SysmlStructureTransform, SysmlTransform,
-    TorchDataflowTransform, UrdfTransform,
+    DotTransform, GazeboWorldTransform, MermaidTransform, MjcfTransform, RequirementsCsvTransform,
+    RequirementsDotTransform, RequirementsSysmlTransform, SdfTransform, SysmlStructureTransform,
+    SysmlTransform, TorchDataflowTransform, UrdfTransform,
 };
 
 use hymeko_geometry::transforms::TransformRegistry;
@@ -57,6 +59,7 @@ pub fn register_defaults(reg: &mut TransformRegistry) {
     reg.register(Box::new(SysmlTransform));
     reg.register(Box::new(RequirementsSysmlTransform));
     reg.register(Box::new(RequirementsDotTransform));
+    reg.register(Box::new(RequirementsCsvTransform));
     reg.register(Box::new(SysmlStructureTransform));
 }
 

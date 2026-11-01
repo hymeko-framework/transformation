@@ -1,12 +1,12 @@
-// Selects the requirements-trace decls for the DOT traceability graph.
-// Mirrors requirements_sysml/queries.hymeko (same context, different template).
+// Shared trace profile: exact selection is checked by TraceabilityExport.
 requirements_dot_transform {}
 context
 {
     requirements: requirement {}
-    blocks:       block {}
-
+    blocks: block {}
+    tests: test_case {}
     @satisfies_edges: satisfies {}
-    @derives_edges:   derives {}
+    @derives_edges: derives {}
     @allocated_edges: allocated_to {}
+    @verifies_edges: verifies {}
 }

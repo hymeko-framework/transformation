@@ -1,0 +1,46 @@
+traceability_verification_description { @"meta_sysml_trace.hymeko"; }
+
+verification_cell: meta_sysml_trace.sysml_trace.elements {
+    R_stop: meta_sysml_trace.sysml_trace.elements.requirement { text "Stop within 200 ms"; }
+    R_accuracy: meta_sysml_trace.sysml_trace.elements.requirement { text "Position error <= 0.5 mm"; }
+    R_cycle: meta_sysml_trace.sysml_trace.elements.requirement { text "Cycle time <= 4 s"; }
+    R_grip: meta_sysml_trace.sysml_trace.elements.requirement { text "Retain the payload"; }
+    R_repeat: meta_sysml_trace.sysml_trace.elements.requirement { text "Repeatability <= 0.1 mm"; }
+    R_diagnostics: meta_sysml_trace.sysml_trace.elements.requirement { text "Record stop diagnostics"; }
+    R_training: meta_sysml_trace.sysml_trace.elements.requirement { text "Provide operator training"; }
+    R_orphan: meta_sysml_trace.sysml_trace.elements.requirement { text "Document maintenance intervals"; }
+
+    SafetyController: meta_sysml_trace.sysml_trace.elements.block {}
+    MotionPlanner: meta_sysml_trace.sysml_trace.elements.block {}
+    Arm: meta_sysml_trace.sysml_trace.elements.block {}
+    Gripper: meta_sysml_trace.sysml_trace.elements.block {}
+    Diagnostics: meta_sysml_trace.sysml_trace.elements.block {}
+
+    // Synthetic evidence records: 1 pass, 0 fail, -1 unknown; no physical test run.
+    T_stop: meta_sysml_trace.sysml_trace.elements.test_case { outcome 1; }
+    T_accuracy: meta_sysml_trace.sysml_trace.elements.test_case { outcome 1; }
+    T_cycle: meta_sysml_trace.sysml_trace.elements.test_case { outcome 0; }
+    T_grip: meta_sysml_trace.sysml_trace.elements.test_case { outcome -1; }
+    T_repeat: meta_sysml_trace.sysml_trace.elements.test_case { outcome 1; }
+    T_diagnostics: meta_sysml_trace.sysml_trace.elements.test_case { outcome 1; }
+
+    @sat_stop: meta_sysml_trace.sysml_trace.satisfies { (+ SafetyController, - R_stop); }
+    @sat_stop_review: meta_sysml_trace.sysml_trace.satisfies { (+ SafetyController, - R_stop); }
+    @sat_accuracy_plan: meta_sysml_trace.sysml_trace.satisfies { (+ MotionPlanner, - R_accuracy); }
+    @sat_accuracy_arm: meta_sysml_trace.sysml_trace.satisfies { (+ Arm, - R_accuracy); }
+    @sat_cycle: meta_sysml_trace.sysml_trace.satisfies { (+ MotionPlanner, - R_cycle); }
+    @sat_grip: meta_sysml_trace.sysml_trace.satisfies { (+ Gripper, - R_grip); }
+    @sat_repeat: meta_sysml_trace.sysml_trace.satisfies { (+ Arm, - R_repeat); }
+    @sat_diagnostics: meta_sysml_trace.sysml_trace.satisfies { (+ Diagnostics, - R_diagnostics); }
+    @alloc_stop: meta_sysml_trace.sysml_trace.allocated_to { (+ R_stop, - SafetyController); }
+    @alloc_accuracy: meta_sysml_trace.sysml_trace.allocated_to { (+ R_accuracy, - Arm); }
+    @alloc_training: meta_sysml_trace.sysml_trace.allocated_to { (+ R_training, - Diagnostics); }
+    @derive_repeat: meta_sysml_trace.sysml_trace.derives { (+ R_repeat, - R_accuracy); }
+    @derive_diagnostics: meta_sysml_trace.sysml_trace.derives { (+ R_diagnostics, - R_stop); }
+    @verify_stop: meta_sysml_trace.sysml_trace.verifies { (+ T_stop, - R_stop); }
+    @verify_accuracy: meta_sysml_trace.sysml_trace.verifies { (+ T_accuracy, - R_accuracy); }
+    @verify_cycle: meta_sysml_trace.sysml_trace.verifies { (+ T_cycle, - R_cycle); }
+    @verify_grip: meta_sysml_trace.sysml_trace.verifies { (+ T_grip, - R_grip); }
+    @verify_repeat: meta_sysml_trace.sysml_trace.verifies { (+ T_repeat, - R_repeat); }
+    @verify_diagnostics: meta_sysml_trace.sysml_trace.verifies { (+ T_diagnostics, - R_diagnostics); }
+}
