@@ -55,8 +55,7 @@ fn verdict_hymeko_semantic_owner() {
     let problem = project(&variant.0, &variant.1).expect("the variant projects");
     problem.check().expect("the variant is well posed");
 
-    let solved = AugmentedLagrangian::default()
-        .solve(&problem, &problem.start())
+    let solved = Backend::solve(&AugmentedLagrangian::default(), &problem, &problem.start())
         .expect("the variant converges");
 
     assert!(solved.feasible());
@@ -111,7 +110,7 @@ fn infeasible_contract_is_reported() {
         ..AugmentedLagrangian::default()
     };
     for start in starts(&problem, 5) {
-        match backend.solve(&problem, &start) {
+        match Backend::solve(&backend, &problem, &start) {
             Err(_) => {}
             Ok(solved) => panic!(
                 "an impossible contract was reported satisfied from {start:?}: {:?}",
@@ -333,8 +332,7 @@ fn verdict_typed_projection_parity() {
 fn verdict_optimization_oracle_parity() {
     let (ir, it) = model!();
     let problem = project(&ir, &it).expect("the model projects");
-    let solved = AugmentedLagrangian::default()
-        .solve(&problem, &problem.start())
+    let solved = Backend::solve(&AugmentedLagrangian::default(), &problem, &problem.start())
         .expect("it converges");
 
     for (name, expected) in [

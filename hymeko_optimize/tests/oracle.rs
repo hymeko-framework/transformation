@@ -19,7 +19,7 @@
 
 mod common;
 
-use hymeko_optimize::backend::{AugmentedLagrangian, Backend, External, multistart, starts};
+use hymeko_optimize::backend::{AugmentedLagrangian, Backend, multistart, starts};
 use hymeko_optimize::problem::Problem;
 use hymeko_optimize::read::project;
 
@@ -127,8 +127,7 @@ fn gradients_survive_the_linear_solve() {
 fn augmented_lagrangian_finds_the_optimum() {
     let problem = problem!();
     let backend = AugmentedLagrangian::default();
-    let solved = backend
-        .solve(&problem, &problem.start())
+    let solved = Backend::solve(&backend, &problem, &problem.start())
         .expect("it converges");
 
     assert!(solved.feasible(), "{:#?}", solved.equalities);
@@ -150,59 +149,6 @@ fn augmented_lagrangian_finds_the_optimum() {
         );
     }
     assert!((solved.objective - 8.25).abs() < 1e-6);
-}
-
-/// A different backend, in a different language, on the same neutral problem.
-///
-/// Skipped rather than failed where SciPy is not installed: an absent interpreter is a fact about
-/// the machine, and a test that turned it into a red build would be reporting the wrong thing.
-#[test]
-fn external_backend_agrees() {
-    let problem = problem!();
-    let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends/slsqp.py");
-    let python = std::env::var("HYMEKO_PYTHON").unwrap_or_else(|_| "python".into());
-    if std::process::Command::new(&python)
-        .args(["-c", "import scipy"])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .map(|s| !s.success())
-        .unwrap_or(true)
-    {
-        eprintln!("skipped: no {python} with scipy on this machine");
-        return;
-    }
-
-    let backend = External::slsqp(&python, script.to_str().expect("a path"));
-    let solved = backend
-        .solve(&problem, &problem.start())
-        .expect("it converges");
-
-    assert!(solved.feasible());
-    assert!(
-        (solved.decisions[0].value - R1).abs() < 1e-6,
-        "{:?}",
-        solved.decisions
-    );
-    assert!(
-        (solved.decisions[1].value - R2).abs() < 1e-6,
-        "{:?}",
-        solved.decisions
-    );
-
-    // The two backends agree, which is the evidence that neither of them contains the design: a
-    // leaked formula would have to have leaked into both, identically, in two languages.
-    let mine = AugmentedLagrangian::default()
-        .solve(&problem, &problem.start())
-        .expect("it converges");
-    for (name, _) in oracles() {
-        let a = mine.value_of(name).expect("in the result");
-        let b = solved.value_of(name).expect("in the result");
-        assert!(
-            (a - b).abs() / a.abs().max(1e-9) < 1e-5,
-            "{name}: rust {a}, scipy {b}"
-        );
-    }
 }
 
 /// Many starting points, one answer, and the same answer twice.
@@ -254,8 +200,7 @@ fn deterministic_multistart() {
 #[test]
 fn result_is_traceable_to_the_model() {
     let problem = problem!();
-    let solved = AugmentedLagrangian::default()
-        .solve(&problem, &problem.start())
+    let solved = Backend::solve(&AugmentedLagrangian::default(), &problem, &problem.start())
         .expect("it converges");
 
     for resolved in &solved.quantities {

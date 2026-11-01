@@ -25,7 +25,8 @@
 //! - [`report`] — the typed result, carrying declaration identities back out.
 
 pub mod backend;
-pub mod dual;
+/// Forward-mode duals, owned by Tensor; the projection and the network solve compute in them.
+pub use hymeko_tensor::dual;
 pub mod network;
 pub mod problem;
 pub mod read;

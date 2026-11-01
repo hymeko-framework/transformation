@@ -1,8 +1,7 @@
 //! `hymeko-optimize` — compile a model, project it, solve it, and write the evidence.
 //!
 //! ```text
-//!   hymeko-optimize <model.hymeko> [--backend rust|external] [--python <exe>] [--script <path>]
-//!                                  [--multistart <n>] [--out <file.json>] [--quiet]
+//!   hymeko-optimize <model.hymeko> [--multistart <n>] [--out <file.json>] [--quiet]
 //! ```
 //!
 //! The command takes a MODEL and a STRATEGY. It does not take the design: there is no flag for a
@@ -15,25 +14,19 @@ use std::process::ExitCode;
 use hymeko::module_store::module_store::ModuleStore;
 use hymeko::module_store::source_provider::StdFsProvider;
 use hymeko::util::real_parser::RealParser;
-use hymeko_optimize::backend::{AugmentedLagrangian, Backend, BackendError, External, starts};
+use hymeko_optimize::backend::{AugmentedLagrangian, Backend, BackendError, starts};
 use hymeko_optimize::read::project;
 use hymeko_optimize::report::Solved;
 
 fn main() -> ExitCode {
     let mut arguments = std::env::args().skip(1);
     let mut model: Option<PathBuf> = None;
-    let mut backend = "rust".to_string();
-    let mut python = std::env::var("HYMEKO_PYTHON").unwrap_or_else(|_| "python".into());
-    let mut script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends/slsqp.py");
     let mut multistart = 1usize;
     let mut out: Option<PathBuf> = None;
     let mut quiet = false;
 
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
-            "--backend" => backend = arguments.next().unwrap_or_default(),
-            "--python" => python = arguments.next().unwrap_or_default(),
-            "--script" => script = PathBuf::from(arguments.next().unwrap_or_default()),
             "--multistart" => {
                 multistart = arguments
                     .next()
@@ -93,16 +86,8 @@ fn main() -> ExitCode {
     }
 
     // ── solve ───────────────────────────────────────────────────────────────
-    let rust = AugmentedLagrangian::default();
-    let external = External::slsqp(&python, &script.to_string_lossy());
-    let strategy: &dyn Backend = match backend.as_str() {
-        "rust" => &rust,
-        "external" | "slsqp" | "scipy" => &external,
-        other => {
-            eprintln!("unknown backend: {other}");
-            return ExitCode::FAILURE;
-        }
-    };
+    let solver = AugmentedLagrangian::default();
+    let strategy: &dyn Backend = &solver;
 
     let mut best: Option<Solved> = None;
     let mut failures: Vec<(Vec<f64>, BackendError)> = Vec::new();

@@ -649,3 +649,25 @@ impl Problem {
         Ok(cache.get(&scenario).expect("just inserted"))
     }
 }
+
+/// The solver's view: decision variables, their box, and the objective and constraints at a point.
+impl hymeko_tensor::optimize::Constrained for Problem {
+    type Error = ProblemError;
+
+    fn dimension(&self) -> usize {
+        Problem::dimension(self)
+    }
+
+    fn bounds(&self) -> Vec<(f64, f64)> {
+        Problem::bounds(self)
+    }
+
+    fn point(&self, x: &[f64]) -> Result<hymeko_tensor::optimize::Point, ProblemError> {
+        let evaluation = self.evaluate(x)?;
+        Ok(hymeko_tensor::optimize::Point {
+            objective: evaluation.objective,
+            equalities: evaluation.equalities,
+            inequalities: evaluation.inequalities,
+        })
+    }
+}

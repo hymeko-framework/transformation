@@ -21,6 +21,8 @@ web = ["dep:wasm-bindgen", "dep:hymeko_sources"]
 
 [dependencies]
 hymeko_core = { workspace = true }
+# Forward-mode duals and the constrained solver (hymeko_tensor::{dual, optimize}).
+hymeko_tensor = { workspace = true }
 wasm-bindgen = { version = "0.2.127", optional = true }
 # The shared in-memory SourceProvider, so a model compiles where there is no disk.
 hymeko_sources = { path = "../hymeko_sources", optional = true }

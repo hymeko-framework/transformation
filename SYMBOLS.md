@@ -13,7 +13,7 @@ Extracted by grammar -- tree-sitter for Rust and C++, `ast` for Python -- so tha
 `pub(crate)`, a `pub fn` inside a private `mod`, and a `def` written inside a
 docstring are all excluded for a stated reason rather than by luck.
 
-**13 package(s), 593 public symbol(s).**
+**12 package(s), 577 public symbol(s).**
 
 ## generated (python)
 
@@ -450,11 +450,8 @@ docstring are all excluded for a stated reason rather than by luck.
 
 ### structs
 
-- `AugmentedLagrangian` — `hymeko_optimize/src/backend.rs`
 - `Constraint` — `hymeko_optimize/src/problem.rs`
-- `Dual` — `hymeko_optimize/src/dual.rs`
 - `Evaluation` — `hymeko_optimize/src/problem.rs`
-- `External` — `hymeko_optimize/src/backend.rs`
 - `Problem` — `hymeko_optimize/src/problem.rs`
 - `Quantity` — `hymeko_optimize/src/problem.rs`
 - `Residual` — `hymeko_optimize/src/report.rs`
@@ -477,54 +474,29 @@ docstring are all excluded for a stated reason rather than by luck.
 
 ### functions
 
-- `add` — `hymeko_optimize/src/dual.rs`
 - `bounds` — `hymeko_optimize/src/problem.rs`
 - `check` — `hymeko_optimize/src/problem.rs`
-- `constant` — `hymeko_optimize/src/dual.rs`
 - `describe` — `hymeko_optimize/src/web.rs`
 - `dimension` — `hymeko_optimize/src/problem.rs`
-- `div` — `hymeko_optimize/src/dual.rs`
 - `div` — `hymeko_optimize/src/problem.rs`
 - `evaluate` — `hymeko_optimize/src/problem.rs`
 - `feasible` — `hymeko_optimize/src/report.rs`
 - `index_of` — `hymeko_optimize/src/problem.rs`
 - `index_of_name` — `hymeko_optimize/src/problem.rs`
 - `label` — `hymeko_optimize/src/problem.rs`
-- `mul` — `hymeko_optimize/src/dual.rs`
 - `mul` — `hymeko_optimize/src/problem.rs`
 - `multistart` — `hymeko_optimize/src/backend.rs`
 - `named` — `hymeko_optimize/src/problem.rs`
-- `neg` — `hymeko_optimize/src/dual.rs`
 - `nets` — `hymeko_optimize/src/network.rs`
 - `of` — `hymeko_optimize/src/report.rs`
 - `project` — `hymeko_optimize/src/read.rs`
 - `result` — `hymeko_optimize/src/problem.rs`
-- `scale` — `hymeko_optimize/src/dual.rs`
-- `slsqp` — `hymeko_optimize/src/backend.rs`
 - `solve` — `hymeko_optimize/src/network.rs`
 - `solve` — `hymeko_optimize/src/web.rs`
 - `start` — `hymeko_optimize/src/problem.rs`
 - `starts` — `hymeko_optimize/src/backend.rs`
-- `sub` — `hymeko_optimize/src/dual.rs`
 - `to_json` — `hymeko_optimize/src/report.rs`
 - `value_of` — `hymeko_optimize/src/report.rs`
-- `variable` — `hymeko_optimize/src/dual.rs`
-- `width` — `hymeko_optimize/src/dual.rs`
-- `zero` — `hymeko_optimize/src/dual.rs`
-
-## hymeko_optimize (python)
-
-- **Root:** `hymeko_optimize`
-- **Manifest:** none -- inferred from sources
-- **Charter:** <no charter>
-
-### classes
-
-- `Oracle` — `hymeko_optimize/backends/slsqp.py`
-
-### functions
-
-- `main` — `hymeko_optimize/backends/slsqp.py`
 
 ## hymeko_query (rust)
 
