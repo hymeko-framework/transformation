@@ -162,6 +162,12 @@ UR-specific DH/controller adapter have not been migrated to this facade.
 
 - **`hymeko_emitter/`** — editor IR (slotmap, `IRDelta`) + M2T emitters (`.hymeko`, SysML v2, Rust stubs, Lean 4)
 - **`hymeko_query/`** — pattern-matching query engine over the hypergraph IR
+- **`hymeko_geometry/`** — reads the kinematic model (links, joints, shapes, frames, actuation) out of
+  compiled IR and projects the emitters' model view. The computations moved out on 2026-11-01:
+  meshes/materials and kinematics (FK/IK, DH, playout, two-bone, collision) to the Geometry
+  repository (`hymeko_mesh`, `hymeko_kinematics`), physics to `hymeko/kawakern`. They are
+  re-exported under the former paths; model types are aliases with Core `DeclId` handles
+  (`kinematics::IrHandles`). New code should depend on the owners directly.
 - **`hymeko_formats/`** — built-in format emitters (URDF / SDF / MJCF / DOT / Mermaid / Gazebo world) — a query plugin
 - **`hymeko_webxr/`** — WebXR/spatial vocabulary, semantic validation and borrowed queries over the canonical IR.
   `meta_room.hymeko` specialises the spatial vocabulary for XR rooms (room frame, root fiducial via
@@ -473,8 +479,9 @@ renders its actual state. See the local
 [integration report](reports/2026-09-29-adversarial-cyberdisc.md), archived under
 `\\192.168.1.228\hymeko\reports\by-repository`.
 
-**Kawakern** names the existing HyMeKo physical engine family used by Kawamirai.
-`hymeko_geometry::engine::Engine` owns articulated rigid dynamics and ground contact;
+**Kawakern** is the HyMeKo physics engine: since 2026-11-01 its own repository
+(`hymeko/kawakern`, crate `kawakern`). `hymeko_geometry::engine::Engine` re-exports
+`kawakern::Engine<IrHandles>`, which owns articulated rigid dynamics and ground contact;
 `hymeko_dynamics` projects physical systems, including linear elasticity, into the
 existing Tensor numerical kernels. Graph owns signed incidence and octree structure.
 This name does not rename crates, add dependencies, or imply full MuJoCo parity.

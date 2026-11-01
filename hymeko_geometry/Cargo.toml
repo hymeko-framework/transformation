@@ -2,7 +2,7 @@
 name = "hymeko_geometry"
 version = "0.1.0"
 edition = "2024"
-description = "Geometric and kinematic reading of the HyMeKo IR: shapes, links, joints, and forward kinematics"
+description = "Geometric and kinematic reading of the HyMeKo IR: links, joints, shapes, frames and actuation, read into the hymeko_kinematics model"
 license = "MIT OR Apache-2.0"
 
 [lib]
@@ -33,6 +33,11 @@ log = { workspace = true, optional = true }
 # Meshes and materials come from the Geometry repository and are re-exported as
 # `mesh` and `material`, so consumers keep one type identity.
 hymeko_mesh = { workspace = true }
+# Kinematic models, FK/IK and collision geometry (Geometry repository), re-exported with Core
+# declaration handles; two_bone needs none of the model.
+hymeko_kinematics = { workspace = true }
+# Physics over those models (kawakern repository), re-exported under the former paths.
+kawakern = { workspace = true, optional = true }
 serde = { version = "1", features = ["derive", "rc"] }
 # Recipe projection and the surface_prepare adapter exchange JSON.
 serde_json = "1"
@@ -41,7 +46,7 @@ serde_json = "1"
 # Visualization consumers need only mesh/material data; numerical and IR domain
 # projection modules remain enabled by default for all existing consumers.
 default = ["simulation"]
-simulation = ["dep:hymeko_core", "dep:hymeko_query", "dep:hymeko_sbsh", "dep:hymeko_clifford", "dep:hymeko_tensor", "dep:hymeko_spline", "dep:log"]
+simulation = ["dep:hymeko_core", "dep:hymeko_query", "dep:hymeko_sbsh", "dep:hymeko_clifford", "dep:hymeko_tensor", "dep:hymeko_spline", "dep:log", "hymeko_kinematics/model", "dep:kawakern"]
 mesh-optimization = ["hymeko_mesh/mesh-optimization"]
 # Canonical authoring-source projection, without pulling simulation engines.
 authoring = ["dep:hymeko_core", "dep:hymeko_query"]

@@ -1,7 +1,7 @@
 # hymeko/transformation — the HyMeKo IR→output (transformation) layer.
 #   hymeko_emitter : editor IR + M2T emitters (.hymeko, SysML v2, Rust stubs, Lean 4)
 #   hymeko_query   : pattern-matching query engine over the hypergraph IR
-#   hymeko_geometry: the geometric/kinematic reading of the IR — shapes, links, joints, forward kinematics
+#   hymeko_geometry: the geometric/kinematic reading of the IR; re-exports hymeko_mesh, hymeko_kinematics, kawakern
 #   hymeko_formats : built-in format emitters (URDF/SDF/MJCF/DOT/Mermaid/Gazebo) — query plugin
 #   hymeko_optimize: IR -> constrained-optimisation problem (MNA, duals, replaceable backends)
 #   hymeko_dynamics: IR -> port-Hamiltonian system (J from signed incidence, modal analysis)
@@ -29,5 +29,8 @@ log = "0.4.29"
 hymeko_graph = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "ea1c588697dd07412bc008a4a41813db8969a83e" }
 hymeko_pgraph = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "ea1c588697dd07412bc008a4a41813db8969a83e" }
 hymeko_sbsh = { git = "ssh://git@192.168.1.228:2222/hymeko/graph.git", rev = "ea1c588697dd07412bc008a4a41813db8969a83e" }
-# IR-free triangle meshes and surface materials are owned by the Geometry repository.
-hymeko_mesh = { git = "ssh://git@192.168.1.228:2222/hymeko/geometry.git", rev = "b08141cffb31622eb48ca04db08f6730976ff21b" }
+# IR-free meshes, materials (hymeko_mesh) and kinematic computation (hymeko_kinematics) are owned by
+# the Geometry repository; physics over the kinematic model is the kawakern repository.
+hymeko_mesh = { git = "ssh://git@192.168.1.228:2222/hymeko/geometry.git", rev = "2956f25aea5b52f645839fe75d54ca37fc7bfec1" }
+hymeko_kinematics = { git = "ssh://git@192.168.1.228:2222/hymeko/geometry.git", rev = "2956f25aea5b52f645839fe75d54ca37fc7bfec1", default-features = false }
+kawakern = { git = "ssh://git@192.168.1.228:2222/hymeko/kawakern.git", rev = "545c03208c83917ceb65130bcb462043a21bec20" }

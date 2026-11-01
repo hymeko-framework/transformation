@@ -26,7 +26,7 @@ impl Bindings {
         engine: &QueryEngine<'_, R>,
         scope: DeclId,
     ) -> Result<Self, AssemblyError> {
-        let model = KinematicModel::from_scope(engine, scope)?;
+        let model = super::super::kinematic::scope::extract_scoped_model(engine, scope)?;
         if model.links.len() > ELEMENT_LIMIT || model.joints.len() > ELEMENT_LIMIT {
             return Err("assembly exceeds 1024 links/joints".to_owned().into());
         }

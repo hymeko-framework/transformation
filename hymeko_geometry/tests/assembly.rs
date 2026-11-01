@@ -6,8 +6,7 @@ use hymeko::{ir::ir::ValueR, module_store::execution::ValueUpdate};
 use hymeko_clifford::Se3;
 use hymeko_geometry::kinematics::{
     assembly::{AssemblyError, StateError},
-    kinematic::KinematicModel,
-    kinematic::scope::ScopedModelError,
+    kinematic::scope::{ScopedModelError, extract_scoped_model},
 };
 
 struct Poses;
@@ -144,7 +143,7 @@ fn one_ir_binds_arm_door_and_slider_through_the_same_facade() {
 fn scoped_model_and_initial_coordinate_references_use_canonical_identity() {
     let fixture = Fixture::new(&SOURCE.replace("slider 0;", "slider 0.35;"));
     let scope = fixture.id("room.slider");
-    let model = KinematicModel::from_scope(&fixture.query(), scope).unwrap();
+    let model = extract_scoped_model(&fixture.query(), scope).unwrap();
     assert_eq!(model.links.len(), 2);
     assert!(model.links.iter().all(|link| {
         [

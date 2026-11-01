@@ -586,12 +586,14 @@ version = "0.1.0"
 dependencies = [
  "hymeko_clifford",
  "hymeko_core",
+ "hymeko_kinematics",
  "hymeko_mesh",
  "hymeko_query",
  "hymeko_sbsh",
  "hymeko_sources",
  "hymeko_spline",
  "hymeko_tensor 0.1.0 (git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=d9a8a79f7152fdede8791c0bea5918eba0c3fab9)",
+ "kawakern",
  "log",
  "parser",
  "serde",
@@ -609,9 +611,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "hymeko_kinematics"
+version = "0.1.0"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/geometry.git?rev=2956f25aea5b52f645839fe75d54ca37fc7bfec1#2956f25aea5b52f645839fe75d54ca37fc7bfec1"
+dependencies = [
+ "hymeko_clifford",
+ "hymeko_sbsh",
+ "hymeko_spline",
+ "hymeko_tensor 0.1.0 (git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=d9a8a79f7152fdede8791c0bea5918eba0c3fab9)",
+]
+
+[[package]]
 name = "hymeko_mesh"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/geometry.git?rev=b08141cffb31622eb48ca04db08f6730976ff21b#b08141cffb31622eb48ca04db08f6730976ff21b"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/geometry.git?rev=2956f25aea5b52f645839fe75d54ca37fc7bfec1#2956f25aea5b52f645839fe75d54ca37fc7bfec1"
 dependencies = [
  "meshopt",
  "serde",
@@ -778,6 +791,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "kawakern"
+version = "0.1.0"
+source = "git+ssh://git@192.168.1.228:2222/hymeko/kawakern.git?rev=545c03208c83917ceb65130bcb462043a21bec20#545c03208c83917ceb65130bcb462043a21bec20"
+dependencies = [
+ "hymeko_clifford",
+ "hymeko_kinematics",
+ "hymeko_sbsh",
+ "hymeko_tensor 0.1.0 (git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=d9a8a79f7152fdede8791c0bea5918eba0c3fab9)",
+ "serde",
 ]
 
 [[package]]

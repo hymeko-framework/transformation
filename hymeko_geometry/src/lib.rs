@@ -1,23 +1,35 @@
 //! # `hymeko_geometry` — the geometric reading of the HyMeKo IR
 //!
 //! [`hymeko_query`] answers *where* something is in the IR; this crate answers *what it is
-//! geometrically*. Links and joints, shapes and sizes, and the poses those imply.
+//! geometrically*: it reads links, joints, shapes, frames and actuation out of compiled IR into a
+//! kinematic model, and projects the views the emitters consume.
 //!
 //! ```text
-//!   hymeko_core       the IR
-//!   hymeko_query      pattern matching on the IR — generic, domain-free
-//!   hymeko_geometry   shapes, links, joints, forward kinematics          ← this crate
-//!   hymeko_formats    emitters that write it out (URDF, SDF, MJCF, …)
+//!   hymeko_core        the IR
+//!   hymeko_query       pattern matching on the IR — generic, domain-free
+//!   hymeko_geometry    reading the kinematic model out of the IR            ← this crate
+//!   hymeko_formats     emitters that write it out (URDF, SDF, MJCF, …)
 //! ```
 //!
 //! ## What is here
 //!
-//! - [`kinematics`] — the vocabulary ([`kinematics::kinematic::KinematicModel`],
-//!   [`kinematics::joints::JointInfo`]) and its extraction from compiled IR.
-//! - [`forward`] — forward kinematics: the world pose of every link, folded along the IR's own
-//!   signed incidences. Rigid motions come from [`hymeko_clifford::Se`] — $SE(n)$ in the Tensor
-//!   pillar's geometric algebra — so no transform type is defined here.
+//! - [`kinematics`] — extraction from compiled IR ([`extract_kinematic_model`], scoped groups,
+//!   actuation, assemblies, cameras, visuals) and [`kinematics::IrHandles`], the Core
+//!   declaration handles the extracted model carries.
 //! - [`transforms`] — the `DomainTransform` plugin API and the model view the emitters consume.
+//! - [`pipeline`], [`track`] — recipes and trajectories projected from IR.
+//!
+//! ## What is re-exported, not implemented here
+//!
+//! The computations no longer live in this repository. They are re-exported under their former
+//! paths so consumers keep compiling while they move to the owners:
+//!
+//! - `mesh`, `material` — the Geometry repository's `hymeko_mesh`.
+//! - `kinematics::{joints, kinematic, actuation, dh, ik, playout}` types, [`forward`],
+//!   [`collide`], [`two_bone`] — the Geometry repository's `hymeko_kinematics`; the model types
+//!   are aliases with [`kinematics::IrHandles`], so `did`, `parent` and `child` stay Core `DeclId`s.
+//! - [`articulated`], [`contact`], [`engine`], [`force_field`], [`vehicle`] — the kawakern
+//!   repository; [`Engine`] is `kawakern::Engine<IrHandles>`.
 //!
 //! ## Why it is not part of `hymeko_query`
 //!
@@ -29,24 +41,30 @@
 #![allow(missing_docs)] // inherited from the moved modules; tightened per-module as they are revisited
 
 #[cfg(feature = "simulation")]
-pub mod articulated;
+pub use kawakern::articulated;
 #[cfg(feature = "simulation")]
-pub mod collide;
+pub use hymeko_kinematics::collide;
 #[cfg(feature = "simulation")]
-pub mod contact;
+pub use kawakern::contact;
+/// Kawakern's stepping engine, with Core declaration handles.
 #[cfg(feature = "simulation")]
-pub mod engine;
+pub mod engine {
+    pub use kawakern::engine::*;
+
+    /// The engine over a model read from IR.
+    pub type Engine = kawakern::engine::Engine<crate::kinematics::IrHandles>;
+}
 #[cfg(feature = "simulation")]
-pub mod forward;
+pub use hymeko_kinematics::forward;
 /// Triangle meshes and surface materials, owned by the Geometry repository's IR-free
 /// `hymeko_mesh` and re-exported so existing paths keep one type identity.
 pub use hymeko_mesh::{material, mesh};
 /// HyMeKo-authored, bounded geometry processing recipes and surface execution.
 pub mod pipeline;
 /// Analytic two-bone limb IK, dependency-free (no `simulation` feature needed).
-pub mod two_bone;
+pub use hymeko_kinematics::two_bone;
 #[cfg(feature = "simulation")]
-pub mod force_field;
+pub use kawakern::force_field;
 #[cfg(feature = "simulation")]
 pub mod kinematics;
 #[cfg(feature = "simulation")]
@@ -54,7 +72,7 @@ pub mod transforms;
 #[cfg(feature = "simulation")]
 pub mod track;
 #[cfg(feature = "simulation")]
-pub mod vehicle;
+pub use kawakern::vehicle;
 
 #[cfg(feature = "simulation")]
 pub use articulated::{AbaPlan, AbaScratch};

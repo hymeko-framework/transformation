@@ -34,39 +34,37 @@ impl From<ScopeError> for ScopedModelError {
     }
 }
 
-impl KinematicModel {
-    /// Project one canonical declaration group without collecting neighboring mechanisms.
-    ///
-    /// The existing extractor remains the single implementation of link/joint/property reading.
-    /// An outside parent is allowed only when it is a declared frame, never another group's body.
-    /// Shared axes, geometry and vocabulary references keep their original document context.
-    pub fn from_scope<R: NameResolver>(
-        engine: &QueryEngine<'_, R>,
-        root: DeclId,
-    ) -> Result<Self, ScopedModelError> {
-        let selected = engine.scoped(root)?;
-        let name = engine
-            .resolver()
-            .resolve(engine.ir().decl_node(root).unwrap().name);
-        let mut model = extract_kinematic_model(&selected, name);
-        let boundary = ModelBoundary {
-            metadata: QueryEngine::new(engine.ir(), engine.resolver()),
-            bodies: model.links.iter().map(|link| link.did).collect(),
-        };
-        for joint in &model.joints {
-            if joint.parent.is_none() || joint.child.is_none() {
-                return Err(ScopedModelError::MissingEndpoint { joint: joint.did });
-            }
-            boundary.require_body(joint.did, joint.child)?;
-            if !boundary.bodies.contains(&joint.parent) {
-                let parent = boundary.external_frame(joint.did, joint.parent)?;
-                if !model.frames.contains(&parent) {
-                    model.frames.push(parent);
-                }
+/// Project one canonical declaration group without collecting neighboring mechanisms.
+///
+/// The existing extractor remains the single implementation of link/joint/property reading.
+/// An outside parent is allowed only when it is a declared frame, never another group's body.
+/// Shared axes, geometry and vocabulary references keep their original document context.
+pub fn extract_scoped_model<R: NameResolver>(
+    engine: &QueryEngine<'_, R>,
+    root: DeclId,
+) -> Result<KinematicModel, ScopedModelError> {
+    let selected = engine.scoped(root)?;
+    let name = engine
+        .resolver()
+        .resolve(engine.ir().decl_node(root).unwrap().name);
+    let mut model = extract_kinematic_model(&selected, name);
+    let boundary = ModelBoundary {
+        metadata: QueryEngine::new(engine.ir(), engine.resolver()),
+        bodies: model.links.iter().map(|link| link.did).collect(),
+    };
+    for joint in &model.joints {
+        if joint.parent.is_none() || joint.child.is_none() {
+            return Err(ScopedModelError::MissingEndpoint { joint: joint.did });
+        }
+        boundary.require_body(joint.did, joint.child)?;
+        if !boundary.bodies.contains(&joint.parent) {
+            let parent = boundary.external_frame(joint.did, joint.parent)?;
+            if !model.frames.contains(&parent) {
+                model.frames.push(parent);
             }
         }
-        Ok(model)
     }
+    Ok(model)
 }
 
 struct ModelBoundary<'ir, R: NameResolver> {
