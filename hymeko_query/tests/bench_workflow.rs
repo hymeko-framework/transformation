@@ -53,13 +53,13 @@ mod bench_workflow {
     const REPEATS: usize = 30;
 
     #[derive(Clone, Copy, Debug)]
-    struct Fixture {
-        label: &'static str,
-        path: &'static str,
-        robot_name: &'static str,
+    struct Fixture<'a> {
+        label: &'a str,
+        path: &'a str,
+        robot_name: &'a str,
     }
 
-    const FIXTURES: &[Fixture] = &[
+    const FIXTURES: &[Fixture<'static>] = &[
         Fixture {
             label: "mini_arm",
             path: "../data/robotics/robots/mini_arm.hymeko",
@@ -86,6 +86,85 @@ mod bench_workflow {
             robot_name: "diff_robot",
         },
     ];
+
+    /// Relative input paths are resolved beside the TSV, independent of cwd.
+    struct WorkflowSuite {
+        cases: Vec<(String, String, String)>,
+    }
+
+    impl WorkflowSuite {
+        fn parse(text: &str, directory: &std::path::Path) -> Result<Self, String> {
+            let mut lines = text.lines();
+            if text.len() > 64 * 1024 || lines.next() != Some("label\tpath\trobot_name") {
+                return Err("expected a bounded label/path/robot_name TSV manifest".into());
+            }
+            let mut cases = Vec::new();
+            let mut labels = std::collections::BTreeSet::new();
+            for line in lines.filter(|line| !line.trim().is_empty()) {
+                let fields: Vec<_> = line.split('\t').collect();
+                if fields.len() != 3 || fields.iter().any(|field| field.is_empty()) {
+                    return Err("three nonempty fixture fields required".into());
+                }
+                if [fields[0], fields[2]].iter().any(|name| {
+                    name.as_bytes()[0].is_ascii_digit()
+                        || !name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_')
+                }) || !labels.insert(fields[0]) {
+                    return Err("fixture labels must be unique; labels and roots must be identifiers".into());
+                }
+                let path = directory.join(fields[1]);
+                if !path.is_file() || cases.len() >= 64 {
+                    return Err("missing input file or too many fixtures".into());
+                }
+                cases.push((fields[0].to_owned(), path.to_str().ok_or("UTF-8 path required")?.to_owned(), fields[2].to_owned()));
+            }
+            if cases.is_empty() { return Err("empty fixture corpus".into()); }
+            Ok(Self { cases })
+        }
+
+        fn selected() -> Result<Self, String> {
+            let mut suite = if let Some(path) = std::env::var_os("HYMEKO_WORKFLOW_MANIFEST") {
+                let path = fs::canonicalize(PathBuf::from(path)).map_err(|e| e.to_string())?;
+                if fs::metadata(&path).map_err(|e| e.to_string())?.len() > 64 * 1024 {
+                    return Err("manifest exceeds 64 KiB".into());
+                }
+                Self::parse(&fs::read_to_string(&path).map_err(|e| e.to_string())?, path.parent().ok_or("manifest parent")?)?
+            } else {
+                Self { cases: FIXTURES.iter().map(|f| (f.label.into(), f.path.into(), f.robot_name.into())).collect() }
+            };
+            if let Ok(label) = std::env::var("HYMEKO_WORKFLOW_CASE") {
+                suite.cases.retain(|case| case.0 == label);
+                if suite.cases.len() != 1 { return Err("selected fixture absent".into()); }
+            }
+            Ok(suite)
+        }
+
+        fn fixtures(&self) -> impl Iterator<Item = Fixture<'_>> {
+            self.cases.iter().map(|(label, path, robot_name)| Fixture { label, path, robot_name })
+        }
+    }
+
+    #[test]
+    fn workflow_manifest_is_bounded_and_resolves_real_input_paths() {
+        let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let text = "label\tpath\trobot_name\narm\t../data/robotics/robots/mini_arm.hymeko\tmini_arm\n";
+        let suite = WorkflowSuite::parse(text, &directory).unwrap();
+        let fixture = suite.fixtures().next().unwrap();
+        assert_eq!(fixture.label, "arm");
+        assert_eq!(fixture.robot_name, "mini_arm");
+        assert!(std::path::Path::new(fixture.path).is_file());
+        for bad in ["", "label\tpath\trobot_name\n", "bad header", "label\tpath\trobot_name\na\tmissing\tr\n"] {
+            assert!(WorkflowSuite::parse(bad, &directory).is_err());
+        }
+        for bad in [text.replace("arm\t", "bad,label\t"), text.replace("\tmini_arm\n", "\t\n"),
+                    text.to_owned() + "arm\t../data/robotics/robots/mini_arm.hymeko\tmini_arm\n"] {
+            assert!(WorkflowSuite::parse(&bad, &directory).is_err());
+        }
+        assert!(WorkflowSuite::parse(&"x".repeat(65537), &directory).is_err());
+        let many = "label\tpath\trobot_name\n".to_owned() + &(0..65)
+            .map(|n| format!("arm_{n}\t../data/robotics/robots/mini_arm.hymeko\tmini_arm\n"))
+            .collect::<String>();
+        assert!(WorkflowSuite::parse(&many, &directory).is_err());
+    }
 
     #[derive(Debug)]
     struct WorkflowRow {
@@ -129,7 +208,7 @@ mod bench_workflow {
         (out, t.elapsed().as_secs_f64() * 1_000.0)
     }
 
-    fn run_fixture(fx: Fixture, reg: &TransformRegistry) -> Vec<WorkflowRow> {
+    fn run_fixture(fx: Fixture<'static>, reg: &TransformRegistry) -> Vec<WorkflowRow> {
         let mut rows = Vec::with_capacity(REPEATS);
         let src_bytes = source_size(fx.path);
 
@@ -257,7 +336,9 @@ mod bench_workflow {
     }
 
     #[test]
+    #[ignore = "explicit HYMEKO_WORKFLOW_BENCH=1; historical per-stage measurement"]
     fn bench_end_to_end_workflow() {
+        assert_eq!(std::env::var("HYMEKO_WORKFLOW_BENCH").as_deref(), Ok("1"));
         init_bench_logger();
         let reg = hymeko_formats::default_registry();
         let mut all = Vec::new();
@@ -271,5 +352,221 @@ mod bench_workflow {
             all.iter().all(|r| r.urdf_bytes > 0),
             "every fixture must emit URDF"
         );
+    }
+
+    const MATCHED_FORMATS: &[&str] = &["urdf", "sdf", "gazebo", "mjcf", "dot", "mermaid"];
+
+    #[derive(Clone, Copy)]
+    enum CompilationPolicy {
+        Shared,
+        PerFormat,
+    }
+
+    struct EmissionBundle {
+        artifacts: Vec<(&'static str, String)>,
+        compile_requests: usize,
+        declarations: usize,
+        links: usize,
+        joints: usize,
+    }
+    impl EmissionBundle {
+        fn bytes(&self) -> usize {
+            self.artifacts.iter().map(|(_, text)| text.len()).sum()
+        }
+    }
+
+    impl Fixture<'_> {
+        /// One production ModuleStore compilation and one shared domain view.
+        /// Both policies call this exact same registry-backed implementation.
+        fn emit_subset(
+            &self,
+            registry: &TransformRegistry,
+            formats: &[&'static str],
+        ) -> EmissionBundle {
+            assert!(!formats.is_empty());
+            let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(self.path);
+            let (store, compiled) = load_and_lower(path).expect("matched fixture must compile");
+            let engine = QueryEngine::new(&compiled.ir, &store.it);
+            let model = extract_kinematic_model(&engine, self.robot_name);
+            assert!(!model.links.is_empty(), "selected robot root has no links");
+            let (links, joints) = (model.links.len(), model.joints.len());
+            let view = ModelView::Kinematic(model);
+            let config = TransformConfig::default().with_name(self.robot_name);
+            let artifacts = formats
+                .iter()
+                .map(|&name| {
+                    let text = registry
+                        .get(name)
+                        .expect("registered format")
+                        .emit(&view, &config)
+                        .expect("fixture accepted by the registered emitter");
+                    assert!(!text.is_empty(), "empty {name} output");
+                    (name, text)
+                })
+                .collect();
+            EmissionBundle {
+                artifacts,
+                compile_requests: 1,
+                declarations: compiled.ir.decl_nodes.len(),
+                links,
+                joints,
+            }
+        }
+
+        fn emit_matched(
+            &self,
+            registry: &TransformRegistry,
+            policy: CompilationPolicy,
+        ) -> EmissionBundle {
+            match policy {
+                CompilationPolicy::Shared => self.emit_subset(registry, MATCHED_FORMATS),
+                CompilationPolicy::PerFormat => {
+                    let mut result = EmissionBundle {
+                        artifacts: Vec::with_capacity(MATCHED_FORMATS.len()),
+                        compile_requests: 0,
+                        declarations: 0,
+                        links: 0,
+                        joints: 0,
+                    };
+                    for &name in MATCHED_FORMATS {
+                        let next = self.emit_subset(registry, &[name]);
+                        result.compile_requests += next.compile_requests;
+                        result.declarations = next.declarations;
+                        result.links = next.links;
+                        result.joints = next.joints;
+                        result.artifacts.extend(next.artifacts);
+                    }
+                    result
+                }
+            }
+        }
+
+        fn verify_matched(&self, registry: &TransformRegistry) -> EmissionBundle {
+            let shared = self.emit_matched(registry, CompilationPolicy::Shared);
+            let repeated = self.emit_matched(registry, CompilationPolicy::PerFormat);
+            assert_eq!(shared.compile_requests, 1);
+            assert_eq!(repeated.compile_requests, MATCHED_FORMATS.len());
+            assert_eq!(shared.artifacts.len(), MATCHED_FORMATS.len());
+            assert_eq!(
+                shared.artifacts, repeated.artifacts,
+                "complete artifact mismatch for {}",
+                self.label
+            );
+            shared
+        }
+    }
+
+    #[test]
+    fn shared_compile_matches_per_format_byte_for_byte() {
+        let registry = hymeko_formats::default_registry();
+        let suite = WorkflowSuite::selected().expect("valid selected workflow corpus");
+        for fixture in suite.fixtures() {
+            let first = fixture.verify_matched(&registry);
+            let repeated = fixture.emit_matched(&registry, CompilationPolicy::Shared);
+            assert_eq!(
+                first.artifacts, repeated.artifacts,
+                "repeat determinism: {}",
+                fixture.label
+            );
+            assert!(first.bytes() > 0);
+            println!("WORKFLOW_CHECK fixture={} declarations={} links={} joints={} bytes={} formats={} byte_equivalent=true",
+                fixture.label, first.declarations, first.links, first.joints, first.bytes(), MATCHED_FORMATS.len());
+        }
+    }
+
+    /// Paired control of compilation/domain-view reuse, not a hypergraph-vs-graph
+    /// representation ablation. File reads use the warm OS cache; registry setup
+    /// and exact output comparisons stay outside the measured complete calls.
+    #[test]
+    #[ignore = "explicit HYMEKO_WORKFLOW_BENCH=1; matched complete-call control"]
+    fn bench_matched_compilation() {
+        use hymeko::util::measurement::MeasurementRunner;
+        use std::io::Write;
+
+        assert_eq!(std::env::var("HYMEKO_WORKFLOW_BENCH").as_deref(), Ok("1"));
+        let destination =
+            PathBuf::from(std::env::var_os("HYMEKO_WORKFLOW_CSV").expect("fresh output CSV path"));
+        assert!(
+            !destination.exists(),
+            "refuse to overwrite an existing measurement"
+        );
+        let run: usize = std::env::var("HYMEKO_WORKFLOW_RUN")
+            .expect("process run index")
+            .parse()
+            .unwrap();
+        assert!(run > 0);
+        let registry = hymeko_formats::default_registry();
+        let mut csv = String::from(
+            "fixture,run,pair,order,shared_us,per_format_us,bytes,formats,shared_compile_requests,per_format_compile_requests,ir_declarations,links,joints\n",
+        );
+        let suite = WorkflowSuite::selected().expect("valid selected workflow corpus");
+        for fixture in suite.fixtures() {
+            let reference = fixture.verify_matched(&registry);
+            let bytes = reference.bytes();
+            let operation = |policy| {
+                let output = fixture.emit_matched(&registry, policy);
+                assert_eq!(output.bytes(), bytes);
+                std::hint::black_box(&output.artifacts);
+                drop(output); // Complete artifact and temporary destruction is timed.
+                bytes
+            };
+            let mut runner = MeasurementRunner::new(3, 30);
+            let (shared, repeated) = runner.compare(
+                || operation(CompilationPolicy::Shared),
+                || operation(CompilationPolicy::PerFormat),
+            );
+            assert_eq!(
+                fixture.verify_matched(&registry).artifacts,
+                reference.artifacts
+            );
+            for (ordinal, (a, b)) in runner
+                .samples()
+                .iter()
+                .zip(runner.comparison_samples())
+                .enumerate()
+            {
+                csv.push_str(&format!(
+                    "{},{run},{ordinal},{},{a:.9},{b:.9},{bytes},{},1,{},{},{},{}\n",
+                    fixture.label,
+                    if ordinal % 2 == 0 { "AB" } else { "BA" },
+                    MATCHED_FORMATS.len(),
+                    MATCHED_FORMATS.len(), reference.declarations, reference.links, reference.joints
+                ));
+            }
+            println!(
+                "WORKFLOW_CONTROL fixture={} run={run} unit=us scope=warm_file_load_compile_prepare_emit_six_outputs_and_drop shared_median={} repeated_median={} byte_equivalent=true samples=30 warmups=3 quantiles=upper_middle paired_order=alternating_AB_BA",
+                fixture.label, shared.median, repeated.median
+            );
+        }
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(destination)
+            .unwrap();
+        file.write_all(csv.as_bytes()).unwrap();
+    }
+
+    /// One policy in one fresh child for an external process-memory observer.
+    /// Full-output equivalence is checked separately, never inside this child.
+    #[test]
+    #[ignore = "explicit HYMEKO_WORKFLOW_BENCH=1; isolated process-memory workload"]
+    fn bench_matched_memory() {
+        assert_eq!(std::env::var("HYMEKO_WORKFLOW_BENCH").as_deref(), Ok("1"));
+        let suite = WorkflowSuite::selected().expect("valid selected workflow corpus");
+        assert_eq!(suite.cases.len(), 1, "memory children require exactly one fixture");
+        let policy = std::env::var("HYMEKO_WORKFLOW_POLICY").expect("shared, per_format or baseline");
+        if policy == "baseline" { println!("WORKFLOW_MEMORY baseline=true"); return; }
+        let policy = match policy.as_str() {
+            "shared" => CompilationPolicy::Shared,
+            "per_format" => CompilationPolicy::PerFormat,
+            _ => panic!("unknown memory policy"),
+        };
+        let fixture = suite.fixtures().next().unwrap();
+        let registry = hymeko_formats::default_registry();
+        let output = fixture.emit_matched(&registry, policy);
+        println!("WORKFLOW_MEMORY fixture={} bytes={} formats={} declarations={} links={} joints={}",
+            fixture.label, output.bytes(), output.artifacts.len(), output.declarations, output.links, output.joints);
+        std::hint::black_box(&output.artifacts);
+        drop(output);
     }
 }
