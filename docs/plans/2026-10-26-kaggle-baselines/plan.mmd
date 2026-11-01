@@ -1,0 +1,52 @@
+flowchart LR
+  Source[Authored domain source] --> Core[Core canonical IR]
+  Core --> View[Derived numerical search state]
+  View --> Export[Competition export]
+  View --> Bounds[Derived current AABBs]
+  Bounds --> SBSH[Graph BoundsIndex via bounded stdio adapter]
+  SBSH --> SAT[Official float SAT precheck]
+  SAT --> Export
+  Export --> Verify[Unchanged official verifier]
+  Verify -->|accepted and improved| Best[Checkpointed incumbent]
+  Verify --> Evidence[CSV and JSON evidence]
+  Data[Official quantum data] -->|supplied locally on 26 October| Quantum[Quantum baseline reproduction]
+  Core --> Invocation[Pinned quantum operator and precision contracts]
+  Invocation --> Generator[Official kickmix generator]
+  Generator --> QuantumVerify[Full official quantum verification]
+  Quantum --> QuantumVerify
+  QuantumVerify --> Evidence
+  Core --> Gates[Typed gate hyperedges and explicit port roles]
+  Gates --> Semantics[Bounded unitary execution and inverse]
+  Gates --> Complex[Complex64 execution and true adjoints]
+  Gates --> Rotor[Explicit U1 phase and f64 Clifford even-subalgebra rotor]
+  Rotor --> Matrix[Complex U2 operator comparison]
+  Matrix --> Equivalence
+  Complex --> Equivalence
+  Core --> LatticePlan[Bounded norm shell and target operator]
+  LatticePlan --> Lattice[Exact small integer shell enumeration]
+  Lattice --> Ortho[SBSH 4D integer orthtree range query]
+  Ortho --> NormCheck[Exact norm and phase-sensitive acceptance]
+  NormCheck --> Prototype
+  Semantics --> Equivalence[Full input-subspace amplitude and phase check]
+  Equivalence --> Portfolio[Certified implementation portfolio]
+  Portfolio --> PGraph[Existing P-graph MSG and ABB]
+  Portfolio --> Resources[Complete-circuit count depth qubits and Q times D]
+  Resources --> PGraph
+  Resources --> Berge
+  Portfolio --> Berge[Existing forward and reverse Berge search]
+  Semantics --> Entropy[Reduced-state entropy trace]
+  PGraph --> Prototype[Prototype JSON and figure]
+  Berge --> Prototype
+  Entropy --> Prototype
+  Family[Generated direct piecewise polynomial family] --> IntegerScreen[All official inputs: integer arithmetic screen]
+  IntegerScreen --> CoefficientIR[Core coefficient models and Query projection]
+  CoefficientIR --> ResourceSBSH[SBSH resource dominance queries]
+  ResourceSBSH --> NativePgraph[Existing MSG ABB and Berge macro selection]
+  NativePgraph --> NativeBuild[Rebuild native circuit from selected Core model]
+  NativeBuild --> OfficialFull[Unchanged full official metric]
+  OfficialFull --> NativePackage[Package only verified improved bytes]
+  Physics[Hamiltonian residuals norm and SOS gap] --> ResourceSBSH
+  FactorSpace[SVD rank and orthogonal factor rotations] --> Physics
+  DecoderBudget[Coherent EEA iteration proposals] --> Confidence[Official confidence and repetition penalty]
+  Confidence --> NativePgraph
+  QromSpace[Chunked unary QROM workspace] --> ResourceSBSH

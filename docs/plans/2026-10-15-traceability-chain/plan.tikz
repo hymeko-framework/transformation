@@ -1,0 +1,1 @@
+\begin{center}\begin{tikzpicture}[every node/.style={draw,rounded corners,align=center,font=\small}]\node (h) at (0,0) {Core snapshot};\node (q) at (4,0) {Query profile\\Q(H)};\node (v) at (8,0) {SysML / DOT / CSV};\node (o) at (4,-1.6) {Hand reference\\and fault controls};\draw[->] (h)--(q);\draw[->] (q)--(v);\draw[->] (o)--(q);\draw[->] (v)--(o);\end{tikzpicture}\end{center}

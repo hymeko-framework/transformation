@@ -1,0 +1,7 @@
+flowchart LR
+ S[HyMeKo / Core] --> B[RobotProjection + trace rules]
+ B --> M[MuJoCo via existing RobotRun]
+ M --> O[Physical observations]
+ O --> U[Core checked outcomes]
+ U --> V[SysML / DOT / CSV]
+ M --> T[Scene-state / GIF]
