@@ -75,7 +75,7 @@ The same command preserves canonical roundtrip verification and fresh-directory
 protection. It writes `structure.json`, `contract.hymeko` and `contract.dot`.
 Without `--structural`, the existing exact DE/GA export stays unchanged.
 
-On **Amaterasu**, run the research consumer from the Hystl repository:
+Run the research consumer from the Hystl repository:
 
 ```sh
 python3 research/metaheuristics-pilot/identification_study.py  # preview

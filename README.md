@@ -38,8 +38,7 @@ python tools/traceability/check.py reports/traceability/outputs --result reports
 The checker uses three format-specific readers, the Core/Query projection and a
 hand-authored full reference. It reports unmet requirements as diagnostic results;
 agreement between views does not make the modeled system compliant. Captured
-2026-10-15 evidence and its PDF are in `reports/2026-10-15-traceability-chain`,
-archived under `\\192.168.1.228\hymeko\reports\by-repository\transformation`.
+2026-10-15 evidence and its PDF are in `reports/2026-10-15-traceability-chain`.
 
 ## Generated simulation evidence for the trace example
 
@@ -207,7 +206,7 @@ inherited values, `effective_field` providers, category trees by a recursive que
 Maze generation now accepts a bounded number of extra passages (`--loops`),
 preserving the seeded spanning tree. Hex maps permit 0..24 loops (19 cells),
 polar maps 0..7 (12 cells). Omitting the flag preserves tree generation.
-On Amaterasu, using new output directories:
+Using new output directories:
 
 ```sh
 cargo run --release --locked --offline -p hymeko_formats --bin adversarial_grid -- \
@@ -284,7 +283,7 @@ The `research_api` tests cover route parity and retained-snapshot view updates.
 
 Library/CLI regressions: `cargo test --locked --offline -p hymeko_formats --lib
 --bins --test research_api`. Physics and campaign execution remain explicit
-Amaterasu operations. Previously archived run commands and binaries are historical
+operations. Previously archived run commands and binaries are historical
 provenance and are not rewritten by this migration.
 
 ## Ten-method structural identification
@@ -359,7 +358,7 @@ digested), `validation.json`, `model.hymeko` and `scene.xml` (existing MJCF owne
 surface roles, friction and mocap motion queried back into `physics.json`), `terrain.json`
 (route, footholds, features, task) and `robot.xml`/`robot.json`. World frame Z up, floor top at
 z = 0, metres/seconds/radians in JSON; HyMeKo mounts keep degrees. The coverage task walks the
-maze tree depth-first through every cell. Generation runs on Amaterasu only; simulation is the
+maze tree depth-first through every cell. Generation is an explicit command; simulation is the
 simulator's `maze_contact.py --legged`. Owner tests: `cargo test --locked -p hymeko_formats --lib
 environment::` (add `HYMEKO_LOCOMOTION_PROFILE=<profile> ... -- --ignored` for the real-profile
 projection). Results: 2026-10-21 legged terrain report (archived under `by-repository`).
@@ -372,7 +371,7 @@ has two concentric rings of six sectors with radial and angular passages.
 Graph's rank-2 weighted spanning basis selects a seeded passage tree; these are
 randomized mazes, not a new adversarial difficulty comparison.
 
-Run explicit generation on **Amaterasu**, with a fresh directory per export:
+Run explicit generation with a fresh directory per export:
 
 ```bash
 cargo run --locked --offline -p hymeko_formats --bin adversarial_grid -- --generate-maze hex 0 /tmp/NEW_HEX
@@ -391,15 +390,14 @@ The same export also composes `model.hymeko`, emits `scene.xml` through the
 existing MJCF owner, and writes Query-projected initial conditions and contact
 settings in `physics.json`. Three free boxes provide a bounded interaction
 fixture for the existing MuJoCo backend. Actual dynamics and Kawamirai replay
-are separate, explicit Amaterasu steps; generation does not start simulation.
+are separate, explicit steps; generation does not start simulation.
 
 Pure owner checks:
 `cargo test --locked --offline -p hymeko_formats --lib environment::`.
 The maze tests cover repeatable seeds, different passage systems, canonical
 validation, and clearance at every possible profile portal. The existing square
 grid CLI and its output format remain supported. Results and reproduction are
-in the local [maze report](reports/2026-10-06-generalized-mazes.md), archived under
-`\\192.168.1.228\hymeko\reports\by-repository`.
+in the local [maze report](reports/2026-10-06-generalized-mazes.md).
 
 To include the existing Cyberdisc robot, append its actor path to the same CLI:
 `--generate-maze hex 0 /tmp/NEW_ROBOT_MAZE ../robotics/examples/cyberdisc/actor.hymeko`.
@@ -407,7 +405,7 @@ This additionally exports `robot.xml` and `robot.json` through the same Core,
 Query, Geometry and MJCF owners. It retains all eleven declared visual parts and
 checks the actor footprint against the validated corridor. The existing Simulator
 `python/maze_contact.py ... --robot` runs the bounded six-second wheel-drive and
-box-pushing exercise on Amaterasu; `--no-drive` supplies its zero-command control.
+box-pushing exercise; `--no-drive` supplies its zero-command control.
 See [the simulator usage](../../hymeko_simulator/docs/maze-contacts.md).
 
 For search-driven generation, append `--weights GENES.json` to that same command.
@@ -423,7 +421,7 @@ retains its prior canonical and physical outputs; the validation metadata is add
 The [research experiment](../hystl/research/metaheuristics-pilot/README.md#search-driven-world-generation)
 compares a frozen GA, the existing DE reference and random proposals using the
 actual Cyberdisc run as the objective. Optimization and simulation stay explicit
-Amaterasu operations; normal owner tests do not launch that experiment.
+operations; normal owner tests do not launch that experiment.
 
 ## Kawakern physics engine
 
@@ -439,10 +437,9 @@ The directory must not exist. The export validates the grid through Query,
 retains the Graph route witness, and maps cells to a centred 2 m grid. Geometry
 verifies actor footprint (including collider offsets) and all 64 fixed box
 colliders. Outputs are `model.hymeko`, `scene.hymeko` and `composition.json`.
-This is data composition; Simulator executes physics on Amaterasu and Kawamirai
+This is data composition; Simulator executes physics and Kawamirai
 renders its actual state. See the local
-[integration report](reports/2026-09-29-adversarial-cyberdisc.md), archived under
-`\\192.168.1.228\hymeko\reports\by-repository`.
+[integration report](reports/2026-09-29-adversarial-cyberdisc.md).
 
 **Kawakern** is the HyMeKo physics engine: since 2026-11-01 its own repository
 (`hymeko/kawakern`, crate `kawakern`). `kawakern::Engine<IrHandles>`, over a model read by
