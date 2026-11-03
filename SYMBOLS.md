@@ -586,23 +586,6 @@ docstring are all excluded for a stated reason rather than by luck.
 - `sql_name` — `hymeko_relational/src/lib.rs`
 - `statements` — `hymeko_relational/src/postgres.rs`
 
-## hymeko_sources (rust)
-
-- **Root:** `hymeko_sources`
-- **Manifest:** `hymeko_sources/Cargo.toml`
-- **Charter:** Compiling a model that is not on a disk.
-
-### structs
-
-- `MemoryProvider` — `hymeko_sources/src/lib.rs`
-
-### functions
-
-- `insert` — `hymeko_sources/src/lib.rs`
-- `new` — `hymeko_sources/src/lib.rs`
-- `paths` — `hymeko_sources/src/lib.rs`
-- `with` — `hymeko_sources/src/lib.rs`
-
 ## hymeko_webxr (rust)
 
 - **Root:** `hymeko_webxr`

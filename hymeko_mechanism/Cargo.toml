@@ -45,6 +45,5 @@ authoring = ["dep:hymeko_core", "dep:hymeko_query"]
 
 [dev-dependencies]
 parser = { workspace = true }
-hymeko_sources = { path = "../hymeko_sources" }
 # The IR-to-physics integration tests run kawakern on models read here.
 kawakern = { workspace = true }

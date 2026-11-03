@@ -26,5 +26,3 @@ hymeko_graph = { workspace = true }
 hymeko_emitter = { path = "../hymeko_emitter" }
 
 [dev-dependencies]
-# The road-reader test compiles its model from memory.
-hymeko_sources = { path = "../hymeko_sources" }
