@@ -3,7 +3,7 @@ name = "hymeko_mechanism"
 version = "0.1.0"
 edition = "2024"
 description = "Mechanisms read out of HyMeKo IR: links, joints, frames, actuation, visuals and cameras into the hymeko_kinematics model; geometry recipes"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 
 [lib]
 name = "hymeko_mechanism"

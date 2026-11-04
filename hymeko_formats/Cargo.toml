@@ -3,7 +3,7 @@ name = "hymeko_formats"
 version = "0.1.0"
 edition = "2024"
 description = "Plugin crate providing the built-in HyMeKo format emitters (URDF, SDF, MJCF, DOT, Mermaid, Gazebo world)"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 repository = "https://github.com/kyberszittya/hymeko_framework_rust"
 
 [lib]

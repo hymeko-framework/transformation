@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 autotests = false
 description = "Pattern-matching query engine for HyMeKo hypergraph IR"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 repository = "https://github.com/kyberszittya/hymeko_framework_rust"
 
 [lib]
