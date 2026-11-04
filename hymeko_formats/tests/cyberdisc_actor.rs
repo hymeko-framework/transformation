@@ -4,7 +4,7 @@ use hymeko::module_store::{
     source_provider::{MemProvider, StdFsProvider},
 };
 use hymeko::util::real_parser::RealParser;
-use hymeko_geometry::{
+use hymeko_mechanism::{
     forward::FkPlan,
     kinematics::{
         kinematic::{KinematicModel, extract_kinematic_model},

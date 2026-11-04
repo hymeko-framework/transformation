@@ -1,0 +1,8 @@
+simulation_case_vocabulary {}
+simulation_types {
+    case_definition {}
+    control_profile {}
+    joint_target {}
+    scene_profile {}
+    @observes {}
+}

@@ -1,6 +1,6 @@
 //! Where a robot's load time goes: compile, query, extract, plan.
-use hymeko_geometry::forward::FkPlan;
-use hymeko_geometry::kinematics::kinematic::extract_kinematic_model;
+use hymeko_mechanism::forward::FkPlan;
+use hymeko_mechanism::kinematics::kinematic::extract_kinematic_model;
 use hymeko_query::{Predicate, QueryEngine};
 
 fn main() {

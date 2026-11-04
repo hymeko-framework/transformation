@@ -19,6 +19,10 @@ kinematics {
         @joint {
             @control {}
         }
+        // Oriented reference frame fixed on one body: (+ link, - frame).
+        // Optional origin is metres; rpy_deg uses the visual attachment convention.
+        // A mechanism's attachment_kind explicitly references this (or a derived) kind.
+        @frame_attachment {}
     }
 
     sensors {

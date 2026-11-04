@@ -1,8 +1,8 @@
 //! URDF XML generation from kinematic model.
 
 use hymeko::ir::ir::Ir;
-use hymeko_geometry::kinematics::joints::JointType;
-use hymeko_geometry::kinematics::kinematic::{
+use hymeko_mechanism::kinematics::joints::JointType;
+use hymeko_mechanism::kinematics::kinematic::{
     GeometryInfo, GeometryShape, KinematicModel, extract_kinematic_model,
 };
 use hymeko_query::traits::NameResolver;
@@ -113,7 +113,7 @@ pub fn generate_urdf_from_model(model: &KinematicModel) -> String {
             if let Some(ax) = joint.axis {
                 out.push_str(&format!(
                     "    <axis xyz=\"{} {} {}\"/>\n",
-                    ax[0] as i32, ax[1] as i32, ax[2] as i32
+                    ax[0], ax[1], ax[2]
                 ));
             }
         }

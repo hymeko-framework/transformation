@@ -10,7 +10,7 @@ Updated 2026-09-17. These are local development checkouts, not a published relea
 | Quest / WebXR | `hymeko_framework/xr`, `feat/native-quest-workbench` | Shared Simulator and renderer, local Geometry/Query overrides |
 | XRobotAssist adapter | `xrobotassist_workspace/middleware_hymeko`, `feat/hymeko-ir-bridge` | Retained-IR DH avatar; explicitly enables Geometry `simulation` |
 
-Paths are relative to `D:/hakiko_ai_ws/03_implementation`. Simulator, XR and
+Paths are relative to the directory that holds the sibling checkouts. Simulator, XR and
 renderer Cargo roots explicitly select the same Geometry checkout. The bridge
 uses its existing `tools/use-local-geometry.ps1` override. Cargo ignores a
 dependency's own patch table: the consuming workspace must keep its override.
@@ -23,7 +23,7 @@ Kawakern is the existing Geometry/Dynamics engine family over Tensor and Graph.
 The simulator supplies application inputs; it does not reimplement integration,
 contact resolution, forward kinematics or the canonical IR.
 
-`hymeko_geometry` enables `simulation` by default. Pure rendering consumers can
+`hymeko_mechanism` enables `simulation` by default. Pure rendering consumers can
 disable default features for mesh/material types. Kinematics consumers that
 disable defaults must explicitly enable `simulation`.
 
@@ -43,5 +43,4 @@ Android compile check does not update the installed APK or validate a headset.
 
 Reconciliation hashes, before/incoming snapshots and checks are stored locally
 in `reports/2026-09-17-stack-refresh/`. The task report is
-`reports/2026-09-17-stack-refresh.md`; task-close archival uses the shared
-`\\192.168.1.228\hymeko\reports\by-repository\transformation` destination.
+`reports/2026-09-17-stack-refresh.md`.

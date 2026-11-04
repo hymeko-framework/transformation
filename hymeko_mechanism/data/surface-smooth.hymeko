@@ -1,0 +1,13 @@
+surface_authoring { @"meta_geometry.hymeko"; }
+geometry: geometry_vocabulary.geometry_types.recipe {
+    stages {
+        smooth: geometry_vocabulary.geometry_types.stage {
+            order 0; operation "fair";
+            parameters { iterations 16; relaxation 0.5; recovery 0.53; max_displacement 0.003; crease_degrees 65; boundary_mode "pin"; }
+        }
+        shading: geometry_vocabulary.geometry_types.stage {
+            order 1; operation "normals";
+            parameters { iterations 8; crease_degrees 65; }
+        }
+    }
+}

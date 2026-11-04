@@ -3,6 +3,8 @@ use crate::traits::NameResolver;
 use hymeko::common::ids::DeclId;
 use hymeko::ir::ir::{DeclKind, Ir, ValueR};
 
+pub mod scope;
+
 /// A single match result with captured arc bindings.
 #[derive(Debug, Clone)]
 pub struct QueryMatch {
@@ -48,6 +50,7 @@ pub struct QueryEngine<'a, R: NameResolver> {
     ir: &'a Ir,
     resolver: &'a R,
     config: QueryConfig,
+    scope: Option<DeclId>,
 }
 
 impl<'a, R: NameResolver> QueryEngine<'a, R> {
@@ -56,6 +59,7 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
             ir,
             resolver,
             config: QueryConfig::default(),
+            scope: None,
         }
     }
 
@@ -73,7 +77,7 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
         (0..ir.decl_nodes.len())
             .map(DeclId::new)
             .filter_map(move |did| {
-                if self.matches(did, pred, 0) {
+                if self.includes(did) && self.matches(did, pred, 0) {
                     Some(self.build_match(did))
                 } else {
                     None
@@ -94,7 +98,8 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
     /// Test an identity from this document without scanning unrelated declarations.
     /// Missing or out-of-range identities never match, including `Any`.
     pub fn query_decl(&self, id: DeclId, pred: &Predicate) -> Option<QueryMatch> {
-        (self.ir.decl_node(id).is_some() && self.matches(id, pred, 0)).then(|| self.build_match(id))
+        (self.ir.decl_node(id).is_some() && self.includes(id) && self.matches(id, pred, 0))
+            .then(|| self.build_match(id))
     }
 
     /// Batch: run multiple named queries, return results keyed by label.
@@ -117,6 +122,12 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
             Predicate::Kind(k) => decl.kind == *k,
             Predicate::Named(n) => self.resolver.resolve(decl.name) == n.as_str(),
             Predicate::NamePrefix(p) => self.resolver.resolve(decl.name).starts_with(p.as_str()),
+            Predicate::NameContains(p) => fold(self.resolver.resolve(decl.name)).contains(&fold(p)),
+            Predicate::FirstBase(name) => self
+                .bases_of(did)
+                .and_then(|bases| bases.first())
+                .is_some_and(|b| !b.target().is_none() && self.resolver.resolve(self.ir.decl_nodes[b.target().raw()].name) == name.as_str()),
+            Predicate::IsA(name) => self.named_or_inheriting(did, name),
 
             Predicate::InheritsFrom(base) => {
                 self.check_inheritance(did, self.config.max_inherit_depth, &|target| {
@@ -134,6 +145,12 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
                 .iter()
                 .any(|&t| self.resolver.resolve(t) == tag.as_str()),
 
+            Predicate::BaseTagged(tag) => self.bases_of(did).into_iter().flatten().any(|b| {
+                self.ir
+                    .reference_atom(b)
+                    .is_ok_and(|atom| atom.anno.tags.iter().any(|&t| self.resolver.resolve(t) == tag.as_str()))
+            }),
+
             Predicate::HasChild(inner) => self
                 .ir
                 .decl_children(did)
@@ -142,6 +159,17 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
             Predicate::HasParent(inner) => {
                 let parent = self.ir.parent(did);
                 !parent.is_none() && self.matches(parent, inner, depth)
+            }
+
+            Predicate::Within(inner) => {
+                let mut cur = self.ir.parent(did);
+                while !cur.is_none() {
+                    if self.matches(cur, inner, depth) {
+                        return true;
+                    }
+                    cur = self.ir.parent(cur);
+                }
+                false
             }
 
             Predicate::HasValue(vp) => self.match_value(did, vp),
@@ -153,6 +181,10 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
             Predicate::EffectiveChildValue(name, vp) => self
                 .effective_child(did, name)
                 .is_some_and(|child| self.match_value(child, vp)),
+            Predicate::AnyFieldValue(vp) => self
+                .effective_fields(did)
+                .iter()
+                .any(|(_, binding)| self.match_value(binding.declaration, vp)),
 
             Predicate::HasPlusRef(inner) => self.match_signed_ref(did, 1, inner),
             Predicate::HasMinusRef(inner) => self.match_signed_ref(did, -1, inner),
@@ -170,6 +202,30 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
     }
 
     /// Walk the base chain up to max_depth.
+    fn bases_of(&self, did: DeclId) -> Option<&'a [hymeko::ir::reference::SignedRefR]> {
+        match self.ir.decl_nodes[did.raw()].kind {
+            DeclKind::Node => self.ir.as_node(did).map(|nid| &self.ir[self.ir.nodes[nid.raw()].bases]),
+            DeclKind::Edge => self.ir.as_edge(did).map(|eid| &self.ir[self.ir.edges[eid.raw()].bases]),
+            DeclKind::HyperArc => None,
+        }
+    }
+
+    /// `did` is named `name` or inherits, at any depth, a declaration so named.
+    fn named_or_inheriting(&self, did: DeclId, name: &str) -> bool {
+        let mut seen = std::collections::HashSet::new();
+        let mut stack = vec![did];
+        while let Some(d) = stack.pop() {
+            if d.is_none() || !seen.insert(d) {
+                continue;
+            }
+            if self.resolver.resolve(self.ir.decl_nodes[d.raw()].name) == name {
+                return true;
+            }
+            stack.extend(self.bases_of(d).into_iter().flatten().map(|b| b.target()));
+        }
+        false
+    }
+
     fn check_inheritance(
         &self,
         did: DeclId,

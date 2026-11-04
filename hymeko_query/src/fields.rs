@@ -86,6 +86,16 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
     /// [`Self::effective_binding`] — so which child supplies a key is decided in one place. A child
     /// without a value is structure, not a field. Repeated bases and cycles terminate.
     pub fn effective_fields(&self, decl: DeclId) -> Vec<(&'a str, FieldBinding)> {
+        self.effective_members(decl, true)
+    }
+
+    /// Effective named children, including structural groups without values.
+    /// Uses the same precedence/cycle rules as scalar field lookup.
+    pub fn effective_children(&self, decl: DeclId) -> Vec<(&'a str, FieldBinding)> {
+        self.effective_members(decl, false)
+    }
+
+    fn effective_members(&self, decl: DeclId, values_only: bool) -> Vec<(&'a str, FieldBinding)> {
         let ir = self.ir();
         let mut keys = Vec::new();
         let mut seen = std::collections::HashSet::new();
@@ -98,7 +108,7 @@ impl<'a, R: NameResolver> QueryEngine<'a, R> {
             for child in ir.decl_children(provider) {
                 if let Some(node) = ir
                     .decl_node(child)
-                    .filter(|node| ir[node.anno].value.is_some())
+                    .filter(|node| !values_only || ir[node.anno].value.is_some())
                 {
                     let key = self.resolver().resolve(node.name);
                     if seen.insert(key) {
@@ -161,6 +171,16 @@ mod tests {
             "a child without a value is structure"
         );
         assert!(engine.effective_fields(decl(&model, "types")).is_empty());
+        let children = engine.effective_children(c);
+        assert_eq!(
+            children.iter().map(|(key, _)| *key).collect::<Vec<_>>(),
+            ["mass", "label", "nested", "colour", "size"]
+        );
+        let nested = children.iter().find(|(key, _)| *key == "nested").unwrap().1;
+        assert_eq!(
+            engine.effective_value(nested.declaration, "depth"),
+            Some(&ValueR::Num(2.))
+        );
     }
 
     #[test]

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 autotests = false
 description = "WebXR and spatial semantic projection over the canonical HyMeKo IR"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 
 [lib]
 name = "hymeko_webxr"

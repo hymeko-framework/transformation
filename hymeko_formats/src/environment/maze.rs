@@ -2,7 +2,7 @@
 pub mod search;
 use super::*;
 
-use hymeko_geometry::collide::{Convex, Placement, intersects};
+use hymeko_mechanism::collide::{Convex, Placement, intersects};
 use hymeko_graph::rand_lcg::Lcg;
 use hymeko_graph::{
     GraphicMatroidWorkspace, MatroidRef, rank2_spanning_forest, rank2_weighted_basis,
@@ -48,6 +48,17 @@ pub struct MazeGeometry {
 pub enum Profile {
     Hex,
     Polar,
+    Square,
+}
+
+/// Robot-scaled topology: cell count, cell pitch and the swept clearance it was admitted with.
+/// Absent for the historical fixed hex/polar profiles, whose sources and digests stay unchanged.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+pub struct Scale {
+    pub size: usize,
+    pub cell_m: f64,
+    pub wall_height_m: f64,
+    pub clearance_m: f64,
 }
 
 impl Profile {
@@ -55,13 +66,15 @@ impl Profile {
         match name {
             "hex" => Ok(Self::Hex),
             "polar" => Ok(Self::Polar),
-            _ => Err("maze profile must be hex or polar".into()),
+            "square" => Ok(Self::Square),
+            _ => Err("maze profile must be square, hex or polar".into()),
         }
     }
     fn name(self) -> &'static str {
         match self {
             Self::Hex => "hex",
             Self::Polar => "polar",
+            Self::Square => "square",
         }
     }
 }
@@ -82,18 +95,101 @@ pub struct Topology {
     profile: Profile,
     cells: Vec<MazeCell>,
     boundaries: Vec<Boundary>,
+    scale: Option<Scale>,
 }
 
 impl Topology {
     pub fn new(profile: Profile) -> Self {
         match profile {
-            Profile::Hex => Self::hex(2),
-            Profile::Polar => Self::polar(),
+            Profile::Hex => Self::hex(2, 2.0),
+            Profile::Polar => Self::polar(2, 3.0, 2.6),
+            Profile::Square => Self::square(4, 3.0),
         }
     }
 
-    fn hex(radius: i32) -> Self {
-        let side = 2.0;
+    /// A robot-scaled topology. `cell_m` is the centre spacing of neighbouring cells
+    /// (hex/square) or the ring width (polar); `size` is the hex radius, polar ring
+    /// count or square side. The clearance is the swept radius every route must keep.
+    pub fn scaled(profile: Profile, scale: Scale) -> Result<Self> {
+        let valid = scale.cell_m.is_finite()
+            && (0.5..=6.0).contains(&scale.cell_m)
+            && scale.wall_height_m.is_finite()
+            && (0.2..=1.5).contains(&scale.wall_height_m)
+            && scale.clearance_m.is_finite()
+            && scale.clearance_m > 0.0
+            && scale.clearance_m < 0.5 * scale.cell_m;
+        let size_ok = match profile {
+            Profile::Hex | Profile::Polar => (1..=2).contains(&scale.size),
+            Profile::Square => (2..=5).contains(&scale.size),
+        };
+        if !valid || !size_ok {
+            return Err("unsupported maze scale".into());
+        }
+        let mut topology = match profile {
+            Profile::Hex => Self::hex(scale.size as i32, scale.cell_m / 3.0_f64.sqrt()),
+            Profile::Polar => Self::polar(scale.size, scale.cell_m, 2.6 * scale.cell_m / 3.0),
+            Profile::Square => Self::square(scale.size, scale.cell_m),
+        };
+        topology.scale = Some(scale);
+        Ok(topology)
+    }
+
+    pub fn scale(&self) -> Option<Scale> {
+        self.scale
+    }
+
+    fn square(size: usize, cell: f64) -> Self {
+        let offset = (size as f64 - 1.0) * 0.5;
+        let centre = |c: usize, r: usize| [(c as f64 - offset) * cell, (r as f64 - offset) * cell];
+        let cells = (0..size * size)
+            .map(|i| MazeCell {
+                index: i,
+                centre_m: centre(i % size, i / size),
+            })
+            .collect();
+        let mut boundaries = Vec::new();
+        let h = cell * 0.5;
+        for r in 0..size {
+            for c in 0..size {
+                let a = r * size + c;
+                let [x, y] = centre(c, r);
+                // East edge, shared with the next column or closing the boundary.
+                boundaries.push(Boundary {
+                    a,
+                    b: (c + 1 < size).then_some(a + 1),
+                    points: vec![[x + h, y - h], [x + h, y + h]],
+                });
+                // North edge.
+                boundaries.push(Boundary {
+                    a,
+                    b: (r + 1 < size).then_some(a + size),
+                    points: vec![[x - h, y + h], [x + h, y + h]],
+                });
+                if c == 0 {
+                    boundaries.push(Boundary {
+                        a,
+                        b: None,
+                        points: vec![[x - h, y - h], [x - h, y + h]],
+                    });
+                }
+                if r == 0 {
+                    boundaries.push(Boundary {
+                        a,
+                        b: None,
+                        points: vec![[x - h, y - h], [x + h, y - h]],
+                    });
+                }
+            }
+        }
+        Self {
+            profile: Profile::Square,
+            cells,
+            boundaries,
+            scale: None,
+        }
+    }
+
+    fn hex(radius: i32, side: f64) -> Self {
         let centre = |q: i32, r: i32| {
             [
                 3.0_f64.sqrt() * side * (q as f64 + r as f64 * 0.5),
@@ -142,27 +238,29 @@ impl Topology {
             profile: Profile::Hex,
             cells,
             boundaries,
+            scale: None,
         }
     }
 
-    fn polar() -> Self {
+    fn polar(rings: usize, width: f64, first: f64) -> Self {
         let mut cells = Vec::new();
         let mut boundaries = Vec::new();
         let point = |radius: f64, angle: f64| [radius * angle.cos(), radius * angle.sin()];
-        for ring in 0..2 {
+        // The historical profile has width 3 m and inner radius 2.6 m; scaled profiles keep that ratio.
+        for ring in 0..rings {
             for sector in 0..6 {
                 let a = ring * 6 + sector;
-                let inner = 2.6 + ring as f64 * 3.0;
+                let inner = first + ring as f64 * width;
                 let lower = sector as f64 * PI / 3.0;
                 let upper = (sector + 1) as f64 * PI / 3.0;
                 cells.push(MazeCell {
                     index: a,
-                    centre_m: point(inner + 1.5, (lower + upper) * 0.5),
+                    centre_m: point(inner + 0.5 * width, (lower + upper) * 0.5),
                 });
                 boundaries.push(Boundary {
                     a,
                     b: Some(ring * 6 + (sector + 1) % 6),
-                    points: vec![point(inner, upper), point(inner + 3.0, upper)],
+                    points: vec![point(inner, upper), point(inner + width, upper)],
                 });
                 boundaries.push(Boundary {
                     a,
@@ -171,12 +269,12 @@ impl Topology {
                         .map(|i| point(inner, lower + (upper - lower) * i as f64 / 3.0))
                         .collect(),
                 });
-                if ring == 1 {
+                if ring + 1 == rings {
                     boundaries.push(Boundary {
                         a,
                         b: None,
                         points: (0..=3)
-                            .map(|i| point(inner + 3.0, lower + (upper - lower) * i as f64 / 3.0))
+                            .map(|i| point(inner + width, lower + (upper - lower) * i as f64 / 3.0))
                             .collect(),
                     });
                 }
@@ -186,11 +284,13 @@ impl Topology {
             profile: Profile::Polar,
             cells,
             boundaries,
+            scale: None,
         }
     }
 
     fn walls(&self, passages: &BTreeSet<[usize; 2]>) -> Vec<MazeWall> {
         let mut walls = Vec::new();
+        let height = self.scale.map_or(1.0, |s| s.wall_height_m);
         for boundary in &self.boundaries {
             if boundary.pair().is_some_and(|p| passages.contains(&p)) {
                 continue;
@@ -199,12 +299,12 @@ impl Topology {
                 let (a, b) = (pair[0], pair[1]);
                 walls.push(MazeWall {
                     index: walls.len(),
-                    centre_m: [(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5, 0.5],
+                    centre_m: [(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5, 0.5 * height],
                     // Extend joins by one half-width at each end to close faceted corners.
                     full_size_m: [
                         (b[0] - a[0]).hypot(b[1] - a[1]) + WALL_WIDTH,
                         WALL_WIDTH,
-                        1.0,
+                        height,
                     ],
                     yaw_rad: (b[1] - a[1]).atan2(b[0] - a[0]),
                 });
@@ -235,6 +335,14 @@ impl Topology {
         let loops = passages.len().saturating_sub(self.cells.len() - 1);
         if weights.is_none() && loops > 0 {
             source.push_str(&format!("maze_loops {{ count {loops}; }}\n"));
+        }
+        // Likewise, only scaled topologies carry a scale record.
+        if let Some(s) = self.scale {
+            writeln!(
+                source,
+                "maze_scale {{ size {}; cell_m {}; wall_height_m {}; clearance_m {}; }}",
+                s.size, s.cell_m, s.wall_height_m, s.clearance_m
+            )?;
         }
         for cell in &self.cells {
             writeln!(
@@ -380,7 +488,7 @@ impl Topology {
             .into_iter()
             .map(|m| match query.effective_value(m.id, "index") {
                 Some(ValueR::Num(n))
-                    if n.is_finite() && (0.0..19.0).contains(n) && n.fract() == 0.0 =>
+                    if n.is_finite() && (0.0..64.0).contains(n) && n.fract() == 0.0 =>
                 {
                     Ok((m.id, *n as usize))
                 }
@@ -421,7 +529,26 @@ impl Topology {
         };
         let profile = Profile::parse(string("profile")?)?;
         let seed = string("seed")?.parse()?;
-        let expected = Self::new(profile);
+        let expected = match query.query(&Predicate::named("maze_scale")).as_slice() {
+            [] => Self::new(profile),
+            [record] => {
+                let size = scalar(record.id, "size")?;
+                if size.fract() != 0.0 || size < 1.0 {
+                    return Err("invalid maze scale size".into());
+                }
+                Self::scaled(
+                    profile,
+                    Scale {
+                        size: size as usize,
+                        cell_m: scalar(record.id, "cell_m")?,
+                        wall_height_m: scalar(record.id, "wall_height_m")?,
+                        clearance_m: scalar(record.id, "clearance_m")?,
+                    },
+                )?
+            }
+            _ => return Err("duplicate maze scale metadata".into()),
+        };
+        let clearance = expected.scale.map_or(CLEARANCE, |s| s.clearance_m);
         let cell_count = expected.cells.len();
         let loop_records = query.query(&Predicate::named("maze_loops"));
         let loops = match loop_records.as_slice() {
@@ -553,9 +680,9 @@ impl Topology {
             goal: cell_count - 1,
             route_cell_indices,
             route_points_m,
-            clearance_radius_m: CLEARANCE,
+            clearance_radius_m: clearance,
         };
-        geometry.check_clearance(CLEARANCE)?;
+        geometry.check_clearance(clearance)?;
         let mut checks = Vec::new();
         for (label, predicate, count) in [
             (
@@ -599,8 +726,48 @@ impl Topology {
         Ok((geometry, checks))
     }
 
+    /// Cell routes between pairs of cells of a compiled maze, by Graph's Berge Dijkstra (unit
+    /// cost, undirected) over its passages, as `project` finds the start-goal route. Each route
+    /// lists the cells from the first of the pair to the second; a pair of equal cells is that cell.
+    pub(crate) fn cell_routes(world: &CompiledWorld, pairs: &[[usize; 2]]) -> Result<Vec<Vec<usize>>> {
+        let ir = &world.model.program().ir;
+        let ids = Self::cell_ids(world)?;
+        let nodes: BTreeMap<_, _> = ids
+            .iter()
+            .map(|(&id, &i)| Ok((i, ir.as_node(id).ok_or("maze cell is not a node")?)))
+            .collect::<Result<_>>()?;
+        let index = build_incidence_index(ir)?;
+        let traversal = HyperTraversal::new(&index);
+        pairs
+            .iter()
+            .map(|&[a, b]| {
+                let (Some(&from), Some(&to)) = (nodes.get(&a), nodes.get(&b)) else {
+                    return Err("route endpoint is not a maze cell".into());
+                };
+                if a == b {
+                    return Ok(vec![a]);
+                }
+                let path = dijkstra_berge_path(
+                    &traversal,
+                    from,
+                    to,
+                    &UnitCost,
+                    &Undirected,
+                    &mut InformedSearchWorkspace::new(),
+                )?
+                .ok_or("maze cells disconnected")?;
+                Ok(path.nodes().map(|n| ids[&ir.nodes[n.raw()].decl]).collect())
+            })
+            .collect()
+    }
+
     fn route_points(&self, route: &[usize]) -> Vec<[f64; 2]> {
-        let mut points = vec![self.cells[route[0]].centre_m];
+        self.route_waypoints(route).into_iter().map(|(p, _)| p).collect()
+    }
+
+    /// Route points with the cell each one centres on; polar arc midpoints carry `None`.
+    pub(crate) fn route_waypoints(&self, route: &[usize]) -> Vec<([f64; 2], Option<usize>)> {
+        let mut points = vec![(self.cells[route[0]].centre_m, Some(route[0]))];
         for pair in route.windows(2) {
             let (a, b) = (self.cells[pair[0]].centre_m, self.cells[pair[1]].centre_m);
             if self.profile == Profile::Polar && pair[0] / 6 == pair[1] / 6 {
@@ -608,9 +775,9 @@ impl Topology {
                 let delta = (b[1].atan2(b[0]) - start + PI).rem_euclid(2.0 * PI) - PI;
                 let angle = start + delta * 0.5;
                 let radius = a[0].hypot(a[1]);
-                points.push([radius * angle.cos(), radius * angle.sin()]);
+                points.push(([radius * angle.cos(), radius * angle.sin()], None));
             }
-            points.push(b);
+            points.push((b, Some(pair[1])));
         }
         points
     }
@@ -641,6 +808,8 @@ impl MazeGeometry {
         if !radius.is_finite() || radius <= 0.0 {
             return Err("clearance radius must be finite and positive".into());
         }
+        // Sweep at wall mid-height (0.5 m for the historical 1 m walls).
+        let height = self.walls.iter().map(|w| w.centre_m[2]).fold(0.5, f64::min);
         for (segment, pair) in self.route_points_m.windows(2).enumerate() {
             let dx = pair[1][0] - pair[0][0];
             let dy = pair[1][1] - pair[0][1];
@@ -658,7 +827,7 @@ impl MazeGeometry {
                 centre: [
                     (pair[0][0] + pair[1][0]) * 0.5,
                     (pair[0][1] + pair[1][1]) * 0.5,
-                    0.5,
+                    height,
                 ],
             };
             for wall in &self.walls {
@@ -764,7 +933,7 @@ mod tests {
     fn profiles_have_real_polar_and_six_neighbor_hex_topology() {
         let hex = Topology::new(Profile::Hex);
         assert_eq!(hex.cells.len(), 19);
-        assert_eq!(Topology::hex(1).cells.len(), 7);
+        assert_eq!(Topology::hex(1, 2.0).cells.len(), 7);
         let centre = hex
             .cells
             .iter()
@@ -828,7 +997,7 @@ mod tests {
             assert_ne!(mutated, source);
             assert!(Topology::project(&CompiledWorld::compile(&mutated).unwrap()).is_err());
         }
-        assert!(Profile::parse("square").is_err());
+        assert!(Profile::parse("triangle").is_err());
     }
 
     #[test]

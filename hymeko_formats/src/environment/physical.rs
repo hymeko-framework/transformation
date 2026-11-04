@@ -1,7 +1,7 @@
 //! Compose the existing Cyberdisc actor with a checked grid; physics remains in Kawakern.
 use super::*;
 use hymeko::module_store::{execution::CompiledModel, source_provider::StdFsProvider};
-use hymeko_geometry::{
+use hymeko_mechanism::{
     collide::colliders_of,
     forward::FkPlan,
     kinematics::{joints::JointType, kinematic::extract_kinematic_model},
@@ -169,7 +169,7 @@ impl CompiledWorld {
                 .geometry
                 .as_ref()
                 .ok_or("obstacle has no owner-projected collision geometry")?;
-            if !matches!(geometry.shape, hymeko_geometry::GeometryShape::Box)
+            if !matches!(geometry.shape, hymeko_mechanism::GeometryShape::Box)
                 || geometry.dimensions != [CELL_SIZE, CELL_SIZE, 1.]
                 || !colliders.iter().any(|c| c.link == index)
             {
@@ -290,7 +290,7 @@ mod tests {
         values[plan.slot("base_z").unwrap()] = 0.261;
         let mut poses = plan.identity_poses_se3();
         plan.resolve_se3(&model, &values, &mut poses);
-        let zero = hymeko_geometry::collide::Placement::of(&collider, &poses[wheel]);
+        let zero = hymeko_mechanism::collide::Placement::of(&collider, &poses[wheel]);
         let old_wheel_radius = zero
             .centre
             .iter()
@@ -303,7 +303,7 @@ mod tests {
         assert!(old_wheel_radius + 0.16 < CELL_SIZE * 0.5);
         values[plan.slot(driver).unwrap()] = value;
         plan.resolve_se3(&model, &values, &mut poses);
-        let turned = hymeko_geometry::collide::Placement::of(&collider, &poses[wheel]);
+        let turned = hymeko_mechanism::collide::Placement::of(&collider, &poses[wheel]);
         let support = turned.support(&collider.shape, direction);
         let reach = support
             .iter()

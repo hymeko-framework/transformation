@@ -13,13 +13,271 @@ use hymeko_formats::{
     generate_description, metaheuristic,
     robot_projection::RobotProjection,
 };
-use hymeko_geometry::transforms::{TransformConfig, TransformEngine};
+use hymeko_formats::plugin::{TransformConfig, TransformEngine};
 use std::path::{Path, PathBuf};
 
 fn robot() -> CompiledModel {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../data/robotics/sim/dual_fanuc/fanuc_lrmate200id.hymeko");
     CompiledModel::compile(StdFsProvider::new(), RealParser, &path).unwrap()
+}
+
+const FIDELITY_SOURCE: &str = r#"
+        fidelity { @"meta_kinematics.hymeko"; }
+        robot: meta_kinematics.kinematics.elements {
+            world: meta_kinematics.kinematics.elements.frame {}
+            base: meta_kinematics.kinematics.elements.link { mass 2; }
+            tip: meta_kinematics.kinematics.elements.link {
+                mass 1;
+                origin [0.1, 0.2, 0.3];
+                link_geometry: meta_kinematics.kinematics.geometry.box { dimension [0.1, 0.2, 0.3]; }
+            }
+            diagonal: meta_kinematics.kinematics.axes.axis_definition { ax [0.6, 0.8, 0.0]; }
+            @anchor: meta_kinematics.kinematics.fixed_joint {
+                (+ world [[1, 2, 3], [0, 0, 0]], - base);
+            }
+            @hinge: meta_kinematics.kinematics.conti_joint {
+                (+ base [[0.2, 0, 0.4], [0, 0, 90]], - tip, - diagonal);
+            }
+        }
+    "#;
+
+fn fidelity_model_from_source(source: &str) -> CompiledModel {
+    let mut files = MemProvider::default();
+    files.insert_file(
+        "/meta_kinematics.hymeko",
+        include_str!("../../data/robotics/meta_kinematics.hymeko"),
+    );
+    files.insert_file("/model.hymeko", source);
+    CompiledModel::compile(files, RealParser, Path::new("/model.hymeko")).unwrap()
+}
+
+fn fidelity_model() -> CompiledModel {
+    fidelity_model_from_source(FIDELITY_SOURCE)
+}
+
+fn emitted_model_views(model: &CompiledModel) -> [String; 3] {
+    [OutputFormat::Urdf, OutputFormat::Sdf17, OutputFormat::Mjcf].map(|format| {
+        generate_description(&model.program().ir, model.interner(), "robot", format).unwrap()
+    })
+}
+
+#[test]
+fn model_emitters_preserve_oblique_axis_components() {
+    let model = fidelity_model();
+    let urdf = hymeko_formats::urdf::generate_urdf(&model.program().ir, model.interner(), "robot");
+    let sdf = hymeko_formats::sdf::generate_sdf(&model.program().ir, model.interner(), "robot");
+    assert!(urdf.contains("<axis xyz=\"0.6 0.8 0\"/>"), "{urdf}");
+    assert!(sdf.contains("<xyz>0.6 0.8 0</xyz>"), "{sdf}");
+}
+
+#[test]
+fn mjcf_declares_the_urdf_rpy_rotation_convention() {
+    let source = FIDELITY_SOURCE.replace("[0, 0, 90]", "[30, 40, 50]");
+    assert_ne!(source, FIDELITY_SOURCE);
+    let model = fidelity_model_from_source(&source);
+    let xml = generate_description(
+        &model.program().ir,
+        model.interner(),
+        "robot",
+        OutputFormat::Mjcf,
+    )
+    .unwrap();
+    assert!(xml.contains("euler=\"0.5236 0.6981 0.8727\""), "{xml}");
+    assert!(xml.contains("eulerseq=\"XYZ\""), "{xml}");
+}
+
+#[test]
+fn sdf_retains_link_joint_and_geometry_frames() {
+    let model = fidelity_model();
+    let sdf = hymeko_formats::sdf::generate_sdf(&model.program().ir, model.interner(), "robot");
+    assert!(
+        sdf.contains("<link name=\"tip\">\n      <pose relative_to=\"hinge\">0 0 0 0 0 0</pose>"),
+        "{sdf}"
+    );
+    assert!(
+        sdf.contains("<pose relative_to=\"__model__\">1 2 3 0.0000 0.0000 0.0000</pose>"),
+        "{sdf}"
+    );
+    assert!(
+        sdf.contains("<pose relative_to=\"base\">0.2 0 0.4 0.0000 0.0000 1.5708</pose>"),
+        "{sdf}"
+    );
+    for tag in ["visual", "collision"] {
+        assert!(
+            sdf.contains(&format!(
+                "<{tag} name=\"tip_{tag}\">\n        <pose>0.1 0.2 0.3 0 0 0</pose>"
+            )),
+            "{sdf}"
+        );
+    }
+}
+
+#[test]
+fn all_kinematic_codegen_routes_use_the_same_model_emitter() {
+    let model = fidelity_model();
+    let query = hymeko_query::QueryEngine::new(&model.program().ir, model.interner());
+    let config = TransformConfig::default().with_name("robot");
+    let engine = TransformEngine {
+        registry: default_registry(),
+        ..Default::default()
+    };
+    for (name, format) in [
+        ("urdf", OutputFormat::Urdf),
+        ("sdf", OutputFormat::Sdf17),
+        ("mjcf", OutputFormat::Mjcf),
+    ] {
+        let typed = engine
+            .emit_with_config(&model.program().ir, model.interner(), &config, name)
+            .unwrap();
+        let dispatched =
+            generate_description(&model.program().ir, model.interner(), "robot", format).unwrap();
+        assert_eq!(typed, dispatched, "{name}");
+        assert_eq!(
+            Some(Ok(typed)),
+            engine
+                .registry
+                .render(name, &query, &config, Path::new("absent")),
+            "{name}"
+        );
+        assert!(
+            engine
+                .registry
+                .render_from_templates(
+                    name,
+                    &model.program().ir,
+                    model.interner(),
+                    &config,
+                    Path::new("absent")
+                )
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn declared_parent_frames_are_accepted_but_unknown_parents_are_rejected() {
+    use hymeko_formats::plugin::ModelView;
+    let document = fidelity_model();
+    let projection = RobotProjection::new(&document, "robot").unwrap();
+    let registry = default_registry();
+    for name in ["urdf", "sdf"] {
+        let transform = registry.get(name).unwrap();
+        let mut model = projection.model().clone();
+        assert!(
+            transform
+                .validate(&ModelView::Kinematic(model.clone()))
+                .is_empty()
+        );
+        model.frames.clear();
+        assert!(
+            transform
+                .validate(&ModelView::Kinematic(model))
+                .iter()
+                .any(|d| d.is_error())
+        );
+    }
+}
+
+#[test]
+fn checked_value_update_refreshes_all_views_and_preserves_the_old_snapshot() {
+    use hymeko::common::ids::DeclId;
+    use hymeko::ir::ir::ValueR;
+    use hymeko::module_store::execution::{ExecutionState, PublicationError, ValueUpdate};
+    let state = ExecutionState::new(fidelity_model());
+    let old = state.snapshot().unwrap();
+    let before = emitted_model_views(old.model());
+    let ir_before = serde_json::to_vec(&old.model().program().ir).unwrap();
+    let query = hymeko_query::QueryEngine::new(&old.model().program().ir, old.model().interner());
+    let tip = old
+        .model()
+        .program()
+        .ir
+        .decls()
+        .find(|(_, d)| old.model().interner().resolve(d.name) == "tip")
+        .unwrap()
+        .0;
+    let mass = query.own_child(tip, "mass").unwrap();
+    assert!(
+        old.model()
+            .with_value_updates(&[ValueUpdate::Clear {
+                declaration: DeclId::NONE
+            }])
+            .is_err()
+    );
+    assert_eq!(state.snapshot().unwrap().revision(), 0);
+    let updated = old
+        .model()
+        .with_value_updates(&[ValueUpdate::Set {
+            declaration: mass,
+            value: ValueR::Num(3.0),
+        }])
+        .unwrap();
+    assert_eq!(
+        old.model().program().canon.structure(),
+        updated.program().canon.structure()
+    );
+    assert_ne!(old.model().semantic_digest(), updated.semantic_digest());
+    let published = state
+        .commit(state.prepare_model_at(&old, updated).unwrap())
+        .unwrap();
+    assert_eq!(published.revision(), 1);
+    let after = emitted_model_views(published.model());
+    for (i, marker) in [
+        "<mass value=\"3\"/>",
+        "<mass>3</mass>",
+        "<inertial mass=\"3\"",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        assert_ne!(before[i], after[i]);
+        assert!(after[i].contains(marker), "{}", after[i]);
+    }
+    let stale = old.model().with_value_updates(&[]).unwrap();
+    assert!(matches!(
+        state.prepare_model_at(&old, stale),
+        Err(PublicationError::StaleBase { .. })
+    ));
+    assert_eq!(before, emitted_model_views(old.model()));
+    assert_eq!(
+        ir_before,
+        serde_json::to_vec(&old.model().program().ir).unwrap()
+    );
+}
+
+#[test]
+fn structural_recompile_publishes_new_views_without_replacing_retained_readers() {
+    use hymeko::module_store::execution::ExecutionState;
+    let state = ExecutionState::new(fidelity_model());
+    let old = state.snapshot().unwrap();
+    let before = emitted_model_views(old.model());
+    let extended = fidelity_model_from_source(&format!(
+        r#"{FIDELITY_SOURCE}
+        extra_link: meta_kinematics.kinematics.elements.link {{ mass 0.5; }}
+        @extension: meta_kinematics.kinematics.fixed_joint {{ (+ robot.tip [[0,0,0.1],[0,0,0]], - extra_link); }}
+    "#
+    ));
+    assert_ne!(
+        old.model().program().canon.structure(),
+        extended.program().canon.structure()
+    );
+    let published = state
+        .commit(state.prepare_model_at(&old, extended).unwrap())
+        .unwrap();
+    for xml in emitted_model_views(published.model()) {
+        assert!(xml.contains("name=\"extra_link\""), "{xml}");
+    }
+    assert_eq!(
+        RobotProjection::new(published.model(), "robot")
+            .unwrap()
+            .model()
+            .links
+            .len(),
+        3
+    );
+    assert_eq!(before, emitted_model_views(old.model()));
+    assert!(before.iter().all(|xml| !xml.contains("extra_link")));
 }
 
 #[test]
@@ -84,7 +342,7 @@ fn template_errors_do_not_fall_back_to_a_different_backend() {
     let absent = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("__missing_templates__");
     assert!(
         registry
-            .render("urdf", &query, &config, &absent)
+            .render("dot", &query, &config, &absent)
             .unwrap()
             .is_err()
     );

@@ -1,0 +1,8 @@
+\begin{tikzpicture}[every node/.style={draw,rounded corners,align=center,text width=11cm},node distance=15mm]
+\node (a) {Canonical inverse and checked matroid component witnesses};
+\node (b) [below of=a] {Fresh-output norm certificate and zero flag};
+\node (c) [below of=b] {Native field, phase and workspace checks};
+\node (d) [below of=c] {Complete jet composition and global cost screen};
+\node (e) [below of=d] {Admit to official verifier or retain incumbent with rejection evidence};
+\draw[->] (a)--(b);\draw[->] (b)--(c);\draw[->] (c)--(d);\draw[->] (d)--(e);
+\end{tikzpicture}

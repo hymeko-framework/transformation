@@ -278,6 +278,12 @@ fn main() -> Result<()> {
     if args.first().is_some_and(|arg| arg == "--generate-maze") {
         return maze::run(&args[1..]);
     }
+    if args.first().is_some_and(|arg| arg == "--generate-terrain") {
+        return maze::run_terrain(&args[1..]);
+    }
+    if args.first().is_some_and(|arg| arg == "--project-legged") {
+        return maze::run_project_legged(&args[1..]);
+    }
     if args.first().is_some_and(|arg| arg == "--export-physics") {
         if args.len() != 4 {
             return Err(

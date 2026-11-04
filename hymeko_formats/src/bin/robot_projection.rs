@@ -38,7 +38,7 @@ fn main() -> Result<()> {
     if args.len() == 4 {
         let started = std::time::Instant::now();
         for _ in 0..20_000 {
-            std::hint::black_box(hymeko_geometry::forward::forward_kinematics(
+            std::hint::black_box(hymeko_mechanism::forward::forward_kinematics(
                 projection.model(),
                 &q,
             )?);

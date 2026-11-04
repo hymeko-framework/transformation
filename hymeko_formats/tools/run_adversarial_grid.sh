@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Run from an Amaterasu source checkout or the documented source snapshot.
+# Run from a source checkout on a Linux host with Gazebo (gz).
 # Usage: bash hymeko_formats/tools/run_adversarial_grid.sh /absolute/output
 set -euo pipefail
-if [[ "$(hostname)" != "Amaterasu" && "$(hostname)" != "amaterasu" ]]; then
-  echo 'This campaign and Gazebo validation must run on Amaterasu.' >&2
+if ! command -v gz >/dev/null; then
+  echo 'This campaign validates its world in Gazebo; gz is required.' >&2
   exit 2
 fi
 output=${1:?absolute output directory required}

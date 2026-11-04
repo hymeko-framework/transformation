@@ -1,0 +1,59 @@
+// A hanging two-segment leg (pelvis fixed to the world) and an actuation layer declared outside
+// the robot: mounts onto its links, an antagonist pair at the knee and a biarticular muscle over
+// hip and knee. Units: m, kg, s, N, Pa.
+hydraulic_muscle_fixture {}
+elements {
+    meta_element {}
+    link: + <isa> meta_element {}
+    frame: + <isa> meta_element {}
+    attachment: + <isa> meta_element {}
+    @joint {}
+}
+axes { axis_definition {} AXIS_Y: + <isa> axis_definition { ax [0.0, 1.0, 0.0]; } }
+geometry { braided_sleeve {} }
+@fixed_joint: + <isa> elements.joint {}
+@rev_joint: + <isa> elements.joint {}
+@linear_drive {}
+@mount {}
+@hydraulic_muscle: + <isa> linear_drive {}
+robot: elements, axes {
+    world: elements.frame {}
+    pelvis: elements.link {
+        mass 10.0; origin [0.0, 0.0, 0.0];
+        inertia_com { xx 0.1; yy 0.1; zz 0.1; xy 0.0; xz 0.0; yz 0.0; }
+    }
+    thigh: elements.link {
+        mass 6.0; origin [0.0, 0.0, -0.2];
+        inertia_com { xx 0.08; yy 0.08; zz 0.01; xy 0.0; xz 0.0; yz 0.0; }
+    }
+    shin: elements.link {
+        mass 3.0; origin [0.0, 0.0, -0.2];
+        inertia_com { xx 0.04; yy 0.04; zz 0.005; xy 0.0; xz 0.0; yz 0.0; }
+    }
+    @base: fixed_joint { (+ world [[0.0, 0.0, 1.2], [0.0, 0.0, 0.0]], - pelvis, - axes.AXIS_Y); }
+    @hip: rev_joint { (+ pelvis [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], - thigh, - axes.AXIS_Y); }
+    @knee: rev_joint { (+ thigh [[0.0, 0.0, -0.4], [0.0, 0.0, 0.0]], - shin, - axes.AXIS_Y); }
+}
+layer {
+    sleeve_vas: geometry.braided_sleeve { braid_length_m 0.30; turns 1.2; }
+    sleeve_bfsh: geometry.braided_sleeve { braid_length_m 0.26; turns 1.4; }
+    sleeve_rf: geometry.braided_sleeve { braid_length_m 0.34; turns 1.3; }
+    vas_law { law "hydraulic_muscle"; sleeve -> layer.sleeve_vas; pressure_pa 2000000.0; response_s 0.03;
+        tendon_stiffness_n_m 200000.0; tendon_slack_m 0.30; parallel_stiffness_n_m 500.0; parallel_rest_m 0.26;
+        damping_ns_m 300.0; length_min_m 0.2; length_max_m 0.7; radius_m 0.008; }
+    bfsh_law { law "hydraulic_muscle"; sleeve -> layer.sleeve_bfsh; pressure_pa 2000000.0; response_s 0.03;
+        tendon_stiffness_n_m 200000.0; tendon_slack_m 0.19; parallel_stiffness_n_m 500.0; parallel_rest_m 0.22;
+        damping_ns_m 300.0; length_min_m 0.2; length_max_m 0.7; radius_m 0.008; }
+    rf_law { law "hydraulic_muscle"; sleeve -> layer.sleeve_rf; pressure_pa 2000000.0; response_s 0.03;
+        tendon_stiffness_n_m 200000.0; tendon_slack_m 0.27; parallel_stiffness_n_m 500.0; parallel_rest_m 0.30;
+        damping_ns_m 300.0; length_min_m 0.3; length_max_m 0.9; radius_m 0.008; }
+    @vas_origin: mount { (+ robot.thigh [[0.06, 0.0, 0.05]]); }
+    @patella: mount { (+ robot.thigh [[0.075, 0.0, -0.4]]); }
+    @vas_insertion: mount { (+ robot.shin [[0.05, 0.0, -0.08]]); }
+    @bfsh_origin: mount { (+ robot.thigh [[-0.05, 0.0, 0.0]]); }
+    @bfsh_insertion: mount { (+ robot.shin [[-0.04, 0.0, -0.06]]); }
+    @rf_origin: mount { (+ robot.pelvis [[0.07, 0.0, 0.06]]); }
+    @vas: hydraulic_muscle { (+ layer.vas_origin, + layer.patella, - layer.vas_insertion); joint -> robot.knee; parameters -> layer.vas_law; }
+    @bfsh: hydraulic_muscle { (+ layer.bfsh_origin, - layer.bfsh_insertion); joint -> robot.knee; parameters -> layer.bfsh_law; }
+    @rf: hydraulic_muscle { (+ layer.rf_origin, + layer.patella, - layer.vas_insertion); joint -> robot.hip; parameters -> layer.rf_law; }
+}

@@ -18,6 +18,7 @@
 use super::template::{EachFilter, RenderContext, ScopeClause, ScopeMode, nth_binding, parse_sign};
 use crate::bases::{BasePolicy, bases};
 use crate::engine::QueryMatch;
+use crate::engine::scope::Lineage;
 use crate::traits::NameResolver;
 use hymeko::common::ids::DeclId;
 use hymeko::ir::ir::Ir;
@@ -66,17 +67,7 @@ impl<'a> ScopeSet<'a> {
 
     /// `decl` or one of its ancestors is a member.
     fn inside(&self, decl: DeclId) -> bool {
-        let mut current = decl;
-        loop {
-            if self.members.contains(&current) {
-                return true;
-            }
-            let parent = self.ir.parent(current);
-            if parent.is_none() {
-                return false;
-            }
-            current = parent;
-        }
+        Lineage::new(self.ir, decl).any(|ancestor| self.members.contains(&ancestor))
     }
 
     /// For each edge with a `from`-signed binding inside, add its `to`-signed binding targets.
