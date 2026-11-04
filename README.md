@@ -33,11 +33,11 @@ use hymeko::module_store::{execution::CompiledModel, source_provider::StdFsProvi
 use hymeko::util::real_parser::RealParser;
 use hymeko_formats::{OutputFormat, generate_description};
 
-fn urdf(path: &Path) -> Result<String, Box<dyn std::error::Error>> {
-    let model = CompiledModel::compile(StdFsProvider::new(), RealParser, path)?;
-    let urdf = generate_description(&model.program().ir, model.interner(), "robot", OutputFormat::Urdf)
-        .map_err(|e| e.to_string())?;
-    Ok(urdf)
+fn urdf(path: &Path) -> Result<String, String> {
+    let model = CompiledModel::compile(StdFsProvider::new(), RealParser, path)
+        .map_err(|e| format!("{e:?}"))?;
+    generate_description(&model.program().ir, model.interner(), "robot", OutputFormat::Urdf)
+        .map_err(|e| e.to_string())
 }
 ```
 
