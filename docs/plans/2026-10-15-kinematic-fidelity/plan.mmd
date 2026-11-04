@@ -1,7 +1,0 @@
-flowchart LR
- IR[Core validated IR] --> Q[Existing Geometry/Query]
- Q --> R[URDF/SDF/MJCF owner emitters]
- R --> I[Independent native parsers and FK]
- R --> K[Retained invariant checker]
- I --> E[Before/after evidence]
- K --> E

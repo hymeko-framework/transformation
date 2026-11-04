@@ -1,9 +1,0 @@
-\begin{tikzpicture}[node distance=6mm and 9mm, every node/.style={draw, rounded corners, font=\small, align=center}]
-\node (q) {price\_quote\\amount, vat\_included, pack};
-\node (c) [below=of q] {currency\\rate};
-\node (p) [right=of q] {product /\\product\_candidate};
-\node (v) [right=of p] {views: workbook,\\checks, decisions};
-\draw[->] (q) -- node[draw=none, above, font=\scriptsize]{priced\_by, per\_unit} (p);
-\draw[->] (q) -- (c);
-\draw[->] (p) -- node[draw=none, above, font=\scriptsize]{derived unit price} (v);
-\end{tikzpicture}

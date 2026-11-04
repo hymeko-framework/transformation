@@ -1,8 +1,0 @@
-flowchart LR
-  H[Core snapshot] --> Q[Query trace projection]
-  Q --> V[Registry: SysML, DOT, CSV]
-  V --> X[Independent extractors]
-  O[Hand-authored expectation] --> A[Compare full entities, relations and coverage]
-  X --> A
-  Q --> A
-  M[Checked update or source recompile] --> H

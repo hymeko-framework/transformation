@@ -1,8 +1,0 @@
-\begin{tikzpicture}[every node/.style={draw,rounded corners,align=center,text width=11cm},node distance=15mm]
-\node (a) {Typed Core recipe and existing arithmetic contracts};
-\node (b) [below of=a] {Retained state, release/recompute, and phase-contraction alternatives};
-\node (c) [below of=b] {Independent native field phase and cross-paired jet checks};
-\node (d) [below of=c] {Measured lifetime traces and Core P-graph portfolio};
-\node (e) [below of=d] {Full-context cost screen; official verification only if promising};
-\draw[->] (a)--(b);\draw[->] (b)--(c);\draw[->] (c)--(d);\draw[->] (d)--(e);
-\end{tikzpicture}

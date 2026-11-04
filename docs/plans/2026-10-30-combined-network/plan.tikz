@@ -1,9 +1,0 @@
-\begin{tikzpicture}[every node/.style={draw,rounded corners,align=center,text width=11cm},node distance=15mm]
-\node (a) {Own canonical norm and checked matroid bases};
-\node (b) [below of=a] {P-graph MSG/SSG: primitive production and reconstruction choices};
-\node (c) [below of=b] {Candidate-specific exact GF(2) Schur elimination};
-\node (d) [below of=c] {Canonical gates and independent native XOR/phase/workspace checks};
-\node (e) [below of=d] {Observed complete-kernel cost and next-frontier update};
-\draw[->] (a)--(b);\draw[->] (b)--(c);\draw[->] (c)--(d);\draw[->] (d)--(e);
-\draw[->] (e.east)--++(12mm,0)|-(b.east);
-\end{tikzpicture}

@@ -1,7 +1,0 @@
-flowchart TD
-    source[HyMeKo source] --> core[Existing Core compiler]
-    patterns[HyMeKo query patterns and Predicate composition] --> queries[Existing QueryEngine]
-    core --> queries
-    queries --> checks[Expected counts and bounded canonical witnesses]
-    checks --> fail[Named violations]
-    checks --> pass[Domain checks then existing Graph or export]

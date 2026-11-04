@@ -1,8 +1,0 @@
-%% Semantic reads in hymeko_query (DS0 -> query, 2026-09-30)
-flowchart TB
-    CORE["Core: canonical IR, bases on nodes and edges"] --> BASES["hymeko_query::bases: bases, is_a(policy), BaseError"]
-    CORE --> FIELDS["hymeko_query::fields: effective_binding, own_child"]
-    BASES --> WEBXR["hymeko_webxr: is-a and own slots"]
-    FIELDS --> WEBXR
-    BASES -.-> LATER["later (DS1/DS2): query's own walks, geometry, dynamics, network, wasm"]
-    FIELDS -.-> LATER

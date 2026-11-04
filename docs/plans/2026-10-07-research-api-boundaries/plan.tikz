@@ -1,1 +1,0 @@
-\begin{tikzpicture}[node distance=8mm]\node[draw] (a) {CLI: input, output, campaign};\node[draw,below=of a] (b) {Formats: domain projections};\node[draw,below=of b] (c) {Core / Query / Graph / Geometry / Emitter};\draw[->] (a)--(b);\draw[->] (b)--(c);\end{tikzpicture}

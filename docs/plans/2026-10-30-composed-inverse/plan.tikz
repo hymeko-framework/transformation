@@ -1,9 +1,0 @@
-\begin{tikzpicture}[every node/.style={draw,align=center,font=\small},node distance=13mm]
-\node (a) {Own norm/inverse functions\\Core coefficients};
-\node (b) [below of=a] {Graph basis witnesses\\prefix and products};
-\node (c) [below of=b] {Pgraph networks + exact elimination};
-\node (d) [below of=c] {Native value/phase/cleanup};
-\node (e) [below of=d] {Measured global envelope};
-\draw[->] (a)--(b);\draw[->] (b)--(c);\draw[->] (c)--(d);\draw[->] (d)--(e);
-\draw[->] (e.east)--++(24mm,0)|-(c.east);
-\end{tikzpicture}

@@ -1,8 +1,0 @@
-\begin{tikzpicture}[every node/.style={draw,rounded corners,align=center,text width=11cm},node distance=15mm]
-\node (a) {Existing Core recipe and independent native quadratic map};
-\node (b) [below of=a] {Exact factor flips, normalization and bounded restarts};
-\node (c) [below of=b] {301 coefficient points and native phase/jet admission};
-\node (d) [below of=c] {Checkpoint and contextual cost decision};
-\node (e) [below of=d] {Promising candidate: complete official local verification};
-\draw[->] (a)--(b);\draw[->] (b)--(c);\draw[->] (c)--(d);\draw[->] (d)--(e);
-\end{tikzpicture}

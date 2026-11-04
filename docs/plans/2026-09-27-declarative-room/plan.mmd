@@ -1,9 +1,0 @@
-flowchart TD
-  Prior["prior commits: transformation dc002b2, hymeko_web da94b0b"] --> WP1
-  WP1["WP1 hymeko_query EffectiveFields; geometry delegates"] --> Decision{vocabulary for room markers?}
-  Decision -- "A: spatial fiducial_anchor" --> WebXR["WP2 room projection in hymeko_webxr"]
-  Decision -- "B: room vocabulary beside ROS" --> SDK["WP2 room projection in hymeko_wasm"]
-  WebXR --> Models["WP3 role types on both room sources, CLI gate"]
-  SDK --> Models
-  Models --> Equivalence["WP4 equivalence with today's path readers"]
-  Equivalence --> Report["README, symbols, duplication, report, push"]

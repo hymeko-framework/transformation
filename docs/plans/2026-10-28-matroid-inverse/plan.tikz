@@ -1,8 +1,0 @@
-\begin{tikzpicture}[every node/.style={draw,rounded corners,align=center,text width=11cm},node distance=16mm]
-\node (a) {Own norm / inverse / product function hypergraphs};
-\node (b) [below of=a] {Graph witnesses and checked component gate synthesis};
-\node (c) [below of=b] {Typed macro bindings and reversible cleanup schedules};
-\node (d) [below of=c] {Canonical gate model; exact sparse verification; P-graph choice};
-\node (e) [below of=d] {Independent native field oracle and matching public references};
-\draw[->] (a)--(b);\draw[->] (b)--(c);\draw[->] (c)--(d);\draw[->] (d)--(e);
-\end{tikzpicture}

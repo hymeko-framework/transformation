@@ -1,1 +1,0 @@
-\documentclass[tikz,border=6pt]{standalone}\begin{document}\begin{tikzpicture}[every node/.style={draw,align=center}]\node(a)at(0,0){Core / Query};\node(b)at(4,0){Existing emitters};\node(c)at(8,1){Native consumers};\node(d)at(8,-1){Invariant checks};\draw[->](a)--(b);\draw[->](b)--(c);\draw[->](b)--(d);\end{tikzpicture}\end{document}

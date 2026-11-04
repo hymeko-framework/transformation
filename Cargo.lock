@@ -513,17 +513,17 @@ checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 [[package]]
 name = "hymeko_clifford"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7#9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7"
+source = "git+https://github.com/hymeko-framework/tensor.git?rev=2b0c18523e977d36691af2738bb8f4feabd8dc4b#2b0c18523e977d36691af2738bb8f4feabd8dc4b"
 
 [[package]]
 name = "hymeko_core"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/core.git?rev=9f533ca8f9cd39806d8db9a0a68cda7932c81ae2#9f533ca8f9cd39806d8db9a0a68cda7932c81ae2"
+source = "git+https://github.com/hymeko-framework/core.git?rev=957cf76a19989c077ee5a10b283f5382441b8f08#957cf76a19989c077ee5a10b283f5382441b8f08"
 dependencies = [
  "blake3",
  "ciborium",
  "crossbeam-queue",
- "hymeko_tensor 0.1.0 (git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7)",
+ "hymeko_tensor",
  "parser",
  "rayon",
  "rustc-hash",
@@ -562,22 +562,23 @@ dependencies = [
 [[package]]
 name = "hymeko_graph"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=ea1c588697dd07412bc008a4a41813db8969a83e#ea1c588697dd07412bc008a4a41813db8969a83e"
+source = "git+https://github.com/hymeko-framework/graph.git?rev=31f0bfaf2d008fdd15399ec83457b7b54f61b23d#31f0bfaf2d008fdd15399ec83457b7b54f61b23d"
 dependencies = [
  "dashmap",
  "hymeko_core",
+ "hymeko_numerics",
  "rayon",
 ]
 
 [[package]]
 name = "hymeko_kinematics"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/geometry.git?rev=bf79d26f358e0de413c933657818ed80722d20e3#bf79d26f358e0de413c933657818ed80722d20e3"
+source = "git+https://github.com/hymeko-framework/geometry.git?rev=f9b166d83ef8f4c0dcc9077179b7a920978e542e#f9b166d83ef8f4c0dcc9077179b7a920978e542e"
 dependencies = [
  "hymeko_clifford",
  "hymeko_sbsh",
  "hymeko_spline",
- "hymeko_tensor 0.1.0 (git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=6769dabc70587356b2a6542faa336de152f382c4)",
+ "hymeko_tensor",
 ]
 
 [[package]]
@@ -599,12 +600,17 @@ dependencies = [
 [[package]]
 name = "hymeko_mesh"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/geometry.git?rev=a9c8b44d703828a3ca9c1a3dcd1ad633949a64fe#a9c8b44d703828a3ca9c1a3dcd1ad633949a64fe"
+source = "git+https://github.com/hymeko-framework/geometry.git?rev=f9b166d83ef8f4c0dcc9077179b7a920978e542e#f9b166d83ef8f4c0dcc9077179b7a920978e542e"
 dependencies = [
  "meshopt",
  "serde",
  "serde_json",
 ]
+
+[[package]]
+name = "hymeko_numerics"
+version = "0.1.0"
+source = "git+https://github.com/hymeko-framework/tensor.git?rev=2b0c18523e977d36691af2738bb8f4feabd8dc4b#2b0c18523e977d36691af2738bb8f4feabd8dc4b"
 
 [[package]]
 name = "hymeko_query"
@@ -629,7 +635,7 @@ dependencies = [
 [[package]]
 name = "hymeko_sbsh"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/graph.git?rev=ea1c588697dd07412bc008a4a41813db8969a83e#ea1c588697dd07412bc008a4a41813db8969a83e"
+source = "git+https://github.com/hymeko-framework/graph.git?rev=31f0bfaf2d008fdd15399ec83457b7b54f61b23d#31f0bfaf2d008fdd15399ec83457b7b54f61b23d"
 dependencies = [
  "hymeko_core",
  "hymeko_graph",
@@ -638,17 +644,12 @@ dependencies = [
 [[package]]
 name = "hymeko_spline"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=514f7e8385a3bf7665494b94c2ae5acc4d5114a0#514f7e8385a3bf7665494b94c2ae5acc4d5114a0"
+source = "git+https://github.com/hymeko-framework/tensor.git?rev=2b0c18523e977d36691af2738bb8f4feabd8dc4b#2b0c18523e977d36691af2738bb8f4feabd8dc4b"
 
 [[package]]
 name = "hymeko_tensor"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=6769dabc70587356b2a6542faa336de152f382c4#6769dabc70587356b2a6542faa336de152f382c4"
-
-[[package]]
-name = "hymeko_tensor"
-version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7#9317ecf773d55a0e7968273a63bc2f4e8dbcc7c7"
+source = "git+https://github.com/hymeko-framework/tensor.git?rev=2b0c18523e977d36691af2738bb8f4feabd8dc4b#2b0c18523e977d36691af2738bb8f4feabd8dc4b"
 
 [[package]]
 name = "hymeko_webxr"
@@ -749,13 +750,13 @@ dependencies = [
 [[package]]
 name = "kawakern"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/kawakern.git?rev=2bc23ea906ea1442755e4ca5f62f94e8885889ca#2bc23ea906ea1442755e4ca5f62f94e8885889ca"
+source = "git+https://github.com/hymeko-framework/kawakern.git?rev=9f10d2a218813c121a14655fae01e5097a2c3e7e#9f10d2a218813c121a14655fae01e5097a2c3e7e"
 dependencies = [
  "hymeko_clifford",
  "hymeko_kinematics",
  "hymeko_sbsh",
  "hymeko_spline",
- "hymeko_tensor 0.1.0 (git+ssh://git@192.168.1.228:2222/hymeko/tensor.git?rev=6769dabc70587356b2a6542faa336de152f382c4)",
+ "hymeko_tensor",
  "serde",
 ]
 
@@ -917,7 +918,7 @@ dependencies = [
 [[package]]
 name = "parser"
 version = "0.1.0"
-source = "git+ssh://git@192.168.1.228:2222/hymeko/parser.git?rev=f11628591a8183586492807ecdf43c64e6d31c5f#f11628591a8183586492807ecdf43c64e6d31c5f"
+source = "git+https://github.com/hymeko-framework/parser.git?rev=a7b50743fe9f55a8c122f27b3986478919f29345#a7b50743fe9f55a8c122f27b3986478919f29345"
 dependencies = [
  "lalrpop",
  "lalrpop-util",
