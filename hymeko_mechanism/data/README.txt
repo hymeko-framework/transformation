@@ -21,7 +21,7 @@ surface-refine.hymeko: fairing, constrained quad reconstruction, normal filterin
 The character workflow is projected here but executed by the consuming asset
 owner; arbitrary command/executable stages are not admitted.
 
-  cargo build --locked --offline -p hymeko_mechanism --no-default-features --features authoring,mesh-optimization --example surface_prepare
+  cargo build --locked -p hymeko_mechanism --no-default-features --features authoring,mesh-optimization --example surface_prepare
   target/debug/examples/surface_prepare recipe hymeko_mechanism/data/surface-smooth.hymeko geometry RECIPE.json
   target/debug/examples/surface_prepare pipeline hymeko_mechanism/data/surface-refine.hymeko geometry INPUT_MESH.json OUTPUT.json
 On Windows use .exe. Output files must be new. A JSON source argument is the
@@ -50,4 +50,4 @@ operator limits still apply. Run callbacks provide stage progress/cancellation;
 the CLI checks HYMEKO_GEOMETRY_CANCEL_FILE between stages. No operator runs per
 frame. These limits are admission limits, not measured performance guarantees.
 
-  cargo test --locked --offline -p hymeko_mechanism --no-default-features --features authoring,mesh-optimization --test geometry_pipeline
+  cargo test --locked -p hymeko_mechanism --no-default-features --features authoring,mesh-optimization --test geometry_pipeline

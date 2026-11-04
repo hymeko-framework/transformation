@@ -66,7 +66,7 @@ and vocabulary affect similarities; operator counts are not cost estimates.
 Build the existing executable, then export one descriptor:
 
 ```sh
-cargo build --locked --offline -p hymeko_formats --bin metaheuristic_contract
+cargo build --locked -p hymeko_formats --bin metaheuristic_contract
 target/debug/metaheuristic_contract --structural \
   hymeko_formats/data/metaheuristics/catalog/hho.hymeko /path/to/NEW_EXPORT
 ```
@@ -75,18 +75,9 @@ The same command preserves canonical roundtrip verification and fresh-directory
 protection. It writes `structure.json`, `contract.hymeko` and `contract.dot`.
 Without `--structural`, the existing exact DE/GA export stays unchanged.
 
-Run the research consumer from the Hystl repository:
-
-```sh
-python3 research/metaheuristics-pilot/identification_study.py  # preview
-python3 research/metaheuristics-pilot/identification_study.py --run \
-  --projector /path/to/transformation/target/debug/metaheuristic_contract \
-  --corpus /path/to/transformation/hymeko_formats/data/metaheuristics/catalog \
-  --output /path/to/NEW_IDENTIFICATION
-```
-
-It reuses the existing bounded command runner and artifact writer. No optimizer,
-physics engine, LLM or new parser is invoked. There are 81 bounded projection
+A research consumer outside this repository drives the identification study
+through this executable and corpus. No optimizer, physics engine, LLM or new
+parser is invoked. There are 81 bounded projection
 commands: ten references, 50 metamorphic observations, ten bad-role inputs, ten
 mechanism changes and one arithmetic counterexample. Results include individual
 verdicts, leave-one-method-out and duplicate-reference controls, source/binary
@@ -102,7 +93,5 @@ benchmarks require additional operational models and actual execution traces.
 Owner checks:
 
 ```sh
-cargo test --locked --offline -p hymeko_formats --test metaheuristic_catalog
-python3 -m unittest discover -s research/metaheuristics-pilot \
-  -p test_identification_study.py
+cargo test --locked -p hymeko_formats --test metaheuristic_catalog
 ```
