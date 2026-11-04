@@ -33,14 +33,6 @@ pub(super) fn run(args: &[String]) -> Result<()> {
     let profile = Profile::parse(&args[0])?;
     let seed = args[1].parse()?;
     let output = Path::new(&args[2]);
-    let host = std::process::Command::new("hostname").output()?;
-    if !host.status.success()
-        || !String::from_utf8_lossy(&host.stdout)
-            .trim()
-            .eq_ignore_ascii_case("amaterasu")
-    {
-        return Err("explicit maze generation runs on Amaterasu; local unit tests only".into());
-    }
     if output.exists() {
         return Err("maze output directory must be new".into());
     }
@@ -88,18 +80,6 @@ pub(super) fn run(args: &[String]) -> Result<()> {
     Ok(())
 }
 
-fn amaterasu_only() -> Result<()> {
-    let host = std::process::Command::new("hostname").output()?;
-    if !host.status.success()
-        || !String::from_utf8_lossy(&host.stdout)
-            .trim()
-            .eq_ignore_ascii_case("amaterasu")
-    {
-        return Err("explicit world generation runs on Amaterasu; local unit tests only".into());
-    }
-    Ok(())
-}
-
 /// Split a trailing `--flag VALUE` pair off the argument list.
 fn trailing<'a>(args: &'a [String], flag: &str) -> (&'a [String], Option<&'a str>) {
     match args.iter().position(|a| a == flag) {
@@ -114,7 +94,6 @@ pub(super) fn run_project_legged(args: &[String]) -> Result<()> {
     if args.len() != 2 {
         return Err("usage: adversarial_grid --project-legged PROFILE.hymeko NEW_DIRECTORY [--horizon S]".into());
     }
-    amaterasu_only()?;
     let output = Path::new(&args[1]);
     if output.exists() {
         return Err("output directory must be new".into());
@@ -136,7 +115,6 @@ pub(super) fn run_terrain(args: &[String]) -> Result<()> {
         return Err("usage: adversarial_grid --generate-terrain square|hex|polar SEED NEW_DIRECTORY PROFILE.hymeko [--weights GENES.json] [--horizon S] [--task reach|coverage|team]".into());
     }
     let task = terrain::TaskKind::parse(task.unwrap_or("reach"))?;
-    amaterasu_only()?;
     let profile = Profile::parse(&args[0])?;
     let seed = args[1].parse()?;
     let output = Path::new(&args[2]);

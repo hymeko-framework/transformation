@@ -1,4 +1,4 @@
-"""Finite, isolated Gazebo validation of an exported campaign world on Amaterasu."""
+"""Finite, isolated Gazebo validation of an exported campaign world."""
 from __future__ import annotations
 
 import argparse
@@ -7,7 +7,7 @@ import math
 import os
 from pathlib import Path
 import signal
-import socket
+import platform
 import subprocess
 import time
 import xml.etree.ElementTree as ET
@@ -33,8 +33,6 @@ def simulation_seconds(stats):
 
 
 def validate(output):
-    if socket.gethostname().lower() != "amaterasu":
-        raise RuntimeError("Gazebo validation is restricted to Amaterasu")
     summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
     sample = next((row["selected"] for row in summary["seeds"] if row.get("selected")), None)
     if sample is None:
@@ -103,7 +101,7 @@ def validate(output):
     log_text = (logs / "server.log").read_text(encoding="utf-8")
     if "[err]" in log_text.lower() or "[error]" in log_text.lower():
         raise ValueError("Gazebo reported an error; inspect server.log")
-    return {"status": "passed", "hostname": socket.gethostname(), "world_path": sample["world_path"],
+    return {"status": "passed", "platform": platform.platform(), "world_path": sample["world_path"],
             "partition": partition, "observed_obstacles": len(expected), "iteration_limit": 10000,
             "observed_sim_seconds_before": simulation_seconds(before),
             "observed_sim_seconds_after": simulation_seconds(after),

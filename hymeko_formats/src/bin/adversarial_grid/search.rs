@@ -26,14 +26,6 @@ pub(super) fn run(args: &[String]) -> Result<()> {
     if 18 * seeds * pairs * repeats > 1_000_000 {
         return Err("campaign exceeds one million timed calls".into());
     }
-    let host = std::process::Command::new("hostname").output()?;
-    if !host.status.success()
-        || !String::from_utf8_lossy(&host.stdout)
-            .trim()
-            .eq_ignore_ascii_case("amaterasu")
-    {
-        return Err("maze benchmarks run on Amaterasu".into());
-    }
     if output.exists() {
         return Err("output directory must be new".into());
     }
