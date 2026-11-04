@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod test_geom_extension {
     use crate::test_helpers::load_and_lower;
-    use hymeko_geometry::kinematics::kinematic::{
+    use hymeko_mechanism::kinematics::kinematic::{
         CollisionMask, GeometryShape, KinematicModel, extract_kinematic_model,
     };
     use hymeko_query::engine::QueryEngine;

@@ -1,9 +1,0 @@
-[package]
-name = "hymeko_sources"
-version = "0.1.0"
-edition = "2024"
-description = "Compiling HyMeKo models from sources held in memory, for targets with no file system"
-license = "MIT OR Apache-2.0"
-
-[dependencies]
-hymeko_core = { workspace = true }

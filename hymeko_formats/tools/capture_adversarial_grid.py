@@ -1,4 +1,4 @@
-"""Capture three real Gazebo camera views of a canonical SDF on Amaterasu.
+"""Capture three real Gazebo camera views of a canonical SDF.
 
 Requires the host's existing Gazebo and Pillow installations. The capture-only
 SDF adds sensors, preserving every original world element and model unchanged.
@@ -13,7 +13,7 @@ import math
 import os
 from pathlib import Path
 import signal
-import socket
+import platform
 import subprocess
 import time
 import xml.etree.ElementTree as ET
@@ -22,8 +22,6 @@ from validate_adversarial_grid_gazebo import run
 
 
 def capture(source, output):
-    if socket.gethostname().lower() != "amaterasu":
-        raise RuntimeError("Gazebo rendering is restricted to Amaterasu")
     from PIL import Image
 
     started = time.monotonic()
@@ -92,7 +90,7 @@ def capture(source, output):
     bounded(["gz", "sdf", "--check", str(capture_world)], "sdf-check.txt")
     command = ["gz", "sim", "-s", "-r", "--headless-rendering", "--iterations", "60000",
                "-v", "4", str(capture_world)]
-    evidence = {"hostname": socket.gethostname(), "source": str(source),
+    evidence = {"platform": platform.platform(), "source": str(source),
                 "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
                 "capture_sdf_sha256": hashlib.sha256(capture_world.read_bytes()).hexdigest(),
                 "original_world_elements_unchanged": True,

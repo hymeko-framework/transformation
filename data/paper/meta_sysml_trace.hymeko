@@ -22,9 +22,12 @@ sysml_trace {
         meta_element {}
         requirement: + <isa> meta_element {}
         block:       + <isa> meta_element {}
+        // Authored outcome: -1 unknown, 0 fail, 1 pass; not an executed test verdict.
+        test_case:   + <isa> meta_element {}
     }
 
     @satisfies {}
     @derives {}
     @allocated_to {}
+    @verifies {} // (+ test_case, - requirement)
 }

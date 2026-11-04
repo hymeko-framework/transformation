@@ -1,7 +1,0 @@
-\begin{tikzpicture}[every node/.style={draw,align=center}]
-\node (ir) at (0,0) {Compiled canonical IR};
-\node (q) at (0,-1.4) {Existing query predicates};
-\node (c) at (0,-2.8) {Count assertions + bounded witnesses};
-\node (d) at (0,-4.2) {Grid checks then Graph / export};
-\draw[->] (ir)--(q);\draw[->] (q)--(c);\draw[->] (c)--(d);
-\end{tikzpicture}

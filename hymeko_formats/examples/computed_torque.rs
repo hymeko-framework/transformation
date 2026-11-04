@@ -21,9 +21,9 @@
 
 use std::time::Instant;
 
-use hymeko_geometry::articulated::AbaPlan;
-use hymeko_geometry::kinematics::joints::JointType;
-use hymeko_geometry::kinematics::kinematic::{KinematicModel, extract_kinematic_model};
+use kawakern::articulated::AbaPlan;
+use hymeko_mechanism::kinematics::joints::JointType;
+use hymeko_mechanism::kinematics::kinematic::{KinematicModel, extract_kinematic_model};
 use hymeko_query::QueryEngine;
 
 /// Control rate. A real arm runs its inner loop here or faster.

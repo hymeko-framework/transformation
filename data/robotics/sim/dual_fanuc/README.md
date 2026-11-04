@@ -120,10 +120,7 @@ stderr/stdout.
   (`limit_lower`, `limit_upper`, `limit_effort`, `limit_velocity`).
   The reference-style `limit -> j1_limit;` syntax that
   `anthropomorphic_arm.hymeko` uses is **not** picked up by the
-  kinematic extractor — that's a separate `hymeko_query` follow-up
-  gated on a CORE.YAML approval token. See
-  [`reports/2026-05-16-sdf-rich-emit-flag.md`](../../../reports/2026-05-16-sdf-rich-emit-flag.md)
-  for the full story.
+  kinematic extractor — that's a separate `hymeko_query` follow-up.
 * Rotation limits are pass-through (degrees in, degrees out).
   SDF and URDF formally expect radians; conversion is an open
   follow-up that affects both emitters identically.

@@ -1,1 +1,0 @@
-\begin{tikzpicture}[node distance=8mm]\node[draw] (d) {10 authored HyMeKo descriptors};\node[draw,below=of d] (c) {Core compile + Query contracts};\node[draw,below=of c] (p) {Formats: label-free incidence features};\node[draw,below=of p] (r) {Research: identification, controls, similarity matrix};\draw[->] (d)--(c);\draw[->] (c)--(p);\draw[->] (p)--(r);\end{tikzpicture}

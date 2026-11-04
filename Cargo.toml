@@ -1,28 +1,29 @@
 # hymeko/transformation — the HyMeKo IR→output (transformation) layer.
 #   hymeko_emitter : editor IR + M2T emitters (.hymeko, SysML v2, Rust stubs, Lean 4)
 #   hymeko_query   : pattern-matching query engine over the hypergraph IR
-#   hymeko_geometry: the geometric/kinematic reading of the IR — shapes, links, joints, forward kinematics
+#   hymeko_mechanism: mechanisms (and geometry recipes) read out of the IR into the hymeko_kinematics model
 #   hymeko_formats : built-in format emitters (URDF/SDF/MJCF/DOT/Mermaid/Gazebo) — query plugin
-#   hymeko_optimize: IR -> constrained-optimisation problem (MNA, duals, replaceable backends)
-#   hymeko_dynamics: IR -> port-Hamiltonian system (J from signed incidence, modal analysis)
-#   hymeko_sources : a SourceProvider over strings, so a model compiles where there is no disk
 #   hymeko_webxr  : WebXR/spatial vocabulary, validation and borrowed queries over the canonical IR
 #   hymeko_relational: IR -> relational tables (declarations, fields, bases, arcs, a table per kind) + PostgreSQL
 # `core` and `parser` are external repos, pulled as git dependencies.
 [workspace]
 resolver = "2"
-members = ["hymeko_emitter", "hymeko_query", "hymeko_geometry", "hymeko_formats", "hymeko_optimize", "hymeko_dynamics", "hymeko_sources", "hymeko_webxr", "hymeko_relational"]
+members = ["hymeko_emitter", "hymeko_query", "hymeko_mechanism", "hymeko_formats", "hymeko_webxr", "hymeko_relational"]
 
 [workspace.dependencies]
 # Pinned to the integrated core commit: WebXR is supplied by this workspace's
 # hymeko_webxr crate while core supplies canonical IR and transport codecs.
-hymeko_core = { git = "https://github.com/hymeko-framework/core.git", rev = "21f36f697d4249fd696466bd7bab8556f5d42fe8" }
-parser = { git = "https://github.com/hymeko-framework/parser.git", rev = "f11628591a8183586492807ecdf43c64e6d31c5f" }
+hymeko_core = { git = "https://github.com/hymeko-framework/core.git", rev = "957cf76a19989c077ee5a10b283f5382441b8f08" }
+parser = { git = "https://github.com/hymeko-framework/parser.git", rev = "a7b50743fe9f55a8c122f27b3986478919f29345" }
 # The Tensor pillar's geometric algebra — SE(n) rigid motions live there, not here.
 # Same published Tensor revision as the numerics owner consumed by Dynamics.
-hymeko_clifford = { git = "https://github.com/hymeko-framework/tensor.git", rev = "2d5c64347c4e75c6a520a1d1ee26e0895e127680" }
+hymeko_clifford = { git = "https://github.com/hymeko-framework/tensor.git", rev = "2b0c18523e977d36691af2738bb8f4feabd8dc4b" }
 serde = "1.0.228"
 log = "0.4.29"
 
-hymeko_graph = { git = "https://github.com/hymeko-framework/graph.git", rev = "c79dc62efbc371c7e76bdb39ad19feb66d172492" }
-hymeko_sbsh = { git = "https://github.com/hymeko-framework/graph.git", rev = "c79dc62efbc371c7e76bdb39ad19feb66d172492" }
+hymeko_graph = { git = "https://github.com/hymeko-framework/graph.git", rev = "31f0bfaf2d008fdd15399ec83457b7b54f61b23d" }
+# IR-free meshes, materials (hymeko_mesh) and kinematic computation (hymeko_kinematics) are owned by
+# the Geometry repository; physics over the kinematic model is the kawakern repository.
+hymeko_mesh = { git = "https://github.com/hymeko-framework/geometry.git", rev = "f9b166d83ef8f4c0dcc9077179b7a920978e542e" }
+hymeko_kinematics = { git = "https://github.com/hymeko-framework/geometry.git", rev = "f9b166d83ef8f4c0dcc9077179b7a920978e542e", default-features = false }
+kawakern = { git = "https://github.com/hymeko-framework/kawakern.git", rev = "9f10d2a218813c121a14655fae01e5097a2c3e7e" }

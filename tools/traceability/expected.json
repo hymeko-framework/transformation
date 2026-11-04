@@ -1,0 +1,196 @@
+{
+  "entities": {
+    "R_stop": {
+      "kind": "requirement",
+      "text": "Stop within 200 ms",
+      "outcome": null
+    },
+    "R_accuracy": {
+      "kind": "requirement",
+      "text": "Position error <= 0.5 mm",
+      "outcome": null
+    },
+    "R_cycle": {
+      "kind": "requirement",
+      "text": "Cycle time <= 4 s",
+      "outcome": null
+    },
+    "R_grip": {
+      "kind": "requirement",
+      "text": "Retain the payload",
+      "outcome": null
+    },
+    "R_repeat": {
+      "kind": "requirement",
+      "text": "Repeatability <= 0.1 mm",
+      "outcome": null
+    },
+    "R_diagnostics": {
+      "kind": "requirement",
+      "text": "Record stop diagnostics",
+      "outcome": null
+    },
+    "R_training": {
+      "kind": "requirement",
+      "text": "Provide operator training",
+      "outcome": null
+    },
+    "R_orphan": {
+      "kind": "requirement",
+      "text": "Document maintenance intervals",
+      "outcome": null
+    },
+    "SafetyController": {
+      "kind": "component",
+      "text": null,
+      "outcome": null
+    },
+    "MotionPlanner": {
+      "kind": "component",
+      "text": null,
+      "outcome": null
+    },
+    "Arm": {
+      "kind": "component",
+      "text": null,
+      "outcome": null
+    },
+    "Gripper": {
+      "kind": "component",
+      "text": null,
+      "outcome": null
+    },
+    "Diagnostics": {
+      "kind": "component",
+      "text": null,
+      "outcome": null
+    },
+    "T_stop": {
+      "kind": "test_case",
+      "text": null,
+      "outcome": 1
+    },
+    "T_accuracy": {
+      "kind": "test_case",
+      "text": null,
+      "outcome": 1
+    },
+    "T_cycle": {
+      "kind": "test_case",
+      "text": null,
+      "outcome": 0
+    },
+    "T_grip": {
+      "kind": "test_case",
+      "text": null,
+      "outcome": -1
+    },
+    "T_repeat": {
+      "kind": "test_case",
+      "text": null,
+      "outcome": 1
+    },
+    "T_diagnostics": {
+      "kind": "test_case",
+      "text": null,
+      "outcome": 1
+    }
+  },
+  "relations": {
+    "sat_stop": {
+      "kind": "satisfies",
+      "source": "SafetyController",
+      "target": "R_stop"
+    },
+    "sat_stop_review": {
+      "kind": "satisfies",
+      "source": "SafetyController",
+      "target": "R_stop"
+    },
+    "sat_accuracy_plan": {
+      "kind": "satisfies",
+      "source": "MotionPlanner",
+      "target": "R_accuracy"
+    },
+    "sat_accuracy_arm": {
+      "kind": "satisfies",
+      "source": "Arm",
+      "target": "R_accuracy"
+    },
+    "sat_cycle": {
+      "kind": "satisfies",
+      "source": "MotionPlanner",
+      "target": "R_cycle"
+    },
+    "sat_grip": {
+      "kind": "satisfies",
+      "source": "Gripper",
+      "target": "R_grip"
+    },
+    "sat_repeat": {
+      "kind": "satisfies",
+      "source": "Arm",
+      "target": "R_repeat"
+    },
+    "sat_diagnostics": {
+      "kind": "satisfies",
+      "source": "Diagnostics",
+      "target": "R_diagnostics"
+    },
+    "alloc_stop": {
+      "kind": "allocated_to",
+      "source": "R_stop",
+      "target": "SafetyController"
+    },
+    "alloc_accuracy": {
+      "kind": "allocated_to",
+      "source": "R_accuracy",
+      "target": "Arm"
+    },
+    "alloc_training": {
+      "kind": "allocated_to",
+      "source": "R_training",
+      "target": "Diagnostics"
+    },
+    "derive_repeat": {
+      "kind": "derives",
+      "source": "R_repeat",
+      "target": "R_accuracy"
+    },
+    "derive_diagnostics": {
+      "kind": "derives",
+      "source": "R_diagnostics",
+      "target": "R_stop"
+    },
+    "verify_stop": {
+      "kind": "verifies",
+      "source": "T_stop",
+      "target": "R_stop"
+    },
+    "verify_accuracy": {
+      "kind": "verifies",
+      "source": "T_accuracy",
+      "target": "R_accuracy"
+    },
+    "verify_cycle": {
+      "kind": "verifies",
+      "source": "T_cycle",
+      "target": "R_cycle"
+    },
+    "verify_grip": {
+      "kind": "verifies",
+      "source": "T_grip",
+      "target": "R_grip"
+    },
+    "verify_repeat": {
+      "kind": "verifies",
+      "source": "T_repeat",
+      "target": "R_repeat"
+    },
+    "verify_diagnostics": {
+      "kind": "verifies",
+      "source": "T_diagnostics",
+      "target": "R_diagnostics"
+    }
+  }
+}

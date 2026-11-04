@@ -1,20 +1,59 @@
 //! Scene composition over the checked maze DTO; Core/Query/Geometry own projection.
 use super::maze::{MazeGeometry, MazeWall};
 use super::*;
+use std::collections::BTreeMap;
 use hymeko::module_store::{execution::CompiledModel, source_provider::StdFsProvider};
-use hymeko_geometry::{
+use hymeko_mechanism::{
     collide::{Convex, Placement, intersects},
     kinematics::kinematic::extract_kinematic_model,
 };
 
-struct Body {
-    name: String,
-    centre: [f64; 3],
-    size: [f64; 3],
-    yaw: f64,
-    dynamic: bool,
-    velocity: [f64; 3],
-    color: [f64; 4],
+/// One authored physical body. The optional terrain fields are emitted only when set,
+/// so maze documents and digests are unchanged.
+#[derive(Clone)]
+pub(super) struct Body {
+    pub(super) name: String,
+    pub(super) centre: [f64; 3],
+    pub(super) size: [f64; 3],
+    pub(super) yaw: f64,
+    pub(super) dynamic: bool,
+    pub(super) velocity: [f64; 3],
+    pub(super) color: [f64; 4],
+    /// Mount pitch in radians (terrain ramps).
+    pub(super) pitch: f64,
+    /// Surface sliding friction for this body's geometry.
+    pub(super) friction: Option<f64>,
+    /// Prescribed kinematic motion: dynamics_role 2.
+    pub(super) motion: Option<Motion>,
+    /// Declared contact role for robot checks: ground, wall, obstacle, hurdle or mover.
+    pub(super) surface: Option<&'static str>,
+}
+
+/// Sinusoidal kinematic translation about the mount position, in world axes.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+pub(super) struct Motion {
+    pub(super) axis: [f64; 2],
+    pub(super) amplitude_m: f64,
+    pub(super) period_s: f64,
+    pub(super) phase_rad: f64,
+}
+
+impl Body {
+    pub(super) fn fixed(name: String, centre: [f64; 3], size: [f64; 3], yaw: f64, color: [f64; 4]) -> Self {
+        Self {
+            name,
+            centre,
+            size,
+            yaw,
+            dynamic: false,
+            velocity: [0.; 3],
+            color,
+            pitch: 0.,
+            friction: None,
+            motion: None,
+            surface: None,
+        }
+    }
 }
 
 fn placement(centre: [f64; 3], yaw: f64) -> Placement {
@@ -59,6 +98,10 @@ fn stimulus(maze: &MazeGeometry) -> Result<(usize, Vec<Body>)> {
             .iter()
             .enumerate()
             .map(|(i, (name, offset, along, z, speed))| Body {
+                pitch: 0.,
+                friction: None,
+                motion: None,
+                surface: None,
                 name: (*name).into(),
                 centre: [
                     wall.centre_m[0] + offset * normal[0] + along * c,
@@ -96,16 +139,14 @@ fn stimulus(maze: &MazeGeometry) -> Result<(usize, Vec<Body>)> {
 }
 
 impl Body {
-    fn wall(wall: &MazeWall) -> Self {
-        Self {
-            name: format!("wall_{}", wall.index),
-            centre: wall.centre_m,
-            size: wall.full_size_m,
-            yaw: wall.yaw_rad,
-            dynamic: false,
-            velocity: [0.; 3],
-            color: [0.25, 0.4, 0.5, 1.],
-        }
+    pub(super) fn wall(wall: &MazeWall) -> Self {
+        Self::fixed(
+            format!("wall_{}", wall.index),
+            wall.centre_m,
+            wall.full_size_m,
+            wall.yaw_rad,
+            [0.25, 0.4, 0.5, 1.],
+        )
     }
 
     fn append(&self, source: &mut String) -> Result<()> {
@@ -117,11 +158,15 @@ impl Body {
             dynamic,
             velocity: [vx, vy, vz],
             color,
+            pitch,
+            friction,
+            motion,
+            surface,
         } = self;
+        let role = if motion.is_some() { 2 } else { u8::from(*dynamic) };
         writeln!(
             source,
-            "{name}: meta_kinematics.kinematics.elements.link {{\norigin [0,0,0]; dynamics_role {}; velocity_x {vx}; velocity_y {vy}; velocity_z {vz}; color [{},{},{},{}];",
-            u8::from(*dynamic),
+            "{name}: meta_kinematics.kinematics.elements.link {{\norigin [0,0,0]; dynamics_role {role}; velocity_x {vx}; velocity_y {vy}; velocity_z {vz}; color [{},{},{},{}];",
             color[0],
             color[1],
             color[2],
@@ -132,13 +177,127 @@ impl Body {
                 "mass 1; inertia_com { xx 0.0096; yy 0.0096; zz 0.0096; xy 0; xz 0; yz 0; }\n",
             );
         }
+        if let Some(mu) = friction {
+            writeln!(source, "surface_friction {mu};")?;
+        }
+        if let Some(role) = surface {
+            writeln!(source, "surface_role \"{role}\";")?;
+        }
+        if let Some(m) = motion {
+            writeln!(
+                source,
+                "motion_axis_x {}; motion_axis_y {}; motion_amplitude_m {}; motion_period_s {}; motion_phase_rad {};",
+                m.axis[0], m.axis[1], m.amplitude_m, m.period_s, m.phase_rad
+            )?;
+        }
         writeln!(
             source,
-            "link_geometry: meta_kinematics.kinematics.geometry.box {{ dimension [{a},{b},{c}]; }} visual -> link_geometry; collision -> link_geometry; }}\n@mount_{name}: meta_kinematics.kinematics.fixed_joint {{ (+ world [[{x},{y},{z}],[0,0,{}]], - {name}); }}",
+            "link_geometry: meta_kinematics.kinematics.geometry.box {{ dimension [{a},{b},{c}]; }} visual -> link_geometry; collision -> link_geometry; }}\n@mount_{name}: meta_kinematics.kinematics.fixed_joint {{ (+ world [[{x},{y},{z}],[0,{},{}]], - {name}); }}",
+            pitch.to_degrees(),
             yaw.to_degrees()
         )?;
         Ok(())
     }
+}
+
+/// The owner-emitted physical composition shared by maze and terrain scenes.
+pub(super) struct Composition {
+    pub(super) digest: String,
+    pub(super) objects: Vec<Value>,
+    pub(super) numbers: BTreeMap<String, f64>,
+}
+
+/// Write `model.hymeko` and `scene.xml` for the named physical record, then query the
+/// manifest values back from Core. `record` is the header line after the import block.
+pub(super) fn compose(
+    output: &Path,
+    import_name: &str,
+    record: &str,
+    root: &str,
+    bodies: &[Body],
+    numbers: &[&str],
+) -> Result<Composition> {
+    let mut source = format!("{import_name} {{ @\"meta_kinematics.hymeko\"; }}\n{record}\n");
+    for body in bodies {
+        body.append(&mut source)?;
+    }
+    source.push_str("}\n");
+    fs::write(
+        output.join("meta_kinematics.hymeko"),
+        include_str!("../../../data/robotics/meta_kinematics.hymeko"),
+    )?;
+    fs::write(output.join("model.hymeko"), source)?;
+    let document = CompiledModel::compile(
+        StdFsProvider::new(),
+        RealParser,
+        &output.join("model.hymeko"),
+    )
+    .map_err(|e| format!("physical model compile: {e:?}"))?;
+    let query = QueryEngine::new(&document.program().ir, document.interner());
+    let profile_id = query
+        .query_first(&Predicate::named(root))
+        .ok_or("missing physical profile")?
+        .id;
+    let number = |decl, key: &str| -> Result<f64> {
+        match query.effective_value(decl, key) {
+            Some(ValueR::Num(v)) if v.is_finite() => Ok(*v),
+            _ => Err(format!("missing physical field {key}").into()),
+        }
+    };
+    let optional = |decl, key: &str| match query.effective_value(decl, key) {
+        Some(ValueR::Num(v)) if v.is_finite() => Some(*v),
+        _ => None,
+    };
+    let model = extract_kinematic_model(&query, root);
+    if model.links.len() != bodies.len() + 1 || model.joints.len() != bodies.len() {
+        return Err("physical projection lost a declared body or mounting joint".into());
+    }
+    let objects = model.links.iter().filter(|link| link.name != "world").map(|link| -> Result<Value> {
+        let role = number(link.did, "dynamics_role")?;
+        if role != 0. && role != 1. && role != 2. { return Err("unknown dynamics_role".into()); }
+        let mut object = json!({"name":link.name,"decl_id":link.did.raw(),"dynamic":role==1.,
+            "initial_velocity_m_s":[number(link.did,"velocity_x")?,number(link.did,"velocity_y")?,number(link.did,"velocity_z")?]});
+        if let Some(mu) = optional(link.did, "surface_friction") {
+            object["friction"] = json!(mu);
+        }
+        if let Some(ValueR::Str(s)) = query.effective_value(link.did, "surface_role") {
+            object["surface"] = json!(document.interner().resolve(*s));
+        }
+        if role == 2. {
+            object["kinematic"] = json!(true);
+            object["motion"] = json!({
+                "axis":[number(link.did,"motion_axis_x")?,number(link.did,"motion_axis_y")?],
+                "amplitude_m":number(link.did,"motion_amplitude_m")?,
+                "period_s":number(link.did,"motion_period_s")?,
+                "phase_rad":number(link.did,"motion_phase_rad")?,
+            });
+        }
+        Ok(object)
+    }).collect::<Result<Vec<_>>>()?;
+    let xml = crate::generate_description(
+        &document.program().ir,
+        document.interner(),
+        root,
+        crate::OutputFormat::Mjcf,
+    )
+    .map_err(|error| error.to_string())?;
+    fs::write(output.join("scene.xml"), xml)?;
+    let digest: String = Canon::new(&document.program().ir, document.interner())
+        .hash()
+        .0
+        .0
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    let numbers = numbers
+        .iter()
+        .map(|key| Ok(((*key).to_owned(), number(profile_id, key)?)))
+        .collect::<Result<_>>()?;
+    Ok(Composition {
+        digest,
+        objects,
+        numbers,
+    })
 }
 
 /// Emit the canonical physical model and the existing owner's MJCF, then query runtime settings.
@@ -172,69 +331,32 @@ pub fn export(maze: &MazeGeometry, output: &Path, actor: Option<&Path>) -> Resul
         .map(|v| v.abs())
         .fold(0., f64::max)
         + 3.;
-    bodies.push(Body {
-        name: "floor".into(),
-        centre: [0., 0., -0.05],
-        size: [2. * extent, 2. * extent, 0.1],
-        yaw: 0.,
-        dynamic: false,
-        velocity: [0.; 3],
-        color: [0.72, 0.72, 0.66, 1.],
-    });
-    let mut source = String::from(
-        "maze_physics_description { @\"meta_kinematics.hymeko\"; }\nmaze_physics { timestep_s 0.002; duration_s 3; sample_every 10; contact_time_constant_s 0.008; contact_damping_ratio 1; sliding_friction 0.45; world: meta_kinematics.kinematics.elements.link {}\n",
-    );
-    for body in &bodies {
-        body.append(&mut source)?;
-    }
-    source.push_str("}\n");
-    fs::write(
-        output.join("meta_kinematics.hymeko"),
-        include_str!("../../../data/robotics/meta_kinematics.hymeko"),
-    )?;
-    fs::write(output.join("model.hymeko"), source)?;
-    let document = CompiledModel::compile(
-        StdFsProvider::new(),
-        RealParser,
-        &output.join("model.hymeko"),
-    )
-    .map_err(|e| format!("maze physics compile: {e:?}"))?;
-    let query = QueryEngine::new(&document.program().ir, document.interner());
-    let profile_id = query
-        .query_first(&Predicate::named("maze_physics"))
-        .ok_or("missing physical profile")?
-        .id;
-    let number = |decl, key: &str| -> Result<f64> {
-        match query.effective_value(decl, key) {
-            Some(ValueR::Num(v)) if v.is_finite() => Ok(*v),
-            _ => Err(format!("missing physical field {key}").into()),
-        }
-    };
-    let model = extract_kinematic_model(&query, "maze_physics");
-    if model.links.len() != bodies.len() + 1 || model.joints.len() != bodies.len() {
-        return Err("physical projection lost a declared body or mounting joint".into());
-    }
-    let objects = model.links.iter().filter(|link| link.name != "world").map(|link| -> Result<Value> {
-        let role = number(link.did, "dynamics_role")?;
-        if role != 0. && role != 1. { return Err("unknown dynamics_role".into()); }
-        Ok(json!({"name":link.name,"decl_id":link.did.raw(),"dynamic":role==1.,
-            "initial_velocity_m_s":[number(link.did,"velocity_x")?,number(link.did,"velocity_y")?,number(link.did,"velocity_z")?]}))
-    }).collect::<Result<Vec<_>>>()?;
-    let xml = crate::generate_description(
-        &document.program().ir,
-        document.interner(),
+    bodies.push(Body::fixed(
+        "floor".into(),
+        [0., 0., -0.05],
+        [2. * extent, 2. * extent, 0.1],
+        0.,
+        [0.72, 0.72, 0.66, 1.],
+    ));
+    let Composition {
+        digest,
+        objects,
+        numbers,
+    } = compose(
+        output,
+        "maze_physics_description",
+        "maze_physics { timestep_s 0.002; duration_s 3; sample_every 10; contact_time_constant_s 0.008; contact_damping_ratio 1; sliding_friction 0.45; world: meta_kinematics.kinematics.elements.link {}",
         "maze_physics",
-        crate::OutputFormat::Mjcf,
-    )
-    .map_err(|error| error.to_string())?;
-    fs::write(output.join("scene.xml"), xml)?;
-    let digest: String = Canon::new(&document.program().ir, document.interner())
-        .hash()
-        .0
-        .0
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect();
+        &bodies,
+        &[
+            "timestep_s",
+            "duration_s",
+            "sample_every",
+            "contact_time_constant_s",
+            "contact_damping_ratio",
+            "sliding_friction",
+        ],
+    )?;
     fs::write(
         output.join("physics.json"),
         serde_json::to_vec_pretty(&json!({
@@ -242,11 +364,11 @@ pub fn export(maze: &MazeGeometry, output: &Path, actor: Option<&Path>) -> Resul
             "canonical_digest":digest, "objects":objects, "selected_wall":format!("wall_{selected_wall}"),
             "mjcf":"scene.xml", "source":"model.hymeko", "backend":"mujoco",
             "mobility_boundary":"dynamics_role=1 selects a six-DOF freejoint on an owner-projected root body",
-            "timestep_s":number(profile_id,"timestep_s")?,"duration_s":number(profile_id,"duration_s")?,
-            "sample_every":number(profile_id,"sample_every")?,
-            "contact_time_constant_s":number(profile_id,"contact_time_constant_s")?,
-            "contact_damping_ratio":number(profile_id,"contact_damping_ratio")?,
-            "sliding_friction":number(profile_id,"sliding_friction")?
+            "timestep_s":numbers["timestep_s"],"duration_s":numbers["duration_s"],
+            "sample_every":numbers["sample_every"],
+            "contact_time_constant_s":numbers["contact_time_constant_s"],
+            "contact_damping_ratio":numbers["contact_damping_ratio"],
+            "sliding_friction":numbers["sliding_friction"]
         }))?,
     )?;
     if let Some((xml, profile)) = robot {
@@ -261,7 +383,7 @@ pub fn export(maze: &MazeGeometry, output: &Path, actor: Option<&Path>) -> Resul
 
 /// Reuse the actor contract and the existing kinematic/visual projections.
 fn robot_projection(maze: &MazeGeometry, path: &Path) -> Result<(String, Value)> {
-    use hymeko_geometry::kinematics::{kinematic::GeometryShape, visual::VisualSet};
+    use hymeko_mechanism::kinematics::{kinematic::GeometryShape, visual::VisualSet};
     let contract = super::physical::ActorContract::read(path)?;
     if contract.radius >= maze.clearance_radius_m || maze.route_points_m.len() < 2 {
         return Err("robot needs a validated, sufficiently wide route segment".into());

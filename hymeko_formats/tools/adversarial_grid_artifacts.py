@@ -1,6 +1,6 @@
 """Plot canonical campaign records; animate a grid path witness, not robot physics.
 
-Run on Amaterasu after adversarial_grid: python3 .../adversarial_grid_artifacts.py OUTPUT
+Run after adversarial_grid: python3 .../adversarial_grid_artifacts.py OUTPUT
 Plotting requires the host's existing matplotlib and Pillow installations.
 An all-infeasible campaign still produces a numeric summary without plotting.
 """
